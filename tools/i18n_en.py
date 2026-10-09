@@ -810,3 +810,4 @@ PHRASES += [
 ]
 PHRASES += [('</span>Analysiere …', '</span>Analysing …')]
 EXACT.update({'keine Bewertung': 'no rating', 'Bewertung bearbeiten': 'Edit rating', '+ Bewertung': '+ rating', 'Original': 'Original'})
+EXACT.update({'hell / mittel-hell / mittel / mittel-dunkel / dunkel': 'light / medium-light / medium / medium-dark / dark'})
