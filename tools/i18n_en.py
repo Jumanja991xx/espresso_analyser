@@ -644,3 +644,9 @@ PHRASES += [('">Rezept-Werkstatt</button>', '">Recipe workshop</button>'), ('id=
 PHRASES += [('<span class="k">Erster Tropfen</span>', '<span class="k">First drip</span>'),
   ('Bohnenalter aus deinem Röstdatum · ', 'Bean age from your roast date · ')]
 PHRASES += [('<span class="k">Bohnenalter</span>', '<span class="k">Bean age</span>')]
+
+EXACT.update({'minimal sauer': 'barely sour', 'merklich sauer': 'noticeably sour', 'sehr sauer': 'very sour',
+  'minimal bitter': 'barely bitter', 'merklich bitter': 'noticeably bitter', 'sehr bitter': 'very bitter',
+  'minimal zu stark': 'barely too strong', 'merklich zu stark': 'noticeably too strong', 'viel zu stark': 'much too strong',
+  'minimal zu dünn': 'barely too thin', 'merklich zu dünn': 'noticeably too thin', 'viel zu dünn': 'much too thin'})
+EXACT.update({' · Stärke ': ' · Strength ', ' (Skala −10 bis +10)': ' (scale −10 to +10)'})
