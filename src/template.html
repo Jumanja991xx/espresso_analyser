@@ -1891,6 +1891,11 @@ function ingestVisualizer(vis){
   const b = vis.brew || {}, ts = b.config?.unix_timestamp;
   if(!ts) return { shot:null, isNew:false };
   let shot = allShots().find(s => Math.abs((s.date?.getTime() || 0) / 1000 - ts) <= 90);
+  // Von Hand in der App eingetragener Shot (Speicherzeit liegt nach dem Bezug): gleiche Bohne, ±2 g Ausbeute, bis 20 min später
+  if(!shot){
+    const y = +b.brew_beverage_quantity || 0, bn = vis.bean?.name;
+    shot = APP.find(s => { const dt = (s.date?.getTime() || 0) / 1000 - ts; return dt >= -60 && dt <= 1200 && (!y || !s.yield || Math.abs(s.yield - y) <= 2) && (!bn || s.bean === bn); }) || null;
+  }
   let isNew = false;
   if(!shot){
     const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Mühle', config:{uuid:'vis'} }] }, '');
