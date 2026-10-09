@@ -855,3 +855,10 @@ EXACT.update({'✓ KI bestätigt die Empfehlung der App': '✓ AI confirms the a
   '<button class="btn small" type="button" id="aiTake">KI-Vorschlag ins Formular „Shot eintragen“</button>': '<button class="btn small" type="button" id="aiTake">Put AI suggestion into “Log a shot”</button>',
   'Übernommen. Nach dem Shot Zeit und Geschmack ergänzen.': 'Done. After the shot, add time and taste.'})
 PHRASES += [('<th>App</th><th>KI</th>', '<th>App</th><th>AI</th>')]
+
+EXACT.update({'Den Vergleich findest du oben bei „Nächster Shot“.': 'You’ll find the comparison above under “Next shot”.', 'Zum nächsten Shot': 'To next shot', 'Zum Vergleich': 'To comparison'})
+PHRASES += [('data-goto="hAi">Zur KI-Analyse</button>', 'data-goto="hAi">To AI analysis</button>')]
+
+EXACT.update({'✓ KI bestätigt diese Empfehlung': '✓ AI confirms this recommendation'})
+PHRASES += [('data-goto="hAi">Zur KI-Analyse</button></span></div>', 'data-goto="hAi">To AI analysis</button></span></div>')]
+PHRASES += [('<b>✓ KI bestätigt diese Empfehlung</b>', '<b>✓ AI confirms this recommendation</b>')]
