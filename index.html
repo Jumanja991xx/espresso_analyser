@@ -7,7 +7,10 @@
 <meta name="theme-color" content="#17675F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Dial-in">
+<link rel="alternate" hreflang="de" href="/">
+<link rel="alternate" hreflang="en" href="/en/">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2317675F'/%3E%3Cpath d='M16 6 L19 16 L16 26 L13 16Z' fill='white'/%3E%3C/svg%3E">
+<script>try{if(!localStorage.getItem('dk.lang')&&!/^de\b/i.test(navigator.language||'')&&(location.pathname==='/'||location.pathname==='/index.html'))location.replace('/en/')}catch(e){}</script>
 <title>Dial-in Kompass</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,9 +109,9 @@ button,select,input,textarea{font:inherit;color:inherit}
 .tile .d{font-size:12px;color:var(--muted)}
 .tile.main .v{color:var(--accent);font-size:28px}
 .conf{font-size:12px;border-radius:99px;padding:2px 10px;font-weight:600}
-.conf.hoch{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
-.conf.mittel{background:color-mix(in srgb,var(--sour) 20%,transparent);color:var(--warn-ink)}
-.conf.niedrig{background:var(--sunk);color:var(--muted)}
+.conf.high{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.conf.mid{background:color-mix(in srgb,var(--sour) 20%,transparent);color:var(--warn-ink)}
+.conf.low{background:var(--sunk);color:var(--muted)}
 ul.why{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 ul.why li::marker{color:var(--accent)}
 .hint{border-left:3px solid var(--sour);padding:4px 0 4px 10px;font-size:13.5px}
@@ -190,6 +193,10 @@ form.calc .field input{width:100%}
 @media (max-width:560px){form.calc{grid-template-columns:repeat(2,minmax(0,1fr))}}
 table.cal td.win{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--ink);font-weight:600}
 table.levers{min-width:760px}
+.lang{display:flex;gap:4px;font-size:12px;font-weight:600;letter-spacing:.04em}
+.lang a{padding:2px 9px;border:1px solid var(--line);border-radius:99px;color:var(--muted);text-decoration:none}
+.lang a:hover{border-color:var(--accent);color:var(--ink)}
+.lang a[aria-current="page"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
 .linkbtn:hover{color:var(--mixed)}
 .confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
@@ -211,6 +218,7 @@ table.levers{min-width:760px}
       <p>Lädt deinen Beanconqueror-Export samt Waagenkurven, analysiert jeden Shot und rechnet aus Mahlgrad, Zeit, Ausbeute, erstem Tropfen und Geschmack den nächsten Shot aus.</p>
     </div>
     <div class="import">
+      <nav class="lang" aria-label="Sprache"><a href="/" hreflang="de" lang="de" aria-current="page" onclick="try{localStorage.setItem('dk.lang','de')}catch(e){}">DE</a><a href="/en/" hreflang="en" lang="en" onclick="try{localStorage.setItem('dk.lang','en')}catch(e){}">EN</a></nav>
       <div class="row">
         <label class="btn primary" for="file">Dateien laden</label>
         <input id="file" type="file" accept=".xlsx,.xls,.csv,.zip,.json" multiple hidden>
@@ -239,6 +247,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
+const LOCALE = 'de-DE';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9äöüß%]/g, '');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -250,7 +259,7 @@ function num(v){
 }
 function fmt(v, d = 1){
   if(v == null || !isFinite(v)) return '–';
-  return v.toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d});
+  return v.toLocaleString(LOCALE, {minimumFractionDigits: d, maximumFractionDigits: d});
 }
 function fmtG(v, res){ return v == null ? '–' : fmt(v, res < 1 ? 1 : 0); }
 function parseTime(v){
@@ -269,10 +278,11 @@ function parseDate(v){
   if(m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
   const d = new Date(s); return isNaN(d) ? null : d;
 }
-const fmtDate = d => d ? d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) : '–';
+const fmtDate = d => d ? d.toLocaleDateString(LOCALE, {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString(LOCALE, {hour:'2-digit', minute:'2-digit'}) : '–';
 const daysBetween = (a, b) => (a - b) / 864e5;
 
 /* ---------- Spalten (Deutsch + Englisch) ---------- */
+/*i18n-off*/
 const BREW_COLS = {
   grind:['Mahlgrad','Grind size'], dose:['Kaffeemehl (gr)','Kaffeemehl','Grind weight','Ground coffee'],
   temp:['Brühtemperatur','Brew temperature'], method:['Brühmethode','Preparation method','Method'],
@@ -288,6 +298,7 @@ const BEAN_COLS = {
   decaf:['Entkoffeiniert','Decaffeinated'], flavor:['Geschmack','Aromatics','Flavour'], id:['Bohnen ID','Bean ID','Beans ID'],
   roast:['Rösttyp','Roast']
 };
+/*i18n-on*/
 function findCols(header, fields){
   const H = header.map(norm), out = {};
   for(const [k, al] of Object.entries(fields)){
@@ -303,10 +314,10 @@ function findCols(header, fields){
 const TASTES = [
   {k:'sour',   label:'sauer',        re:/sauer|säuer|säur|sour|acid/gi},
   {k:'bitter', label:'bitter',       re:/bitter/gi},
-  {k:'sharp',  label:'spitz/scharf', re:/spitz|scharf|adstring|astring|harsh/gi},
+  {k:'sharp',  label:'spitz/scharf', re:/spitz|scharf|adstring|astring|harsh|sharp/gi},
   {k:'thin',   label:'dünn',         re:/dünn|wässr|watery|thin/gi},
   {k:'unbal',  label:'unausgewogen', re:/unausgewogen|unbalanced|channel/gi},
-  {k:'good',   label:'gut/rund',     re:/sehr gut|ganz gut|rund|ausgewogen|balanced|lecker|perfekt|süß|sweet/gi},
+  {k:'good',   label:'gut/rund',     re:/sehr gut|ganz gut|rund|ausgewogen|balanced|lecker|perfekt|süß|sweet|good|great|round|delicious/gi},
 ];
 function tagNotes(text, rating, scale){
   const tags = {};
@@ -651,13 +662,15 @@ function getTargets(shots, anchor){
 }
 
 /* Wie deutlich war der Fehlgeschmack? (steuert die Schrittgröße) */
-const INTENS = { leicht:0.5, mittel:1, deutlich:1.5 };
+const INTENS = { light:0.5, medium:1, strong:1.5 };
+const CONF_LABEL = { high:'hoch', mid:'mittel', low:'niedrig' };
+const INTENS_LABEL = { light:'leicht', medium:'mittel', strong:'deutlich' };
 function intensityOf(s){
   if(UI.intensity[s.id]) return UI.intensity[s.id];
   const n = String(s.notes || '').toLowerCase();
-  if(/sehr|stark|deutlich|extrem|viel zu|total/.test(n)) return 'deutlich';
-  if(/etwas|leicht|eventuell|evtl|bisschen|minimal|\?/.test(n)) return 'leicht';
-  return 'mittel';
+  if(/sehr|stark|deutlich|extrem|viel zu|total|very|strong|extremely|way too/.test(n)) return 'strong';
+  if(/etwas|leicht|eventuell|evtl|bisschen|minimal|a bit|slightly|a little|maybe|\?/.test(n)) return 'light';
+  return 'medium';
 }
 /* Nachlauf lernen: wie viel landet nach dem Stoppen noch in der Tasse? */
 function learnOvershoot(shots){
@@ -683,7 +696,7 @@ function learnOvershoot(shots){
   return { g: v[Math.floor(v.length / 2)], n: v.length, src: vals[0].src };
 }
 
-function recommend(anchor, T, model, tags, shots, intensity = 'mittel'){
+function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const filter = isFilter(shots);
   const res = grinderRes(), sign = model.sign;
   const why = [], hints = [];
@@ -736,17 +749,17 @@ function recommend(anchor, T, model, tags, shots, intensity = 'mittel'){
   const dose = Math.round((T.dose + dDose) * 10) / 10;
   const yld = Math.round(dose * R);
   dT = Math.round(dT * k * 2) / 2;
-  if(k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'leicht' ? 'Nur leichter Fehlgeschmack: kleine Schritte bei Ratio und Temperatur.' : 'Deutlicher Fehlgeschmack: größere Schritte bei Ratio und Temperatur.');
+  if(k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'light' ? 'Nur leichter Fehlgeschmack: kleine Schritte bei Ratio und Temperatur.' : 'Deutlicher Fehlgeschmack: größere Schritte bei Ratio und Temperatur.');
   const temp = T.temp ? T.temp + dT : null;
 
-  let dG = 0, tPred = tGoal, conf = 'niedrig', method = 'rule';
+  let dG = 0, tPred = tGoal, conf = 'low', method = 'rule';
   const fL = flow(anchor);
   const maxStep = res < 1 ? 0.6 : 3;
   if(anchor.grind != null && fL){
     const fTarget = yld / tGoal;
     if(model.scope !== 'none'){
       dG = (fTarget - fL) / model.b; method = 'model';
-      conf = model.scope === 'bean' && model.r2 >= 0.5 && model.n >= 4 ? 'hoch' : 'mittel';
+      conf = model.scope === 'bean' && model.r2 >= 0.5 && model.n >= 4 ? 'high' : 'mid';
     } else {
       // Faustregel: 0,1 Einheit ≈ 1,5 s bzw. 1 Klick ≈ 3 s (Espresso)
       const tNow = yld / fL;
@@ -873,12 +886,13 @@ function rulerSVG(shots, anchor, rec){
 function roastClass(anchor){
   const b = anchor?.beanId ? DATA.beans[anchor.beanId] : null;
   const s = [b?.roast, b?.name, anchor?.bean].join(' ').toLowerCase();
-  if(/italian|french|dunkel|dark|vienna|spanish/.test(s)) return 'dunkel';
-  if(/light|hell|nordic|filter|city\b/.test(s)) return 'hell';
-  if(/medium|mittel|full city/.test(s)) return 'mittel';
+  if(/italian|french|dunkel|dark|vienna|spanish/.test(s)) return 'dark';
+  if(/light|hell|nordic|filter|city\b/.test(s)) return 'light';
+  if(/medium|mittel|full city/.test(s)) return 'medium';
   return null;
 }
-const TEMP_RANGE = { dunkel:[89, 92], mittel:[91, 94], hell:[93, 96] };
+const TEMP_RANGE = { dark:[89, 92], medium:[91, 94], light:[93, 96] };
+const ROAST_ADJ = { dark:'dunkle', medium:'mittlere', light:'helle' };
 function workshopBase(anchor, shots){
   const ok = s => s && s.grind != null && s.time && s.yield && s.dose;
   return ok(anchor) ? anchor : shots.find(ok) || null;
@@ -920,7 +934,7 @@ function effects(base, plan, rc){
   if(Math.abs(dtime) >= 1.5 && Math.abs(dd) < 0.3) out.push(dtime > 0
     ? `<b>Längere Kontaktzeit (${fmt(plan.time,0)} s):</b> feiner mahlen erhöht die Extraktion, mehr Süße und Körper, weniger Säure.`
     : `<b>Kürzere Kontaktzeit (${fmt(plan.time,0)} s):</b> gröber mahlen senkt die Extraktion, weniger Bitterkeit, eventuell mehr Säure.`);
-  if(rc && plan.temp && TEMP_RANGE[rc]){ const [a, b] = TEMP_RANGE[rc]; if(plan.temp < a - 0.5 || plan.temp > b + 0.5) out.push(`<span class="muted">Für eine ${rc}e Röstung liegt der übliche Bereich bei ${a}–${b} °C.</span>`); }
+  if(rc && plan.temp && TEMP_RANGE[rc]){ const [a, b] = TEMP_RANGE[rc]; if(plan.temp < a - 0.5 || plan.temp > b + 0.5) out.push(`<span class="muted">Für eine ${ROAST_ADJ[rc]} Röstung liegt der übliche Bereich bei ${a}–${b} °C.</span>`); }
   return out;
 }
 const GOALS = {
@@ -983,7 +997,7 @@ function workshopHTML(anchor, T, model, shots, scale){
   const calc = Object.assign({ dose: base.dose, yield: base.yield, time: Math.round((T.tMin + T.tMax) / 2), temp: base.temp || T.temp }, UI.calc?.[key] || {});
   const sim = simulate(base, model, res, calc);
   const eff = effects(base, calc, rc);
-  const goal = UI.goal || 'weniger sauer';
+  const goal = GOALS[UI.goal] ? UI.goal : Object.keys(GOALS)[0];
   const opts = goalOptions(goal, base, T, model, res);
   const cal = calibrationRows(base, model, res, T);
   const inWin = t => t != null && t >= T.tMin && t <= T.tMax;
@@ -1007,7 +1021,7 @@ function workshopHTML(anchor, T, model, shots, scale){
             <span class="muted" style="font-size:13px">${o.d} ${stepTxt(o.sim, res)}.</span>
           </div>`).join('')}
         </div>
-        <span class="muted" style="font-size:12.5px">Immer nur einen Hebel pro Shot ändern, dann bewerten. Die Reihenfolge entspricht der Wirksamkeit für dieses Ziel.${tr ? ` Für deine ${rc}e Röstung ist ${tr[0]}–${tr[1]} °C ein guter Bereich.` : ''}</span>
+        <span class="muted" style="font-size:12.5px">Immer nur einen Hebel pro Shot ändern, dann bewerten. Die Reihenfolge entspricht der Wirksamkeit für dieses Ziel.${tr ? ` Für deine ${ROAST_ADJ[rc]} Röstung ist ${tr[0]}–${tr[1]} °C ein guter Bereich.` : ''}</span>
       </div>
       <div>
         <h3>Rechner: was passiert, wenn …</h3>
@@ -1058,7 +1072,7 @@ function bindWorkshop(anchor, T, model, shots){
   $('#cKeepRatio').onclick = () => rr(() => { const c = readCalc(); c.yield = Math.round(c.dose * base.yield / base.dose * 2) / 2; UI.calc[key] = c; });
   $('#cReset').onclick = () => rr(() => { delete UI.calc[key]; });
   document.querySelectorAll('#goalChips .chip').forEach(c => c.onclick = () => rr(() => { UI.goal = c.dataset.g; }));
-  const opts = goalOptions(UI.goal || 'weniger sauer', base, T, model, grinderRes());
+  const opts = goalOptions(GOALS[UI.goal] ? UI.goal : Object.keys(GOALS)[0], base, T, model, grinderRes());
   document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => rr(() => { UI.calc[key] = { ...opts[+b.dataset.opt].plan }; }));
   $('#cApply').onclick = () => { const c = readCalc(); UI.targets[key] = { dose:c.dose, ratio:Math.round(c.yield / c.dose * 100) / 100, tMin:Math.round(c.time - 2.5), tMax:Math.round(c.time + 2.5), temp:c.temp }; saveUI(); render(); window.scrollTo({ top:0, behavior:'smooth' }); };
 }
@@ -1306,7 +1320,7 @@ function insightsHTML(shots, anchor, model, T, rec){
       else p.push(`Die Bohne war beim letzten Bezug ${age} Tage alt und liegt im guten Fenster.`);
     }
     if(bags.size > 1){
-      const dates = [...bags].map(id => DATA.beans[id]?.roastDate).filter(Boolean).map(d => d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
+      const dates = [...bags].map(id => DATA.beans[id]?.roastDate).filter(Boolean).map(d => d.toLocaleDateString(LOCALE, {day:'2-digit', month:'2-digit'}));
       p.push(`Die Bezüge stammen aus ${bags.size} Packungen${dates.length ? ` (Röstung ${dates.join(' und ')})` : ''}. Unterschiedlich alte Bohnen verschieben den passenden Mahlgrad.`);
     }
     if(decaf) p.push('Entkoffeinierter Kaffee ist meist löslicher und läuft schneller. Wird er bitter, lieber 1–2 °C kühler brühen als gröber mahlen.');
@@ -1442,12 +1456,12 @@ function render(){
         <div class="field"><label>Wie hat er geschmeckt?</label>
           <div class="chips" id="tasteChips">${TASTES.map(T => `<button type="button" class="chip" data-t="${T.k}" aria-pressed="${!!tags[T.k]}">${T.label}</button>`).join('')}</div>
         </div>
-        ${negTaste ? `<div class="row" style="font-size:13px"><span class="muted">Wie deutlich?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${x}</button>`).join('')}</div></div>` : ''}
+        ${negTaste ? `<div class="row" style="font-size:13px"><span class="muted">Wie deutlich?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
         ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Aus Notiz übernehmen</button>' : '<span class="muted" style="font-size:12.5px">Vorauswahl aus deiner Notiz und Bewertung. Antippen, um zu korrigieren.</span>'}
       </section>
 
       <section class="card rec" aria-labelledby="hRec">
-        <div class="card-head"><h2 id="hRec">Nächster Shot</h2><span class="conf ${rec.conf}">Sicherheit ${rec.conf}</span></div>
+        <div class="card-head"><h2 id="hRec">Nächster Shot</h2><span class="conf ${rec.conf}">Sicherheit ${CONF_LABEL[rec.conf]}</span></div>
         <div class="tiles">
           <div class="tile main"><span class="k">Mahlgrad</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span><span class="d">${anchor.grind != null ? dirTxt : 'Mahlgrad nicht numerisch'}</span></div>
           <div class="tile"><span class="k">Dosis</span><span class="v">${fmt(rec.dose,1)}</span><span class="d">g</span></div>

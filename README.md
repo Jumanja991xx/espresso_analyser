@@ -17,10 +17,12 @@ Alle Daten bleiben im Browser (localStorage). Zugangsdaten für den Cloud-Sync g
 
 | Pfad | Zweck |
 |---|---|
-| `index.html` | Die ausgelieferte App (wird von Vercel direkt serviert) |
+| `index.html` | Die App auf Deutsch (Vercel, `/`) |
+| `en/index.html` | Die App auf Englisch (Vercel, `/en/`) |
 | `src/template.html` | Quelltext der App |
-| `src/sample.json` | Erfundene Beispieldaten für „Mit Beispieldaten ausprobieren“ |
-| `tools/build.py` | Baut `index.html` (und `dist/claude-artifact.html`) aus `src/` |
+| `src/sample.json`, `src/sample_en.json` | Erfundene Beispieldaten für „Mit Beispieldaten ausprobieren“ |
+| `tools/i18n.py`, `tools/i18n_en.py` | Übersetzung ins Englische beim Build |
+| `tools/build.py` | Baut beide Sprachversionen (und `dist/claude-artifact.html`) aus `src/` |
 
 Nach Änderungen in `src/`:
 
@@ -28,4 +30,4 @@ Nach Änderungen in `src/`:
 python3 tools/build.py
 ```
 
-Danach `index.html` committen. Vercel deployt jeden Push auf `main` automatisch.
+Der Build meldet Textstellen ohne englische Übersetzung; neue Texte in `tools/i18n_en.py` ergänzen. Danach `index.html` und `en/index.html` committen. Vercel deployt jeden Push auf `main` automatisch.

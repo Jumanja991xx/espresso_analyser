@@ -1,3 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Dial-in Kompass: load your Beanconqueror export, analyse shots, work out your next espresso.">
+<meta name="theme-color" content="#17675F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dial-in">
+<link rel="alternate" hreflang="de" href="/">
+<link rel="alternate" hreflang="en" href="/en/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2317675F'/%3E%3Cpath d='M16 6 L19 16 L16 26 L13 16Z' fill='white'/%3E%3C/svg%3E">
+
 <title>Dial-in Kompass</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -194,22 +207,25 @@ table.levers{min-width:760px}
 .flowhint{font-size:13.5px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
 </style>
 
+<style>html{color-scheme:light}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}@media (prefers-color-scheme: dark){html{color-scheme:dark}}</style>
+</head>
+<body>
 <div class="wrap">
   <header class="top">
     <div class="lead">
-      <span class="eyebrow">Beanconqueror · Espresso-Dial-in</span>
+      <span class="eyebrow">Beanconqueror · Espresso dial-in</span>
       <h1>Dial-in Kompass</h1>
-      <p>Lädt deinen Beanconqueror-Export samt Waagenkurven, analysiert jeden Shot und rechnet aus Mahlgrad, Zeit, Ausbeute, erstem Tropfen und Geschmack den nächsten Shot aus.</p>
+      <p>Loads your Beanconqueror export including scale curves, analyses every shot and works out your next shot from grind, time, yield, first drip and taste.</p>
     </div>
     <div class="import">
-      <!--LANG-->
+      <nav class="lang" aria-label="Language"><a href="/" hreflang="de" lang="de" onclick="try{localStorage.setItem('dk.lang','de')}catch(e){}">DE</a><a href="/en/" hreflang="en" lang="en" aria-current="page" onclick="try{localStorage.setItem('dk.lang','en')}catch(e){}">EN</a></nav>
       <div class="row">
-        <label class="btn primary" for="file">Dateien laden</label>
+        <label class="btn primary" for="file">Load files</label>
         <input id="file" type="file" accept=".xlsx,.xls,.csv,.zip,.json" multiple hidden>
       </div>
       <div class="status" id="status"></div>
-      <button class="linkbtn" type="button" id="resetBtn" hidden>Alle Daten löschen</button>
-      <div class="confirm" id="resetConfirm" hidden><span>Alle Shots, Kurven, Rezepte und Zugangsdaten in diesem Browser löschen?</span><button class="btn small danger" type="button" id="resetYes">Löschen</button><button class="btn small" type="button" id="resetNo">Abbrechen</button></div>
+      <button class="linkbtn" type="button" id="resetBtn" hidden>Delete all data</button>
+      <div class="confirm" id="resetConfirm" hidden><span>Delete all shots, curves, recipes and credentials in this browser?</span><button class="btn small danger" type="button" id="resetYes">Delete</button><button class="btn small" type="button" id="resetNo">Cancel</button></div>
     </div>
   </header>
   <div id="banner" class="banner" hidden></div>
@@ -222,8 +238,8 @@ table.levers{min-width:760px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const SAMPLE = __SAMPLE__;
-const SAMPLE_LABEL = "Beispieldaten";
+const SAMPLE = {"Bezüge": [["Mahlgrad", "Kaffeemehl (gr)", "Brühtemperatur", "Brühmethode", "Bohnensorte", "Mühle", "Mühlengeschwindigkeit (rpm)", "Mühlen Timer", "Profil", "Brühmethoden Tools", "Temperatur Zeit", "Zeit", "Blooming-Zeit / Preinfusion", "Erster Kaffeetropfen", "Wassermenge", "Kaffeetyp", "Kaffee-Konzentration", "Bewertung", "Notizen", "Getränkmenge", "Gelöste Stoffe (TDS %)", "Extraction Yield %", "Uhrzeit (des Bezuges)", "Brührate", "Bohnenalter (Tage)", "Archiviert", "Bohnen ID", "Brühmethoden Id", "Mühlen Id"], ["7.9", 18, 91, "Siebträger", "Example Decaf", "Example grinder", 0, null, null, null, null, "28", null, "8", 0, null, null, 0, null, 36.5, 0, "0", "07.10.2026 15:20:00", null, -1, false, "bsp-decaf-0002", null, null], ["8.1", 18, 91, "Siebträger", "Example Decaf", "Example grinder", 0, null, null, null, null, "25", null, "7", 0, null, null, 6, "Better, still slightly sharp", 37.0, 0, "0", "06.10.2026 15:10:00", null, -1, false, "bsp-decaf-0002", null, null], ["8.4", 18, 91, "Siebträger", "Example Decaf", "Example grinder", 0, null, null, null, null, "21", null, "5", 0, null, null, 5, "Sour", 36.5, 0, "0", "05.10.2026 15:30:00", null, -1, false, "bsp-decaf-0002", null, null], ["8.0", 18, 92, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "26", null, "8", 0, null, null, 8, "Very good, nutty", 36.0, 0, "0", "05.10.2026 07:50:00", null, -1, false, "bsp-blend-0001", null, null], ["7.9", 18, 92, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "30", null, "9", 0, null, null, 7, "A bit thinner but sweet", 40.0, 0, "0", "04.10.2026 08:15:00", null, -1, false, "bsp-blend-0001", null, null], ["7.7", 18, 92, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "33", null, "11", 0, null, null, 5, "Bitter, dry", 36.0, 0, "0", "03.10.2026 08:05:00", null, -1, false, "bsp-blend-0001", null, null], ["7.9", 18, 92, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "29", null, "9", 0, null, null, 8, "Round, sweet, chocolatey", 38.0, 0, "0", "02.10.2026 08:20:00", null, -1, false, "bsp-blend-0001", null, null], ["8.0", 18, 93, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "27", null, "8", 0, null, null, 7, "Balanced, a bit sharp in the finish", 37.5, 0, "0", "02.10.2026 07:55:00", null, -1, false, "bsp-blend-0001", null, null], ["8.3", 18, 93, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "23", null, "6", 0, null, null, 5, "Still a bit sour", 36.5, 0, "0", "01.10.2026 08:25:00", null, -1, false, "bsp-blend-0001", null, null], ["8.6", 18, 93, "Siebträger", "Example Blend", "Example grinder", 0, null, null, null, null, "19", null, "5", 0, null, null, 4, "Sour, thin", 37.0, 0, "0", "01.10.2026 08:10:00", null, -1, false, "bsp-blend-0001", null, null]], "Bohnen": [["Name", "Röster", "Röstdatum", "Röstkategorie", "Röstgrad", "Rösttyp", "Eigener Röstgrad", "Mischung", "Gewicht", "Kosten", "Geschmack", "Cupping Punkte", "Entkoffeiniert", "Webseite", "EAN / Artikelnummer", "Notizen", "Bewertung", "Erstellungsdatum", "Bohnen ID", "Archiviert", "1. Herkunftsland", "1. Region", "1. Farm", "1. Farmer", "1. Anbauhöhe", "1. Varietät", "1. Aufbereitung", "1. Ernte", "1. Prozentualer Anteil", "1. Bohnenzertifikat"], ["Example Blend", "Example Roasters", "20.09.2026", "Espresso", null, "Medium Roast", null, null, null, null, "Chocolate, hazelnut", null, false, null, null, null, null, null, "bsp-blend-0001", false, null, null, null, null, null, null, null, null, null, null], ["Example Decaf", "Example Roasters", "15.09.2026", "Espresso", null, "Medium Roast", null, null, null, null, "Caramel, cocoa", null, true, null, null, null, null, null, "bsp-decaf-0002", false, null, null, null, null, null, null, null, null, null, null]]};
+const SAMPLE_LABEL = "Sample data";
 
 /* ---------- Helfer ---------- */
 const $ = s => document.querySelector(s);
@@ -231,7 +247,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-const LOCALE = 'de-DE';
+const LOCALE = 'en-GB';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9äöüß%]/g, '');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -296,12 +312,12 @@ function findCols(header, fields){
 
 /* ---------- Geschmack aus Notizen ---------- */
 const TASTES = [
-  {k:'sour',   label:'sauer',        re:/sauer|säuer|säur|sour|acid/gi},
+  {k:'sour',   label:'sour',        re:/sauer|säuer|säur|sour|acid/gi},
   {k:'bitter', label:'bitter',       re:/bitter/gi},
-  {k:'sharp',  label:'spitz/scharf', re:/spitz|scharf|adstring|astring|harsh|sharp/gi},
-  {k:'thin',   label:'dünn',         re:/dünn|wässr|watery|thin/gi},
-  {k:'unbal',  label:'unausgewogen', re:/unausgewogen|unbalanced|channel/gi},
-  {k:'good',   label:'gut/rund',     re:/sehr gut|ganz gut|rund|ausgewogen|balanced|lecker|perfekt|süß|sweet|good|great|round|delicious/gi},
+  {k:'sharp',  label:'sharp', re:/spitz|scharf|adstring|astring|harsh|sharp/gi},
+  {k:'thin',   label:'thin',         re:/dünn|wässr|watery|thin/gi},
+  {k:'unbal',  label:'unbalanced', re:/unausgewogen|unbalanced|channel/gi},
+  {k:'good',   label:'good/round',     re:/sehr gut|ganz gut|rund|ausgewogen|balanced|lecker|perfekt|süß|sweet|good|great|round|delicious/gi},
 ];
 function tagNotes(text, rating, scale){
   const tags = {};
@@ -335,7 +351,7 @@ function parseSheets(sheets, label){
     const b = findCols(rows[0].map(v => v ?? ''), BEAN_COLS);
     if(b.roastDate >= 0 && b.name >= 0 && !beanRows) beanRows = {rows, c:b};
   }
-  if(!brew) throw new Error('Im Export fehlt das Blatt mit den Bezügen (Spalten „Mahlgrad“, „Zeit“, „Bohnensorte“).');
+  if(!brew) throw new Error('The export has no brews sheet (columns “Mahlgrad/Grind size”, “Zeit/Time”, “Bohnensorte/Bean”).');
   const beans = {};
   if(beanRows){
     for(const r of beanRows.rows.slice(1)){
@@ -360,7 +376,7 @@ function parseSheets(sheets, label){
       tds: num(g('tds')) || null, ey: num(g('ey')) || null,
       bean: String(g('bean') ?? 'Unbekannt').trim() || 'Unbekannt',
       beanId: g('beanId'),
-      grinder: String(g('grinder') ?? 'Mühle').trim() || 'Mühle',
+      grinder: String(g('grinder') ?? 'Grinder').trim() || 'Grinder',
       method: g('method'),
       grindRaw,
       grind: /^-?\d+([.,]\d+)?$/.test(grindRaw) ? num(grindRaw) : null,
@@ -376,7 +392,7 @@ function parseSheets(sheets, label){
       archived: g('archived') === true
     });
   });
-  if(!shots.length) throw new Error('Der Export enthält keine Bezüge.');
+  if(!shots.length) throw new Error('The export contains no brews.');
   return { shots, beans, label };
 }
 
@@ -395,7 +411,7 @@ function parseBackup(J, label){
     const bean = beans[b.bean];
     return {
       id:'s' + b.config.unix_timestamp, uuid:b.config.uuid, source:'export', date,
-      bean: bean?.name || 'Unbekannt', beanId: b.bean, grinder: mills[b.mill] || 'Mühle', method: preps[b.method_of_preparation],
+      bean: bean?.name || 'Unbekannt', beanId: b.bean, grinder: mills[b.mill] || 'Grinder', method: preps[b.method_of_preparation],
       grindRaw, grind: /^-?\d+([.,]\d+)?$/.test(grindRaw) ? num(grindRaw) : null,
       dose: num(b.grind_weight) || null, tempRaw: tempRaw || null, temp: tempRaw >= 70 && tempRaw <= 100 ? tempRaw : null,
       time: sec(b.brew_time, b.brew_time_milliseconds), firstDrip: sec(b.coffee_first_drip_time, b.coffee_first_drip_time_milliseconds),
@@ -405,7 +421,7 @@ function parseBackup(J, label){
       deviceFlow: !!b.flow_profile
     };
   });
-  if(!shots.length) throw new Error('Das Backup enthält keine Bezüge.');
+  if(!shots.length) throw new Error('The backup contains no brews.');
   return { shots, beans, label };
 }
 
@@ -647,8 +663,8 @@ function getTargets(shots, anchor){
 
 /* Wie deutlich war der Fehlgeschmack? (steuert die Schrittgröße) */
 const INTENS = { light:0.5, medium:1, strong:1.5 };
-const CONF_LABEL = { high:'hoch', mid:'mittel', low:'niedrig' };
-const INTENS_LABEL = { light:'leicht', medium:'mittel', strong:'deutlich' };
+const CONF_LABEL = { high:'high', mid:'medium', low:'low' };
+const INTENS_LABEL = { light:'slight', medium:'medium', strong:'strong' };
 function intensityOf(s){
   if(UI.intensity[s.id]) return UI.intensity[s.id];
   const n = String(s.notes || '').toLowerCase();
@@ -669,9 +685,9 @@ function learnOvershoot(shots){
       if(iStop < 0) continue;
       const tStop = an.ft[iStop];
       let wStop = null; for(let i = 0; i < fl.t.length; i++){ if(fl.t[i] >= tStop){ wStop = fl.w[i]; break; } }
-      if(wStop != null){ const d = an.final - wStop; if(d >= 0 && d < 6) vals.push({ d, src:'Kurve' }); }
+      if(wStop != null){ const d = an.final - wStop; if(d >= 0 && d < 6) vals.push({ d, src:'curve' }); }
     } else if(s.planYield && s.yield){
-      const d = s.yield - s.planYield; if(Math.abs(d) < 6) vals.push({ d, src:'Plan' });
+      const d = s.yield - s.planYield; if(Math.abs(d) < 6) vals.push({ d, src:'plan' });
     }
     if(vals.length >= 6) break;
   }
@@ -689,7 +705,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   let tGoal = center;
   const t = anchor.time;
   const status = !t ? 'unknown' : t < T.tMin ? 'fast' : t > T.tMax ? 'slow' : 'ok';
-  const sTxt = {fast:`lief mit ${fmt(t,0)} s zu schnell`, slow:`lief mit ${fmt(t,0)} s zu lange`, ok:`lag mit ${fmt(t,0)} s im Zeitfenster`, unknown:'hat keine Zeit eingetragen'}[status];
+  const sTxt = {fast:`ran ${fmt(t,0)} s, too fast`, slow:`ran ${fmt(t,0)} s, too long`, ok:`was within the time window at ${fmt(t,0)} s`, unknown:'has no time recorded'}[status];
   const sour = tags.sour, bitter = tags.bitter, sharp = tags.sharp, thin = tags.thin;
   const mixed = tags.unbal || (sour && bitter);
   const good = tags.good && !sour && !bitter && !sharp && !thin && !mixed;
@@ -697,43 +713,43 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const rStep = (filter ? 1 : 0.2) * k;
 
   if(mixed){
-    why.push(`Sauer und bitter zugleich spricht für Channeling: Ein Teil des Pucks wird über-, ein Teil unterextrahiert.`);
-    hints.push('Puck-Vorbereitung prüfen: WDT gründlich, Bett eben, gerade tampen, Siebgröße passend zur Dosis. Erst danach weiter am Mahlgrad drehen.');
+    why.push(`Sour and bitter at the same time points to channeling: part of the puck is over-extracted, part under-extracted.`);
+    hints.push('Check puck prep: thorough WDT, level bed, straight tamp, basket size matching the dose. Only then keep adjusting the grind.');
     tGoal = center;
   } else if(good){
-    why.push(`Der Shot schmeckte gut und ${sTxt}.`);
+    why.push(`The shot tasted good and ${sTxt}.`);
     tGoal = status === 'ok' ? t : center;
-    if(status === 'ok') why.push('Rezept halten. Wenn du feintunen willst: Ratio um ±0,1 verändern und vergleichen.');
+    if(status === 'ok') why.push('Keep the recipe. To fine-tune: change the ratio by ±0.1 and compare.');
   } else if(sour || sharp){
-    const label = sour ? 'Sauer' : 'Spitz';
-    if(status === 'fast'){ why.push(`${label} und zu schnell: klassische Unterextraktion. Feiner mahlen, damit der Shot länger läuft.`); tGoal = center + (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, obwohl die Zeit passt: mehr Ausbeute (längere Ratio) zieht mehr Süße und Körper.`); if((T.temp || 0) < 95){ dT = 1; why.push('Zusätzlich 1 °C wärmer brühen.'); } }
-    else if(status === 'slow'){ dR = rStep; dT = (T.temp || 0) < 95 ? 1 : 0; tGoal = center; why.push(`${label} trotz langer Laufzeit deutet auf ungleichmäßigen Durchfluss oder zu kühles Wasser.`); hints.push('Puck-Vorbereitung prüfen (WDT, gerade tampen). Die Temperatur leicht anheben.'); }
-    else { dR = rStep / 2; why.push(`${label}: Ausbeute leicht erhöhen.`); }
+    const label = sour ? 'Sour' : 'Sharp';
+    if(status === 'fast'){ why.push(`${label} and too fast: classic under-extraction. Grind finer so the shot runs longer.`); tGoal = center + (filter ? 10 : 1); }
+    else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, although the time is right: more yield (longer ratio) pulls more sweetness and body.`); if((T.temp || 0) < 95){ dT = 1; why.push('Also brew 1 °C hotter.'); } }
+    else if(status === 'slow'){ dR = rStep; dT = (T.temp || 0) < 95 ? 1 : 0; tGoal = center; why.push(`${label} despite a long shot time points to uneven flow or water that is too cool.`); hints.push('Check puck prep (WDT, straight tamp). Raise the temperature slightly.'); }
+    else { dR = rStep / 2; why.push(`${label}: increase the yield slightly.`); }
   } else if(bitter){
-    if(status === 'slow'){ why.push('Bitter und zu lange: Überextraktion. Gröber mahlen, damit der Shot schneller läuft.'); tGoal = center - (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = -rStep; tGoal = Math.max(T.tMin, t - (filter ? 10 : 2) * k); why.push('Bitter bei passender Zeit: Shot früher stoppen (kürzere Ratio).'); if((T.temp || 0) > 90){ dT = -1; why.push('Zusätzlich 1 °C kühler brühen.'); } }
-    else if(status === 'fast'){ dT = -1; tGoal = center; why.push('Bitter trotz schneller Laufzeit ist untypisch und deutet meist auf Channeling oder eine dunkle Röstung hin.'); hints.push('Puck-Vorbereitung prüfen und die Temperatur um 1–2 °C senken.'); }
-    else { dR = -rStep / 2; why.push('Bitter: Ausbeute leicht reduzieren.'); }
+    if(status === 'slow'){ why.push('Bitter and too long: over-extraction. Grind coarser so the shot runs faster.'); tGoal = center - (filter ? 10 : 1); }
+    else if(status === 'ok'){ dR = -rStep; tGoal = Math.max(T.tMin, t - (filter ? 10 : 2) * k); why.push('Bitter with the right time: stop the shot earlier (shorter ratio).'); if((T.temp || 0) > 90){ dT = -1; why.push('Also brew 1 °C cooler.'); } }
+    else if(status === 'fast'){ dT = -1; tGoal = center; why.push('Bitter despite a fast shot is unusual and usually points to channeling or a dark roast.'); hints.push('Check puck prep and lower the temperature by 1–2 °C.'); }
+    else { dR = -rStep / 2; why.push('Bitter: reduce the yield slightly.'); }
   } else {
-    why.push(`Keine Geschmacksangabe. Der Shot ${sTxt}, die Empfehlung steuert auf die Mitte des Zeitfensters.`);
+    why.push(`No taste recorded. The shot ${sTxt}, so the recommendation aims for the middle of the time window.`);
   }
   if(thin){
     dDose = filter ? 1 : 0.5; if(dR === 0) dR = -rStep / 2;
-    why.push('Dünn und wässrig: etwas mehr Kaffeemehl und eine kürzere Ratio geben mehr Körper.');
+    why.push('Thin and watery: a little more coffee and a shorter ratio give more body.');
   }
   if(!filter && anchor.firstDrip){
-    if(anchor.firstDrip < 4) hints.push(`Der erste Tropfen kam schon nach ${fmt(anchor.firstDrip,0)} s. Das Wasser findet sehr schnell einen Weg durch den Puck: Verteilung und Tampen prüfen, eher feiner.`);
-    else if(anchor.firstDrip > 13) hints.push(`Der erste Tropfen kam erst nach ${fmt(anchor.firstDrip,0)} s. Der Puck ist sehr dicht, für die eigentliche Extraktion bleibt wenig Zeit.`);
+    if(anchor.firstDrip < 4) hints.push(`The first drip came after only ${fmt(anchor.firstDrip,0)} s. Water finds a path through the puck very quickly: check distribution and tamping, grind finer.`);
+    else if(anchor.firstDrip > 13) hints.push(`The first drip only came after ${fmt(anchor.firstDrip,0)} s. The puck is very dense, leaving little time for the actual extraction.`);
   }
   const fa = FLOWS[anchor.id] ? analyzeFlow(FLOWS[anchor.id], anchor) : null;
-  if(fa && fa.jump > 0.8) hints.push(`Die Waagenkurve zeigt bei ${fmt(fa.tJump,0)} s einen Flow-Sprung um ${fmt(fa.jump,1)} g/s, ein typisches Zeichen für Channeling.`);
+  if(fa && fa.jump > 0.8) hints.push(`The scale curve shows a flow jump at ${fmt(fa.tJump,0)} s of ${fmt(fa.jump,1)} g/s, a typical sign of channeling.`);
 
   const R = Math.round(clamp(T.ratio + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
   const dose = Math.round((T.dose + dDose) * 10) / 10;
   const yld = Math.round(dose * R);
   dT = Math.round(dT * k * 2) / 2;
-  if(k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'light' ? 'Nur leichter Fehlgeschmack: kleine Schritte bei Ratio und Temperatur.' : 'Deutlicher Fehlgeschmack: größere Schritte bei Ratio und Temperatur.');
+  if(k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'light' ? 'Only a slight off-taste: small steps in ratio and temperature.' : 'Strong off-taste: bigger steps in ratio and temperature.');
   const temp = T.temp ? T.temp + dT : null;
 
   let dG = 0, tPred = tGoal, conf = 'low', method = 'rule';
@@ -753,12 +769,12 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     const clamped = Math.abs(dG) > maxStep;
     dG = clamp(dG, -maxStep, maxStep);
     dG = Math.round(dG / res) * res;
-    if(clamped) hints.push('Die Daten verlangen eine größere Änderung. Die Empfehlung geht bewusst nur einen Teil des Weges, danach neu bewerten.');
+    if(clamped) hints.push('The data call for a bigger change. The recommendation deliberately goes only part of the way; taste and re-assess.');
     if(method === 'model'){ const f = fL + model.b * dG; tPred = f > 0.05 ? yld / f : tGoal; }
     else tPred = tGoal;
   }
   const newGrind = anchor.grind != null ? Math.round((anchor.grind + dG) / res) * res : null;
-  const dir = Math.abs(dG) < res / 2 ? 'halten' : (dG * sign > 0 ? 'gröber' : 'feiner');
+  const dir = Math.abs(dG) < res / 2 ? 'keep' : (dG * sign > 0 ? 'coarser' : 'finer');
   return { R, dose, yld, temp, dT, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter };
 }
 
@@ -779,15 +795,15 @@ function compassSVG(shots, anchor, rec, T){
   let x0 = Math.min(...times) - (f ? 20 : 3), x1 = Math.max(...times) + (f ? 20 : 3);
   let y0 = Math.min(...rats) - (f ? 1 : 0.15), y1 = Math.max(...rats) + (f ? 1 : 0.15);
   const X = v => L + (v - x0) / (x1 - x0) * (W - L - Rr), Y = v => Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Extraktionskarte: Zeit gegen Ratio">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Extraction map: time vs ratio">`;
   niceTicks(x0, x1, 6).forEach(v => s += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tp}" y2="${H - B}" stroke="var(--line)" stroke-width="1"/><text x="${X(v)}" y="${H - B + 16}" font-size="11" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmt(v, 0)}</text>`);
   niceTicks(y0, y1, 5).forEach(v => s += `<line x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end" fill="var(--muted)" font-family="IBM Plex Mono, monospace">1:${fmt(v, f ? 0 : 1)}</text>`);
   const rb = f ? 0.75 : 0.12;
   s += `<rect x="${X(T.tMin)}" y="${Y(T.ratio + rb)}" width="${X(T.tMax) - X(T.tMin)}" height="${Y(T.ratio - rb) - Y(T.ratio + rb)}" fill="var(--accent)" fill-opacity="0.12" stroke="var(--accent)" stroke-dasharray="4 3" rx="4"/>`;
-  s += `<text x="${X(T.tMin) + 6}" y="${Y(T.ratio + rb) + 14}" font-size="11" fill="var(--accent)" font-weight="600">Zielbereich</text>`;
-  s += `<text x="${L + 6}" y="${H - B - 8}" font-size="11" fill="var(--muted)">← schneller: eher sauer</text>`;
-  s += `<text x="${W - Rr - 6}" y="${H - B - 8}" font-size="11" fill="var(--muted)" text-anchor="end">langsamer: eher bitter →</text>`;
-  s += `<text x="${(L + W - Rr) / 2}" y="${H - 6}" font-size="11.5" text-anchor="middle" fill="var(--muted)">Zeit (s)</text>`;
+  s += `<text x="${X(T.tMin) + 6}" y="${Y(T.ratio + rb) + 14}" font-size="11" fill="var(--accent)" font-weight="600">Target</text>`;
+  s += `<text x="${L + 6}" y="${H - B - 8}" font-size="11" fill="var(--muted)">← faster: tends sour</text>`;
+  s += `<text x="${W - Rr - 6}" y="${H - B - 8}" font-size="11" fill="var(--muted)" text-anchor="end">slower: tends bitter →</text>`;
+  s += `<text x="${(L + W - Rr) / 2}" y="${H - 6}" font-size="11.5" text-anchor="middle" fill="var(--muted)">Time (s)</text>`;
   s += `<text transform="translate(12 ${(Tp + H - B) / 2}) rotate(-90)" font-size="11.5" text-anchor="middle" fill="var(--muted)">Ratio</text>`;
   if(rec && anchor?.time && ratio(anchor)){
     s += `<line x1="${X(anchor.time)}" y1="${Y(ratio(anchor))}" x2="${X(rec.tPred)}" y2="${Y(rec.R)}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 3"/>`;
@@ -799,7 +815,7 @@ function compassSVG(shots, anchor, rec, T){
   });
   if(rec){
     const cx = X(rec.tPred), cy = Y(rec.R);
-    s += `<path d="M${cx} ${cy - 9} L${cx + 9} ${cy} L${cx} ${cy + 9} L${cx - 9} ${cy} Z" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"><title>Nächster Shot</title></path>`;
+    s += `<path d="M${cx} ${cy - 9} L${cx + 9} ${cy} L${cx} ${cy + 9} L${cx - 9} ${cy} Z" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"><title>Next shot</title></path>`;
   }
   return s + '</svg>';
 }
@@ -813,11 +829,11 @@ function grindSVG(shots, anchor, rec, model, T){
   let x0 = Math.min(...gs) - res * 2, x1 = Math.max(...gs) + res * 2;
   let y0 = Math.min(...ts) - 3, y1 = Math.max(...ts) + 3;
   const X = v => L + (v - x0) / (x1 - x0) * (W - L - Rr), Y = v => Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mahlgrad gegen Laufzeit">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grind vs shot time">`;
   niceTicks(x0, x1, 7).forEach(v => s += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tp}" y2="${H - B}" stroke="var(--line)"/><text x="${X(v)}" y="${H - B + 16}" font-size="11" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmtG(v, res)}</text>`);
   niceTicks(y0, y1, 5).forEach(v => s += `<line x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmt(v, 0)}</text>`);
   s += `<rect x="${L}" y="${Y(T.tMax)}" width="${W - L - Rr}" height="${Y(T.tMin) - Y(T.tMax)}" fill="var(--accent)" fill-opacity="0.1"/>`;
-  s += `<text x="${W - Rr - 6}" y="${Y(T.tMax) + 13}" font-size="11" text-anchor="end" fill="var(--accent)" font-weight="600">Zeitfenster ${T.tMin}–${T.tMax} s</text>`;
+  s += `<text x="${W - Rr - 6}" y="${Y(T.tMax) + 13}" font-size="11" text-anchor="end" fill="var(--accent)" font-weight="600">Time window ${T.tMin}–${T.tMax} s</text>`;
   if(model.scope !== 'none' && anchor && flow(anchor) && anchor.grind != null && rec){
     let d = '';
     for(let i = 0; i <= 60; i++){
@@ -829,15 +845,15 @@ function grindSVG(shots, anchor, rec, model, T){
   }
   pts.slice().reverse().forEach(p => {
     const isA = anchor && p.id === anchor.id;
-    s += `<circle data-id="${esc(p.id)}" cx="${X(p.grind)}" cy="${Y(p.time)}" r="${isA ? 8 : 6}" fill="${COL[tasteClass(shotTags(p))]}" fill-opacity="${isA ? 1 : 0.8}" stroke="${isA ? 'var(--ink)' : 'var(--surface)'}" stroke-width="${isA ? 2 : 1.5}"><title>Mahlgrad ${esc(p.grindRaw)} · ${fmt(p.time,0)} s · ${fmt(p.yield,1)} g</title></circle>`;
+    s += `<circle data-id="${esc(p.id)}" cx="${X(p.grind)}" cy="${Y(p.time)}" r="${isA ? 8 : 6}" fill="${COL[tasteClass(shotTags(p))]}" fill-opacity="${isA ? 1 : 0.8}" stroke="${isA ? 'var(--ink)' : 'var(--surface)'}" stroke-width="${isA ? 2 : 1.5}"><title>Grind ${esc(p.grindRaw)} · ${fmt(p.time,0)} s · ${fmt(p.yield,1)} g</title></circle>`;
   });
   if(rec?.newGrind != null){
     const cx = X(rec.newGrind), cy = Y(clamp(rec.tPred, y0, y1));
-    s += `<path d="M${cx} ${cy - 9} L${cx + 9} ${cy} L${cx} ${cy + 9} L${cx - 9} ${cy} Z" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"><title>Empfehlung</title></path>`;
+    s += `<path d="M${cx} ${cy - 9} L${cx + 9} ${cy} L${cx} ${cy + 9} L${cx - 9} ${cy} Z" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"><title>Recommendation</title></path>`;
   }
-  const fine = UI.coarserHigher[UI.grinder] === false ? 'gröber ←  Mahlgrad  → feiner' : 'feiner ←  Mahlgrad  → gröber';
+  const fine = UI.coarserHigher[UI.grinder] === false ? 'coarser ←  grind  → finer' : 'finer ←  grind  → coarser';
   s += `<text x="${(L + W - Rr) / 2}" y="${H - 6}" font-size="11.5" text-anchor="middle" fill="var(--muted)">${fine}</text>`;
-  s += `<text transform="translate(12 ${(Tp + H - B) / 2}) rotate(-90)" font-size="11.5" text-anchor="middle" fill="var(--muted)">Zeit (s)</text>`;
+  s += `<text transform="translate(12 ${(Tp + H - B) / 2}) rotate(-90)" font-size="11.5" text-anchor="middle" fill="var(--muted)">Time (s)</text>`;
   return s + '</svg>';
 }
 function rulerSVG(shots, anchor, rec){
@@ -846,7 +862,7 @@ function rulerSVG(shots, anchor, rec){
   const gs = shots.filter(s => s.grind != null).map(s => s.grind).concat([rec.newGrind, anchor.grind]);
   let x0 = Math.min(...gs) - res * 3, x1 = Math.max(...gs) + res * 3;
   const X = v => L + (v - x0) / (x1 - x0) * (W - L - R);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mahlgradskala">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grind scale">`;
   s += `<line x1="${L}" x2="${W - R}" y1="34" y2="34" stroke="var(--ink)" stroke-width="1.5"/>`;
   const steps = Math.round((x1 - x0) / res);
   const labelEvery = Math.max(1, Math.ceil(steps / 10));
@@ -862,7 +878,7 @@ function rulerSVG(shots, anchor, rec){
   s += `<line x1="${ax}" x2="${ax}" y1="18" y2="34" stroke="var(--ink)" stroke-width="2"/>`;
   s += `<path d="M${nx - 6} 34 L${nx + 6} 34 L${nx} 24 Z" fill="var(--accent)"/>`;
   const fineLeft = UI.coarserHigher[UI.grinder] !== false;
-  s += `<text x="${L}" y="70" font-size="10.5" fill="var(--muted)">${fineLeft ? 'feiner' : 'gröber'}</text><text x="${W - R}" y="70" font-size="10.5" text-anchor="end" fill="var(--muted)">${fineLeft ? 'gröber' : 'feiner'}</text>`;
+  s += `<text x="${L}" y="70" font-size="10.5" fill="var(--muted)">${fineLeft ? 'finer' : 'coarser'}</text><text x="${W - R}" y="70" font-size="10.5" text-anchor="end" fill="var(--muted)">${fineLeft ? 'coarser' : 'finer'}</text>`;
   return s + '</svg>';
 }
 
@@ -876,7 +892,7 @@ function roastClass(anchor){
   return null;
 }
 const TEMP_RANGE = { dark:[89, 92], medium:[91, 94], light:[93, 96] };
-const ROAST_ADJ = { dark:'dunkle', medium:'mittlere', light:'helle' };
+const ROAST_ADJ = { dark:'dark', medium:'medium', light:'light' };
 function workshopBase(anchor, shots){
   const ok = s => s && s.grind != null && s.time && s.yield && s.dose;
   return ok(anchor) ? anchor : shots.find(ok) || null;
@@ -896,10 +912,10 @@ function simulate(base, model, res, plan){
   return { tSame, fSame, fNeed, dG, grind: Math.round((base.grind + dG) / res) * res, tPred: fNew > 0.1 ? plan.yield / fNew : null, steps: Math.round(dG / res), learned: model.scope !== 'none' };
 }
 function stepTxt(sim, res){
-  if(!sim.steps) return 'Mahlgrad bleibt';
+  if(!sim.steps) return 'Grind unchanged';
   const sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
-  const dir = sim.dG * sign > 0 ? 'gröber' : 'feiner';
-  return `${Math.abs(sim.steps)} ${res < 1 ? (Math.abs(sim.steps) === 1 ? 'Stufe' : 'Stufen') : (Math.abs(sim.steps) === 1 ? 'Klick' : 'Klicks')} ${dir} (${sim.dG > 0 ? '+' : '−'}${fmtG(Math.abs(sim.dG), res)})`;
+  const dir = sim.dG * sign > 0 ? 'coarser' : 'finer';
+  return `${Math.abs(sim.steps)} ${res < 1 ? (Math.abs(sim.steps) === 1 ? 'step' : 'steps') : (Math.abs(sim.steps) === 1 ? 'click' : 'clicks')} ${dir} (${sim.dG > 0 ? '+' : '−'}${fmtG(Math.abs(sim.dG), res)})`;
 }
 /* Was eine Änderung geschmacklich bewirkt */
 function effects(base, plan, rc){
@@ -907,41 +923,41 @@ function effects(base, plan, rc){
   const r0 = base.yield / base.dose, r1 = plan.yield / plan.dose;
   const dd = plan.dose - base.dose, dr = r1 - r0, dt = (plan.temp ?? base.temp ?? 0) - (base.temp ?? plan.temp ?? 0), dtime = plan.time - base.time;
   if(Math.abs(dd) >= 0.3) out.push(dd < 0
-    ? `<b>Weniger Kaffeemehl (${fmt(plan.dose,1)} g):</b> leichterer, klarerer Espresso mit etwas weniger Körper. Der dünnere Puck bremst weniger, deshalb muss die Mühle feiner. Im 17–19-g-Sieb bleibt bei weniger Dosis mehr Platz über dem Puck, der Puck wird nasser und kann leichter channeln.`
-    : `<b>Mehr Kaffeemehl (${fmt(plan.dose,1)} g):</b> mehr Körper und Intensität in der Tasse. Der höhere Puck bremst stärker, deshalb muss die Mühle gröber. Darauf achten, dass der Puck die Dusche nicht berührt.`);
+    ? `<b>Less coffee (${fmt(plan.dose,1)} g):</b> lighter, clearer espresso with a little less body. The thinner puck resists less, so the grinder has to go finer. In a 17–19 g basket a smaller dose leaves more headspace; the puck gets wetter and channels more easily.`
+    : `<b>More coffee (${fmt(plan.dose,1)} g):</b> more body and intensity in the cup. The taller puck resists more, so the grinder has to go coarser. Make sure the puck does not touch the shower screen.`);
   if(Math.abs(dr) >= 0.05) out.push(dr > 0
-    ? `<b>Längere Ratio (1:${fmt(r1,2)}):</b> mehr Extraktion, Säure tritt zurück, mehr Süße. Zu weit gedreht wird es dünner und am Ende bitter-trocken.`
-    : `<b>Kürzere Ratio (1:${fmt(r1,2)}):</b> konzentrierter, sirupiger, mehr Körper. Säure und Fruchtigkeit treten stärker hervor.`);
+    ? `<b>Longer ratio (1:${fmt(r1,2)}):</b> more extraction, acidity recedes, more sweetness. Pushed too far it gets thinner and bitter-dry at the end.`
+    : `<b>Shorter ratio (1:${fmt(r1,2)}):</b> more concentrated, syrupy, more body. Acidity and fruit come forward.`);
   if(Math.abs(dt) >= 0.5) out.push(dt > 0
-    ? `<b>Wärmer (${fmt(plan.temp,1)} °C):</b> extrahiert stärker. Säure wird runder, Röstaromen und Bitterkeit nehmen zu. Läuft minimal schneller.`
-    : `<b>Kühler (${fmt(plan.temp,1)} °C):</b> extrahiert schwächer. Weniger Bitterkeit und Röstschärfe, dafür mehr Säure. Gut für dunkle Röstungen und Robusta-Anteil.`);
+    ? `<b>Hotter (${fmt(plan.temp,1)} °C):</b> extracts more. Acidity gets rounder, roast notes and bitterness increase. Runs very slightly faster.`
+    : `<b>Cooler (${fmt(plan.temp,1)} °C):</b> extracts less. Less bitterness and roast harshness, more acidity. Good for dark roasts and robusta blends.`);
   if(Math.abs(dtime) >= 1.5 && Math.abs(dd) < 0.3) out.push(dtime > 0
-    ? `<b>Längere Kontaktzeit (${fmt(plan.time,0)} s):</b> feiner mahlen erhöht die Extraktion, mehr Süße und Körper, weniger Säure.`
-    : `<b>Kürzere Kontaktzeit (${fmt(plan.time,0)} s):</b> gröber mahlen senkt die Extraktion, weniger Bitterkeit, eventuell mehr Säure.`);
-  if(rc && plan.temp && TEMP_RANGE[rc]){ const [a, b] = TEMP_RANGE[rc]; if(plan.temp < a - 0.5 || plan.temp > b + 0.5) out.push(`<span class="muted">Für eine ${ROAST_ADJ[rc]} Röstung liegt der übliche Bereich bei ${a}–${b} °C.</span>`); }
+    ? `<b>Longer contact time (${fmt(plan.time,0)} s):</b> grinding finer increases extraction: more sweetness and body, less acidity.`
+    : `<b>Shorter contact time (${fmt(plan.time,0)} s):</b> grinding coarser lowers extraction: less bitterness, possibly more acidity.`);
+  if(rc && plan.temp && TEMP_RANGE[rc]){ const [a, b] = TEMP_RANGE[rc]; if(plan.temp < a - 0.5 || plan.temp > b + 0.5) out.push(`<span class="muted">For a ${ROAST_ADJ[rc]} roast the usual range is ${a}–${b} °C.</span>`); }
   return out;
 }
 const GOALS = {
-  'weniger sauer':   [ {t:'Feiner mahlen', d:'Längere Kontaktzeit extrahiert mehr Süße.', time:+3},
-                       {t:'Länger laufen lassen', d:'Mehr Ausbeute bei gleichem Mahlgrad-Ziel.', ratio:+0.2},
-                       {t:'Wärmer brühen', d:'Mehr Extraktion ohne Rezeptumbau.', temp:+1.5} ],
-  'weniger bitter':  [ {t:'Kühler brühen', d:'Der schnellste Hebel gegen Bitterkeit und Röstschärfe.', temp:-1.5},
-                       {t:'Früher stoppen', d:'Die letzten Gramm sind die bittersten.', ratio:-0.2},
-                       {t:'Gröber mahlen', d:'Kürzere Kontaktzeit, weniger Extraktion.', time:-3} ],
-  'mehr Süße':       [ {t:'Etwas feiner', d:'Süße liegt zwischen sauer und bitter. Ein kleiner Schritt mehr Extraktion.', time:+2},
-                       {t:'Etwas länger', d:'Ratio leicht erhöhen.', ratio:+0.1},
-                       {t:'1 °C wärmer', d:'Hilft vor allem, wenn noch Säure stört.', temp:+1} ],
-  'mehr Körper':     [ {t:'Kürzere Ratio', d:'Konzentrierter, sirupiger.', ratio:-0.2},
-                       {t:'Mehr Dosis', d:'Mehr Kaffee bei gleicher Ratio.', dose:+1},
-                       {t:'Etwas kühler', d:'Bei dunklen Röstungen oft cremiger.', temp:-1} ],
-  'klarer, leichter': [ {t:'Längere Ratio', d:'Weniger konzentriert, Aromen getrennter.', ratio:+0.3},
-                       {t:'Weniger Dosis', d:'Leichterer Espresso bei gleicher Ratio.', dose:-1},
-                       {t:'Etwas wärmer', d:'Mehr Extraktion bei längerer Ratio.', temp:+1, ratio:+0.2} ],
-  'weniger trocken': [ {t:'Etwas gröber', d:'Trockenheit kommt oft von zu feinem Mahlgut oder Channeling.', time:-2},
-                       {t:'Früher stoppen', d:'Das Ende des Shots trägt die meiste Adstringenz.', ratio:-0.15},
-                       {t:'Kühler', d:'Weniger herbe Röstnoten.', temp:-1} ],
-  'intensiver':      [ {t:'Kürzere Ratio', d:'Mehr gelöste Stoffe pro Gramm.', ratio:-0.25},
-                       {t:'Mehr Dosis', d:'Mehr Kaffee, gleiche Ratio.', dose:+1} ],
+  'less sour':   [ {t:'Grind finer', d:'Longer contact time extracts more sweetness.', time:+3},
+                       {t:'Run it longer', d:'More yield with the same time target.', ratio:+0.2},
+                       {t:'Brew hotter', d:'More extraction without changing the recipe.', temp:+1.5} ],
+  'less bitter':  [ {t:'Brew cooler', d:'The quickest lever against bitterness and roast harshness.', temp:-1.5},
+                       {t:'Stop earlier', d:'The last grams are the most bitter.', ratio:-0.2},
+                       {t:'Grind coarser', d:'Shorter contact time, less extraction.', time:-3} ],
+  'more sweetness':       [ {t:'Slightly finer', d:'Sweetness sits between sour and bitter. One small step more extraction.', time:+2},
+                       {t:'Slightly longer', d:'Raise the ratio a little.', ratio:+0.1},
+                       {t:'1 °C hotter', d:'Helps most if acidity still bothers you.', temp:+1} ],
+  'more body':     [ {t:'Shorter ratio', d:'More concentrated, syrupy.', ratio:-0.2},
+                       {t:'More dose', d:'More coffee at the same ratio.', dose:+1},
+                       {t:'Slightly cooler', d:'Often creamier with dark roasts.', temp:-1} ],
+  'clearer, lighter': [ {t:'Longer ratio', d:'Less concentrated, flavours more separated.', ratio:+0.3},
+                       {t:'Less dose', d:'Lighter espresso at the same ratio.', dose:-1},
+                       {t:'Slightly hotter', d:'More extraction with a longer ratio.', temp:+1, ratio:+0.2} ],
+  'less dry': [ {t:'Slightly coarser', d:'Dryness often comes from grinding too fine or from channeling.', time:-2},
+                       {t:'Stop earlier', d:'The end of the shot carries most of the astringency.', ratio:-0.15},
+                       {t:'Cooler', d:'Fewer harsh roast notes.', temp:-1} ],
+  'more intense':      [ {t:'Shorter ratio', d:'More dissolved solids per gram.', ratio:-0.25},
+                       {t:'More dose', d:'Mehr Kaffee, gleiche Ratio.', dose:+1} ],
 };
 function goalOptions(goal, base, T, model, res){
   const r0 = base.yield / base.dose;
@@ -974,7 +990,7 @@ function calibrationRows(base, model, res, T){
 function workshopHTML(anchor, T, model, shots, scale){
   if(isFilter(shots)) return '';
   const base = workshopBase(anchor, shots);
-  if(!base) return `<section class="card"><h2>Rezept-Werkstatt</h2><p class="muted">Dafür braucht es einen Shot mit Mahlgrad, Dosis, Ausbeute und Zeit.</p></section>`;
+  if(!base) return `<section class="card"><h2>Recipe workshop</h2><p class="muted">This needs a shot with grind, dose, yield and time.</p></section>`;
   const res = grinderRes();
   const rc = roastClass(base);
   const key = ctxKey();
@@ -993,55 +1009,55 @@ function workshopHTML(anchor, T, model, shots, scale){
   const tr = TEMP_RANGE[rc];
   return `
   <section class="card" id="werkstatt" aria-labelledby="hWs">
-    <div class="card-head"><h2 id="hWs">Rezept-Werkstatt</h2><span class="muted" style="font-size:13px">Ausgangspunkt: ${fmtDate(base.date)} · Mahlgrad ${esc(base.grindRaw)} · ${fmt(base.dose,1)} g → ${fmt(base.yield,1)} g · ${fmt(base.time,0)} s${base.temp ? ' · ' + fmt(base.temp,0) + ' °C' : ''}</span></div>
+    <div class="card-head"><h2 id="hWs">Recipe workshop</h2><span class="muted" style="font-size:13px">Starting point: ${fmtDate(base.date)} · grind ${esc(base.grindRaw)} · ${fmt(base.dose,1)} g → ${fmt(base.yield,1)} g · ${fmt(base.time,0)} s${base.temp ? ' · ' + fmt(base.temp,0) + ' °C' : ''}</span></div>
     <div class="ana-grid">
       <div>
-        <h3>Geschmack gezielt verändern</h3>
+        <h3>Change the taste on purpose</h3>
         <div class="chips" id="goalChips">${Object.keys(GOALS).map(g => `<button type="button" class="chip" data-g="${g}" aria-pressed="${g === goal}">${g}</button>`).join('')}</div>
         <div class="opts">${opts.map((o, i) => `
           <div class="opt">
-            <div class="opt-head"><b>${i + 1}. ${o.t}</b><button class="btn small" type="button" data-opt="${i}">In Rechner</button></div>
-            <span class="num opt-plan">Mahlgrad ${fmtG(o.sim.grind, res)} · ${fmt(o.plan.dose,1)} g → ${fmt(o.plan.yield,1)} g · ~${o.sim.tPred ? fmt(o.sim.tPred,0) : '–'} s${o.plan.temp ? ' · ' + fmt(o.plan.temp, o.plan.temp % 1 ? 1 : 0) + ' °C' : ''}</span>
+            <div class="opt-head"><b>${i + 1}. ${o.t}</b><button class="btn small" type="button" data-opt="${i}">To calculator</button></div>
+            <span class="num opt-plan">Grind ${fmtG(o.sim.grind, res)} · ${fmt(o.plan.dose,1)} g → ${fmt(o.plan.yield,1)} g · ~${o.sim.tPred ? fmt(o.sim.tPred,0) : '–'} s${o.plan.temp ? ' · ' + fmt(o.plan.temp, o.plan.temp % 1 ? 1 : 0) + ' °C' : ''}</span>
             <span class="muted" style="font-size:13px">${o.d} ${stepTxt(o.sim, res)}.</span>
           </div>`).join('')}
         </div>
-        <span class="muted" style="font-size:12.5px">Immer nur einen Hebel pro Shot ändern, dann bewerten. Die Reihenfolge entspricht der Wirksamkeit für dieses Ziel.${tr ? ` Für deine ${ROAST_ADJ[rc]} Röstung ist ${tr[0]}–${tr[1]} °C ein guter Bereich.` : ''}</span>
+        <span class="muted" style="font-size:12.5px">Change only one lever per shot, then taste. The order reflects how effective each lever is for this goal.${tr ? ` For your ${ROAST_ADJ[rc]} roast, ${tr[0]}–${tr[1]} °C is a good range.` : ''}</span>
       </div>
       <div>
-        <h3>Rechner: was passiert, wenn …</h3>
+        <h3>Calculator: what happens if …</h3>
         <form id="calcForm" class="calc">
-          <div class="field"><label for="cDose">Dosis g</label><input id="cDose" type="number" step="0.5" value="${calc.dose}"></div>
-          <div class="field"><label for="cYield">Ausbeute g</label><input id="cYield" type="number" step="0.5" value="${calc.yield}"></div>
-          <div class="field"><label for="cTime">Zielzeit s</label><input id="cTime" type="number" step="1" value="${calc.time}"></div>
+          <div class="field"><label for="cDose">Dose g</label><input id="cDose" type="number" step="0.5" value="${calc.dose}"></div>
+          <div class="field"><label for="cYield">Yield g</label><input id="cYield" type="number" step="0.5" value="${calc.yield}"></div>
+          <div class="field"><label for="cTime">Target time s</label><input id="cTime" type="number" step="1" value="${calc.time}"></div>
           <div class="field"><label for="cTemp">Temp °C</label><input id="cTemp" type="number" step="0.5" value="${calc.temp ?? ''}"></div>
         </form>
-        <div class="row" style="gap:6px"><button class="btn small" type="button" id="cKeepRatio">Ausbeute an Dosis anpassen (1:${fmt(base.yield / base.dose,2)})</button><button class="btn small" type="button" id="cReset">Zurücksetzen</button></div>
+        <div class="row" style="gap:6px"><button class="btn small" type="button" id="cKeepRatio">Match yield to dose (1:${fmt(base.yield / base.dose,2)})</button><button class="btn small" type="button" id="cReset">Reset</button></div>
         <div class="tiles" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-          <div class="tile main"><span class="k">Mahlgrad</span><span class="v">${fmtG(sim.grind, res)}</span><span class="d">${stepTxt(sim, res)}</span></div>
-          <div class="tile"><span class="k">Ohne Mühlenänderung</span><span class="v">${fmt(sim.tSame,0)} s</span><span class="d">${fmt(sim.fSame,2)} g/s</span></div>
-          <div class="tile"><span class="k">Mit neuem Mahlgrad</span><span class="v">${sim.tPred ? fmt(sim.tPred,0) + ' s' : '–'}</span><span class="d">Ziel ${fmt(sim.fNeed,2)} g/s · 1:${fmt(calc.yield / calc.dose,2)}</span></div>
+          <div class="tile main"><span class="k">Grind</span><span class="v">${fmtG(sim.grind, res)}</span><span class="d">${stepTxt(sim, res)}</span></div>
+          <div class="tile"><span class="k">Without grinder change</span><span class="v">${fmt(sim.tSame,0)} s</span><span class="d">${fmt(sim.fSame,2)} g/s</span></div>
+          <div class="tile"><span class="k">With new grind</span><span class="v">${sim.tPred ? fmt(sim.tPred,0) + ' s' : '–'}</span><span class="d">Target ${fmt(sim.fNeed,2)} g/s · 1:${fmt(calc.yield / calc.dose,2)}</span></div>
         </div>
-        ${eff.length ? `<ul class="why">${eff.map(e => `<li>${e}</li>`).join('')}</ul>` : '<span class="muted" style="font-size:13px">Werte ändern, um die Wirkung zu sehen.</span>'}
-        <div class="row" style="gap:6px"><button class="btn primary small" type="button" id="cApply">Als Ziel für den nächsten Shot setzen</button></div>
-        <span class="muted" style="font-size:12.5px">Rechnung: Der Durchfluss sinkt etwa im Verhältnis zur Puckhöhe (Dosis), die Mahlgrad-Wirkung kommt ${sim.learned ? 'aus deinen Bezügen' : 'aus einer Faustregel, bis genug Daten da sind'}. Temperatur ändert die Laufzeit kaum.</span>
+        ${eff.length ? `<ul class="why">${eff.map(e => `<li>${e}</li>`).join('')}</ul>` : '<span class="muted" style="font-size:13px">Change values to see the effect.</span>'}
+        <div class="row" style="gap:6px"><button class="btn primary small" type="button" id="cApply">Set as target for the next shot</button></div>
+        <span class="muted" style="font-size:12.5px">Method: flow drops roughly in proportion to puck height (dose); the grind effect comes ${sim.learned ? 'from your shots' : 'from a rule of thumb until there is enough data'}. Temperature barely changes the shot time.</span>
       </div>
     </div>
-    <h3>Mühlen-Kalibrierung · ${esc(UI.grinder)}</h3>
-    <p class="muted" style="margin:0;font-size:13.5px">Erwartete Laufzeit je Mahlgrad für Ratio 1:${fmt(T.ratio,2)} und drei Dosen. Grün liegt im Zielfenster ${T.tMin}–${T.tMax} s. ${res < 1 ? '0,1' : '1 Klick'} ≈ ${fmt(perStep,1)} s; 1 g weniger Dosis braucht etwa ${Math.abs(dose1.steps)} ${res < 1 ? 'Stufen' : 'Klicks'} feiner für dieselbe Zeit.${fdFit ? ` Erster Tropfen: pro ${res < 1 ? '0,1' : 'Klick'} feiner ca. ${fmt(Math.abs(fdFit.b * res),1)} s später.` : ''}</p>
-    <div class="tablewrap"><table class="cmp cal"><thead><tr><th>Mahlgrad</th><th>Durchfluss</th>${cal.doses.map(d => `<th>${fmt(d,1)} g → ${fmt(d * T.ratio,0)} g</th>`).join('')}<th>Gemessen</th></tr></thead>
-      <tbody>${cal.rows.map(r => `<tr class="${r.base ? 'anchor' : ''}"><td class="n" style="text-align:left">${fmtG(r.g, res)}${r.base ? ' <span class="badge">jetzt</span>' : ''}</td><td class="n">${r.f > 0.15 ? fmt(r.f,2) + ' g/s' : '–'}</td>${r.cells.map(c => `<td class="n ${inWin(c) ? 'win' : ''}">${c != null && c < 90 ? fmt(c,0) + ' s' : '–'}</td>`).join('')}<td class="n">${r.m.length ? r.m.map(s => `${fmt(s.time,0)} s<span class="muted">/${fmt(s.yield || 0,0)} g</span>`).join(', ') : ''}</td></tr>`).join('')}</tbody></table></div>
+    <h3>Grinder calibration · ${esc(UI.grinder)}</h3>
+    <p class="muted" style="margin:0;font-size:13.5px">Expected shot time per grind setting at ratio 1:${fmt(T.ratio,2)} and three doses. Green is within the time window ${T.tMin}–${T.tMax} s. ${res < 1 ? '0.1' : '1 click'} ≈ ${fmt(perStep,1)} s; 1 g less dose needs about ${Math.abs(dose1.steps)} ${res < 1 ? 'steps' : 'clicks'} finer for the same time.${fdFit ? ` First drip: per ${res < 1 ? '0.1' : 'click'} finer about ${fmt(Math.abs(fdFit.b * res),1)} s later.` : ''}</p>
+    <div class="tablewrap"><table class="cmp cal"><thead><tr><th>Grind</th><th>Flow</th>${cal.doses.map(d => `<th>${fmt(d,1)} g → ${fmt(d * T.ratio,0)} g</th>`).join('')}<th>Measured</th></tr></thead>
+      <tbody>${cal.rows.map(r => `<tr class="${r.base ? 'anchor' : ''}"><td class="n" style="text-align:left">${fmtG(r.g, res)}${r.base ? ' <span class="badge">now</span>' : ''}</td><td class="n">${r.f > 0.15 ? fmt(r.f,2) + ' g/s' : '–'}</td>${r.cells.map(c => `<td class="n ${inWin(c) ? 'win' : ''}">${c != null && c < 90 ? fmt(c,0) + ' s' : '–'}</td>`).join('')}<td class="n">${r.m.length ? r.m.map(s => `${fmt(s.time,0)} s<span class="muted">/${fmt(s.yield || 0,0)} g</span>`).join(', ') : ''}</td></tr>`).join('')}</tbody></table></div>
     <details>
-      <summary>Alle Hebel im Überblick</summary>
-      <div class="tablewrap" style="margin-top:8px"><table class="levers"><thead><tr><th>Hebel</th><th>Richtung</th><th>Geschmack</th><th>Typischer Schritt</th><th>Nebenwirkung</th></tr></thead><tbody>
-        <tr><td>Mahlgrad</td><td>feiner</td><td>weniger sauer, mehr Süße und Körper; zu weit: bitter, trocken</td><td>${res < 1 ? '0,1–0,2' : '1–2 Klicks'}</td><td>längere Zeit, späterer erster Tropfen</td></tr>
-        <tr><td>Ratio</td><td>länger</td><td>weniger Säure, mehr Süße, dünner; zu weit: bitter-trocken</td><td>0,1–0,2 (2–4 g)</td><td>längere Zeit bei gleichem Mahlgrad</td></tr>
-        <tr><td>Ratio</td><td>kürzer</td><td>mehr Körper und Intensität, mehr Säure</td><td>0,1–0,2</td><td>kürzere Zeit</td></tr>
-        <tr><td>Temperatur</td><td>wärmer</td><td>Säure runder, mehr Röst- und Bitternoten</td><td>1–2 °C</td><td>kaum Einfluss auf die Zeit</td></tr>
-        <tr><td>Temperatur</td><td>kühler</td><td>weniger bitter, weicher, Säure deutlicher</td><td>1–2 °C</td><td>dunkle Röstungen profitieren oft</td></tr>
-        <tr><td>Dosis</td><td>mehr</td><td>mehr Körper (bei gleicher Ratio)</td><td>0,5–1 g</td><td>gröber nötig, weniger Platz zur Dusche</td></tr>
-        <tr><td>Dosis</td><td>weniger</td><td>leichter, klarer</td><td>0,5–1 g</td><td>feiner nötig, nasserer Puck</td></tr>
-        <tr><td>Puck-Vorbereitung</td><td>WDT, gerade tampen</td><td>weniger sauer-bitter gleichzeitig</td><td>bei jedem Shot gleich</td><td>gleichmäßigerer Flow</td></tr>
-        <tr><td>Bohnenalter</td><td>älter</td><td>flacher, weniger Aroma</td><td>–</td><td>läuft schneller, nach und nach feiner</td></tr>
+      <summary>All levers at a glance</summary>
+      <div class="tablewrap" style="margin-top:8px"><table class="levers"><thead><tr><th>Lever</th><th>Direction</th><th>Taste</th><th>Typical step</th><th>Side effect</th></tr></thead><tbody>
+        <tr><td>Grind</td><td>finer</td><td>less sour, more sweetness and body; too far: bitter, dry</td><td>${res < 1 ? '0.1–0.2' : '1–2 clicks'}</td><td>longer time, later first drip</td></tr>
+        <tr><td>Ratio</td><td>longer</td><td>less acidity, more sweetness, thinner; too far: bitter-dry</td><td>0.1–0.2 (2–4 g)</td><td>longer time at the same grind</td></tr>
+        <tr><td>Ratio</td><td>shorter</td><td>more body and intensity, more acidity</td><td>0.1–0.2</td><td>shorter time</td></tr>
+        <tr><td>Temperature</td><td>hotter</td><td>rounder acidity, more roast and bitter notes</td><td>1–2 °C</td><td>barely affects time</td></tr>
+        <tr><td>Temperature</td><td>cooler</td><td>less bitter, softer, acidity more pronounced</td><td>1–2 °C</td><td>dark roasts often benefit</td></tr>
+        <tr><td>Dose</td><td>more</td><td>more body (at the same ratio)</td><td>0.5–1 g</td><td>coarser needed, less headspace</td></tr>
+        <tr><td>Dose</td><td>less</td><td>lighter, clearer</td><td>0.5–1 g</td><td>finer needed, wetter puck</td></tr>
+        <tr><td>Puck prep</td><td>WDT, level tamp</td><td>less sour and bitter at once</td><td>same every shot</td><td>steadier flow</td></tr>
+        <tr><td>Bean age</td><td>older</td><td>flatter, less aroma</td><td>–</td><td>runs faster, gradually go finer</td></tr>
       </tbody></table></div>
     </details>
   </section>`;
@@ -1068,20 +1084,20 @@ function phaseSVG(s, T, fdIn){
   const max = Math.max(s.time, T.tMax) + 3;
   const X = v => L + v / max * (W - L - R);
   const fd0 = s.firstDrip || fdIn; const fd = fd0 && fd0 < s.time ? fd0 : null;
-  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Zeitlicher Ablauf des Shots">`;
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Shot timeline">`;
   for(let v = 0; v <= max; v += 5) g += `<line x1="${X(v)}" x2="${X(v)}" y1="44" y2="48" stroke="var(--muted)"/><text x="${X(v)}" y="60" font-size="10.5" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${v}</text>`;
   g += `<rect x="${X(T.tMin)}" y="18" width="${X(T.tMax) - X(T.tMin)}" height="24" fill="none" stroke="var(--accent)" stroke-dasharray="4 3" rx="3"/>`;
   if(fd){
     g += `<rect x="${X(0)}" y="22" width="${X(fd) - X(0)}" height="16" fill="var(--sunk)" stroke="var(--line)" rx="3"/>`;
     g += `<rect x="${X(fd)}" y="22" width="${X(s.time) - X(fd)}" height="16" fill="var(--accent)" fill-opacity="0.8" rx="3"/>`;
-    g += `<text x="${X(fd)}" y="13" font-size="11" text-anchor="middle" fill="var(--ink)">1. Tropfen ${fmt(fd,0)} s</text>`;
+    g += `<text x="${X(fd)}" y="13" font-size="11" text-anchor="middle" fill="var(--ink)">First drip ${fmt(fd,0)} s</text>`;
     const mf = mainFlow(s) || (s.yield ? s.yield / (s.time - fd) : null);
     if(mf && X(s.time) - X(fd) > 90) g += `<text x="${(X(fd) + X(s.time)) / 2}" y="34" font-size="11" text-anchor="middle" fill="var(--accent-ink)" font-weight="600">${fmt(mf,2)} g/s</text>`;
   } else {
     g += `<rect x="${X(0)}" y="22" width="${X(s.time) - X(0)}" height="16" fill="var(--accent)" fill-opacity="0.55" rx="3"/>`;
   }
-  g += `<text x="${Math.min(X(s.time), W - R - 30)}" y="13" font-size="11" text-anchor="middle" fill="var(--ink)">Stopp ${fmt(s.time,0)} s</text>`;
-  g += `<text x="${X(T.tMax)}" y="74" font-size="10.5" text-anchor="end" fill="var(--accent)">Zielfenster ${T.tMin}–${T.tMax} s</text>`;
+  g += `<text x="${Math.min(X(s.time), W - R - 30)}" y="13" font-size="11" text-anchor="middle" fill="var(--ink)">Stop ${fmt(s.time,0)} s</text>`;
+  g += `<text x="${X(T.tMax)}" y="74" font-size="10.5" text-anchor="end" fill="var(--accent)">Time window ${T.tMin}–${T.tMax} s</text>`;
   return g + '</svg>';
 }
 function flowSVG(fl, an, ref, refAn){
@@ -1090,12 +1106,12 @@ function flowSVG(fl, an, ref, refAn){
   const wMax = Math.max(10, Math.ceil(Math.max(an.final || 0, refAn?.final || 0) * 1.08 / 5) * 5);
   const fMax = Math.max(3, Math.ceil(Math.max(an.peak, refAn?.peak || 0) + 0.5));
   const X = v => L + v / tEnd * (W - L - R), YW = v => Tp + (1 - v / wMax) * (H - Tp - B), YF = v => Tp + (1 - Math.min(v, fMax) / fMax) * (H - Tp - B), YP = v => Tp + (1 - Math.min(v, 12) / 12) * (H - Tp - B);
-  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Waagenkurve: Gewicht und Durchfluss">`;
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scale curve: weight and flow">`;
   niceTicks(0, tEnd, 7).forEach(v => g += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tp}" y2="${H - B}" stroke="var(--line)"/><text x="${X(v)}" y="${H - B + 15}" font-size="10.5" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmt(v,0)}</text>`);
   niceTicks(0, wMax, 5).forEach(v => g += `<line x1="${L}" x2="${W - R}" y1="${YW(v)}" y2="${YW(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${YW(v) + 4}" font-size="10.5" text-anchor="end" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmt(v,0)}</text>`);
   niceTicks(0, fMax, 4).forEach(v => g += `<text x="${W - R + 6}" y="${YF(v) + 4}" font-size="10.5" fill="var(--accent)" font-family="IBM Plex Mono, monospace">${fmt(v, v % 1 ? 1 : 0)}</text>`);
   g += `<text x="${L - 6}" y="${Tp - 3}" font-size="10.5" text-anchor="end" fill="var(--muted)">g</text><text x="${W - R + 6}" y="${Tp - 3}" font-size="10.5" fill="var(--accent)">g/s</text>`;
-  g += `<text x="${(L + W - R) / 2}" y="${H - 4}" font-size="11" text-anchor="middle" fill="var(--muted)">Zeit (s)</text>`;
+  g += `<text x="${(L + W - R) / 2}" y="${H - 4}" font-size="11" text-anchor="middle" fill="var(--muted)">Time (s)</text>`;
   const path = (xs, ys, Xf, Yf) => xs.map((x, i) => (i ? 'L' : 'M') + Xf(x).toFixed(1) + ' ' + Yf(ys[i]).toFixed(1)).join('');
   if(ref?.t?.length) g += `<path d="${path(ref.t, ref.w, X, YW)}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
   if(refAn?.ft?.length) g += `<path d="${path(refAn.ft, refAn.f, X, YF)}" fill="none" stroke="var(--muted)" stroke-width="1" stroke-opacity="0.7"/>`;
@@ -1105,51 +1121,51 @@ function flowSVG(fl, an, ref, refAn){
   }
   if(fl.p?.length) g += `<path d="${path(fl.pt, fl.p, X, YP)}" fill="none" stroke="var(--sour)" stroke-width="1.6" stroke-dasharray="2 3"/>`;
   if(fl.t?.length) g += `<path d="${path(fl.t, fl.w, X, YW)}" fill="none" stroke="var(--ink)" stroke-width="2.2"/>`;
-  if(an.fd){ g += `<line x1="${X(an.fd)}" x2="${X(an.fd)}" y1="${Tp}" y2="${H - B}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${X(an.fd) + 4}" y="${Tp + 11}" font-size="10.5" fill="var(--ink)">1. Tropfen</text>`; }
-  if(an.tJump && an.jump > 0.8) g += `<circle cx="${X(an.tJump)}" cy="${YF(an.f[an.ft.indexOf(an.tJump)] ?? 0)}" r="6" fill="none" stroke="var(--mixed)" stroke-width="2"><title>Flow-Sprung</title></circle>`;
+  if(an.fd){ g += `<line x1="${X(an.fd)}" x2="${X(an.fd)}" y1="${Tp}" y2="${H - B}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${X(an.fd) + 4}" y="${Tp + 11}" font-size="10.5" fill="var(--ink)">First drip</text>`; }
+  if(an.tJump && an.jump > 0.8) g += `<circle cx="${X(an.tJump)}" cy="${YF(an.f[an.ft.indexOf(an.tJump)] ?? 0)}" r="6" fill="none" stroke="var(--mixed)" stroke-width="2"><title>Flow jump</title></circle>`;
   return g + '</svg>';
 }
 function findings(s, T, an, shots){
   const out = [], filter = isFilter(shots);
   const add = (lvl, title, text) => out.push({lvl, title, text});
-  if(!s.dose) add('bad', 'Dosis fehlt', 'Im Shot ist 0 g Kaffeemehl eingetragen. Ratio und Ausbeute-Vergleich sind dadurch nicht aussagekräftig.');
+  if(!s.dose) add('bad', 'Dose missing', 'The shot has 0 g of coffee recorded, so ratio and yield comparisons are meaningless.');
   if(!filter){
     const fd = s.firstDrip || an?.fd;
-    if(!fd) add('info', 'Erster Tropfen nicht erfasst', 'Mit dem Drip-Timer in Beanconqueror oder einer Waage lässt sich der Puckwiderstand viel genauer beurteilen.');
-    else if(fd < 4) add('bad', `Erster Tropfen sehr früh (${fmt(fd,0)} s)`, 'Das Wasser bricht schnell durch. Typische Ursachen: zu grob, ungleichmäßige Verteilung, schiefer Tamp.');
-    else if(fd < 5) add('warn', `Erster Tropfen früh (${fmt(fd,0)} s)`, 'Grenzwertig früh. Läuft der Shot zudem schnell und sauer, feiner mahlen.');
-    else if(fd <= 10) add('ok', `Erster Tropfen nach ${fmt(fd,0)} s`, 'Passt für eine Maschine ohne Preinfusion.');
-    else if(fd <= 13) add('warn', `Erster Tropfen spät (${fmt(fd,0)} s)`, 'Der Puck ist recht dicht. Wenn der Shot bitter wird, etwas gröber.');
-    else add('bad', `Erster Tropfen sehr spät (${fmt(fd,0)} s)`, 'Der Puck blockiert lange. Für die eigentliche Extraktion bleibt wenig Zeit, eher gröber mahlen.');
+    if(!fd) add('info', 'First drip not recorded', 'With the drip timer in Beanconqueror or a scale, puck resistance can be judged much more precisely.');
+    else if(fd < 4) add('bad', `Very early first drip (${fmt(fd,0)} s)`, 'Water breaks through quickly. Typical causes: too coarse, uneven distribution, crooked tamp.');
+    else if(fd < 5) add('warn', `Early first drip (${fmt(fd,0)} s)`, 'Borderline early. If the shot also runs fast and sour, grind finer.');
+    else if(fd <= 10) add('ok', `First drip after ${fmt(fd,0)} s`, 'Fine for a machine without pre-infusion.');
+    else if(fd <= 13) add('warn', `Late first drip (${fmt(fd,0)} s)`, 'The puck is fairly dense. If the shot turns bitter, go a little coarser.');
+    else add('bad', `Very late first drip (${fmt(fd,0)} s)`, 'The puck holds back for a long time, leaving little time for extraction. Grind coarser.');
     const mf = an?.mMain || mainFlow(s);
     const tgt = T.ratio * T.dose / ((T.tMin + T.tMax) / 2 - 7);
     if(mf){
       const dev = mf / tgt - 1;
-      if(Math.abs(dev) <= 0.12) add('ok', `Durchfluss Hauptphase ${fmt(mf,2)} g/s`, `Nah am Zielwert von ${fmt(tgt,1)} g/s.`);
-      else add('warn', `Durchfluss Hauptphase ${fmt(mf,2)} g/s`, `${dev > 0 ? 'Schneller' : 'Langsamer'} als die ${fmt(tgt,1)} g/s, die für ${fmt(T.ratio * T.dose,0)} g im Zielfenster nötig sind (${dev > 0 ? '+' : ''}${fmt(dev * 100,0)} %).`);
+      if(Math.abs(dev) <= 0.12) add('ok', `Main-phase flow ${fmt(mf,2)} g/s`, `Close to the target of ${fmt(tgt,1)} g/s.`);
+      else add('warn', `Main-phase flow ${fmt(mf,2)} g/s`, `${dev > 0 ? 'Faster' : 'Slower'} than the ${fmt(tgt,1)} g/s needed for ${fmt(T.ratio * T.dose,0)} g in the time window (${dev > 0 ? '+' : ''}${fmt(dev * 100,0)} %).`);
     }
   }
   if(s.time){
-    if(s.time < T.tMin) add('warn', `Laufzeit ${fmt(s.time,0)} s`, `Unter dem Zielfenster ${T.tMin}–${T.tMax} s.`);
-    else if(s.time > T.tMax) add('warn', `Laufzeit ${fmt(s.time,0)} s`, `Über dem Zielfenster ${T.tMin}–${T.tMax} s.`);
-    else add('ok', `Laufzeit ${fmt(s.time,0)} s`, 'Im Zielfenster.');
+    if(s.time < T.tMin) add('warn', `Shot time ${fmt(s.time,0)} s`, `Below the time window ${T.tMin}–${T.tMax} s.`);
+    else if(s.time > T.tMax) add('warn', `Shot time ${fmt(s.time,0)} s`, `Above the time window ${T.tMin}–${T.tMax} s.`);
+    else add('ok', `Shot time ${fmt(s.time,0)} s`, 'Within the time window.');
   }
   const r = ratio(s);
-  if(r){ const d = r - T.ratio; Math.abs(d) <= (filter ? 1 : 0.15) ? add('ok', `Ratio 1:${fmt(r,2)}`, 'Im Zielbereich.') : add('warn', `Ratio 1:${fmt(r,2)}`, `${d > 0 ? 'Länger' : 'Kürzer'} als dein Ziel 1:${fmt(T.ratio,2)}.`); }
+  if(r){ const d = r - T.ratio; Math.abs(d) <= (filter ? 1 : 0.15) ? add('ok', `Ratio 1:${fmt(r,2)}`, 'Within the target range.') : add('warn', `Ratio 1:${fmt(r,2)}`, `${d > 0 ? 'Longer' : 'Shorter'} than your target 1:${fmt(T.ratio,2)}.`); }
   const age = beanAge(s);
-  if(age == null) add('info', 'Bohnenalter unbekannt', 'Röstdatum oben beim Ausgangs-Shot eintragen.');
-  else if(age < 5) add('warn', `Bohne ${age} Tage alt`, 'Sehr frisch, starkes Ausgasen kann zu unruhigen Shots führen.');
-  else if(age <= 35) add('ok', `Bohne ${age} Tage alt`, 'Im guten Fenster.');
-  else if(age <= 60) add('warn', `Bohne ${age} Tage alt`, 'Älter: läuft schneller, Aromen werden flacher. Feiner mahlen gleicht das teilweise aus.');
-  else add('bad', `Bohne ${age} Tage alt`, 'Deutlich gealtert. Dial-in wird zunehmend schwierig.');
-  if(s.tempRaw != null && s.temp == null) add('info', `Temperatur ${fmt(s.tempRaw,0)} °C unplausibel`, 'Vermutlich ein Tippfehler, der Wert wird ignoriert.');
-  if(s.ey) add(s.ey >= 18 && s.ey <= 22 ? 'ok' : 'warn', `Extraktion ${fmt(s.ey,1)} %`, s.ey < 18 ? 'Unter 18 %: eher unterextrahiert.' : s.ey > 22 ? 'Über 22 %: eher überextrahiert.' : 'Im klassischen Bereich von 18–22 %.');
+  if(age == null) add('info', 'Bean age unknown', 'Enter the roast date above at the base shot.');
+  else if(age < 5) add('warn', `Beans ${age} days old`, 'Very fresh; strong degassing can make shots erratic.');
+  else if(age <= 35) add('ok', `Beans ${age} days old`, 'In the sweet spot.');
+  else if(age <= 60) add('warn', `Beans ${age} days old`, 'Older: runs faster, flavours get flatter. Grinding finer partly compensates.');
+  else add('bad', `Beans ${age} days old`, 'Clearly aged. Dialling in gets harder and harder.');
+  if(s.tempRaw != null && s.temp == null) add('info', `Temperature ${fmt(s.tempRaw,0)} °C implausible`, 'Probably a typo; the value is ignored.');
+  if(s.ey) add(s.ey >= 18 && s.ey <= 22 ? 'ok' : 'warn', `Extraction ${fmt(s.ey,1)} %`, s.ey < 18 ? 'Below 18 %: likely under-extracted.' : s.ey > 22 ? 'Above 22 %: likely over-extracted.' : 'In the classic 18–22 % range.');
   if(an){
-    if(an.cv != null) an.cv > 0.25 ? add('warn', `Unruhiger Flow (Schwankung ${fmt(an.cv * 100,0)} %)`, 'Der Durchfluss schwankt in der Hauptphase stark. Häufig ein Zeichen für ungleichmäßige Verteilung.') : add('ok', `Gleichmäßiger Flow (Schwankung ${fmt(an.cv * 100,0)} %)`, 'Der Puck hält gleichmäßig.');
-    if(an.jump > 0.8) add('bad', `Flow-Sprung bei ${fmt(an.tJump,0)} s`, `Der Durchfluss steigt innerhalb einer Sekunde um ${fmt(an.jump,1)} g/s. Typisch für Channeling.`);
-    if(an.endRatio != null && an.endRatio > 1.4) add('warn', 'Flow steigt zum Ende stark an', `Im letzten Viertel ${fmt((an.endRatio - 1) * 100,0)} % schneller als in der Mitte. Der Puck baut ab, die letzten Gramm schmecken dann oft dünn oder bitter.`);
-    if(an.peak > 3.2) add('warn', `Spitzenflow ${fmt(an.peak,1)} g/s`, 'Sehr hoch für Espresso.');
-    if(an.pMax != null && an.pMax > 10) add('warn', `Druckspitze ${fmt(an.pMax,1)} bar`, 'Über 10 bar. OPV-Einstellung der Maschine prüfen.');
+    if(an.cv != null) an.cv > 0.25 ? add('warn', `Unsteady flow (variation ${fmt(an.cv * 100,0)} %)`, 'Flow varies a lot during the main phase, often a sign of uneven distribution.') : add('ok', `Steady flow (variation ${fmt(an.cv * 100,0)} %)`, 'The puck holds evenly.');
+    if(an.jump > 0.8) add('bad', `Flow jump at ${fmt(an.tJump,0)} s`, `Flow rises within one second by ${fmt(an.jump,1)} g/s. Typical of channeling.`);
+    if(an.endRatio != null && an.endRatio > 1.4) add('warn', 'Flow rises sharply towards the end', `In the last quarter ${fmt((an.endRatio - 1) * 100,0)} % faster than in the middle. The puck is breaking down; the last grams often taste thin or bitter.`);
+    if(an.peak > 3.2) add('warn', `Peak flow ${fmt(an.peak,1)} g/s`, 'Very high for espresso.');
+    if(an.pMax != null && an.pMax > 10) add('warn', `Pressure peak ${fmt(an.pMax,1)} bar`, 'Above 10 bar. Check the machine’s OPV setting.');
   }
   const order = {bad:0, warn:1, info:2, ok:3};
   return out.sort((a, b) => order[a.lvl] - order[b.lvl]);
@@ -1170,68 +1186,68 @@ function analysisHTML(s, T, shots, scale){
   const age = beanAge(s);
   const m = (k, v, d) => `<div class="metric"><span class="k">${k}</span><span class="v">${v}</span>${d ? `<span class="d">${d}</span>` : ''}</div>`;
   const metrics = [
-    m('Mahlgrad', esc(s.grindRaw) || '–', esc(s.grinder)),
-    m('Dosis → Ausbeute', `${s.dose ? fmt(s.dose,1) : '–'} → ${s.yield ? fmt(s.yield,1) : '–'}`, ratio(s) ? 'g · 1:' + fmt(ratio(s),2) : 'g'),
-    m('Laufzeit', s.time ? fmt(s.time,0) + ' s' : '–', s.preinf ? `Preinfusion ${fmt(s.preinf,0)} s` : ''),
-    m('Erster Tropfen', (s.firstDrip || an?.fd) ? fmt(s.firstDrip || an.fd,1) + ' s' : '–', !s.firstDrip && an?.fd ? 'aus Waagenkurve' : ''),
-    m('Ø Flow gesamt', flow(s) ? fmt(flow(s),2) + ' g/s' : '–'),
-    m('Ø Flow Hauptphase', (an?.mMain || mainFlow(s)) ? fmt(an?.mMain || mainFlow(s),2) + ' g/s' : '–', an?.mMain ? '15–90 % der Ausbeute' : 'nach 1. Tropfen'),
-    m('Temperatur', s.temp ? fmt(s.temp,0) + ' °C' : '–'),
-    m('Bohnenalter', age != null ? age + ' Tage' : '–'),
-    m('Bewertung', s.rating ? fmt(s.rating,0) + '/' + scale : '–')
+    m('Grind', esc(s.grindRaw) || '–', esc(s.grinder)),
+    m('Dose → yield', `${s.dose ? fmt(s.dose,1) : '–'} → ${s.yield ? fmt(s.yield,1) : '–'}`, ratio(s) ? 'g · 1:' + fmt(ratio(s),2) : 'g'),
+    m('Shot time', s.time ? fmt(s.time,0) + ' s' : '–', s.preinf ? `Preinfusion ${fmt(s.preinf,0)} s` : ''),
+    m('First drip', (s.firstDrip || an?.fd) ? fmt(s.firstDrip || an.fd,1) + ' s' : '–', !s.firstDrip && an?.fd ? 'from scale curve' : ''),
+    m('Avg flow overall', flow(s) ? fmt(flow(s),2) + ' g/s' : '–'),
+    m('Avg flow main phase', (an?.mMain || mainFlow(s)) ? fmt(an?.mMain || mainFlow(s),2) + ' g/s' : '–', an?.mMain ? '15–90 % of yield' : 'after first drip'),
+    m('Temperature', s.temp ? fmt(s.temp,0) + ' °C' : '–'),
+    m('Bean age', age != null ? age + ' days' : '–'),
+    m('Rating', s.rating ? fmt(s.rating,0) + '/' + scale : '–')
   ];
   if(an){
-    metrics.push(m('Spitzenflow', fmt(an.peak,2) + ' g/s', an.tPeak != null ? `bei ${fmt(an.tPeak,0)} s` : ''));
-    metrics.push(m('1 g/s erreicht', an.t1 != null ? fmt(an.t1,1) + ' s' : '–'));
-    metrics.push(m('Flow-Schwankung', an.cv != null ? fmt(an.cv * 100,0) + ' %' : '–', 'Hauptphase'));
-    if(an.hasPressure) metrics.push(m('Druck', `${fmt(an.pMain,1)} bar`, `Spitze ${fmt(an.pMax,1)} bar`));
+    metrics.push(m('Peak flow', fmt(an.peak,2) + ' g/s', an.tPeak != null ? `at ${fmt(an.tPeak,0)} s` : ''));
+    metrics.push(m('1 g/s reached', an.t1 != null ? fmt(an.t1,1) + ' s' : '–'));
+    metrics.push(m('Flow variation', an.cv != null ? fmt(an.cv * 100,0) + ' %' : '–', 'main phase'));
+    if(an.hasPressure) metrics.push(m('Pressure', `${fmt(an.pMain,1)} bar`, `peak ${fmt(an.pMax,1)} bar`));
   }
   const F = findings(s, T, an, shots);
   const cmpRows = [
-    ['Mahlgrad', x => esc(x.grindRaw) || '–', x => x.grind],
-    ['Erster Tropfen', x => x.firstDrip ? fmt(x.firstDrip,0) + ' s' : '–', x => x.firstDrip],
-    ['Laufzeit', x => x.time ? fmt(x.time,0) + ' s' : '–', x => x.time],
-    ['Ausbeute', x => x.yield ? fmt(x.yield,1) + ' g' : '–', x => x.yield],
+    ['Grind', x => esc(x.grindRaw) || '–', x => x.grind],
+    ['First drip', x => x.firstDrip ? fmt(x.firstDrip,0) + ' s' : '–', x => x.firstDrip],
+    ['Shot time', x => x.time ? fmt(x.time,0) + ' s' : '–', x => x.time],
+    ['Yield', x => x.yield ? fmt(x.yield,1) + ' g' : '–', x => x.yield],
     ['Ratio', x => ratio(x) ? '1:' + fmt(ratio(x),2) : '–', ratio],
-    ['Ø Flow Hauptphase', x => mainFlow(x) ? fmt(mainFlow(x),2) + ' g/s' : '–', mainFlow],
-    ['Bohnenalter', x => beanAge(x) != null ? beanAge(x) + ' d' : '–', beanAge],
-    ['Bewertung', x => x.rating ? fmt(x.rating,0) + '/' + scale : '–', x => x.rating || null],
-    ['Geschmack', x => TASTES.filter(T => shotTags(x)[T.k]).map(T => T.label).join(', ') || '–', null]
+    ['Avg flow main phase', x => mainFlow(x) ? fmt(mainFlow(x),2) + ' g/s' : '–', mainFlow],
+    ['Bean age', x => beanAge(x) != null ? beanAge(x) + ' d' : '–', beanAge],
+    ['Rating', x => x.rating ? fmt(x.rating,0) + '/' + scale : '–', x => x.rating || null],
+    ['Taste', x => TASTES.filter(T => shotTags(x)[T.k]).map(T => T.label).join(', ') || '–', null]
   ];
   const delta = (fn, a, b) => { if(!fn || !b) return ''; const va = fn(a), vb = fn(b); if(va == null || vb == null) return ''; const d = va - vb; if(Math.abs(d) < 1e-6) return ' <span class="muted">(=)</span>'; return ` <span class="muted">(${d > 0 ? '+' : '−'}${fmt(Math.abs(d), Math.abs(d) < 1 ? 2 : (Math.abs(d) < 10 ? 1 : 0))})</span>`; };
-  const cols = [['Dieser Shot', s], prev ? ['Vorheriger', prev] : null, ref ? [chosen ? 'Gewählter Vergleich' : 'Referenz (beste Bewertung)', ref] : null].filter(Boolean);
-  const opts = sameCtx.slice().reverse().map(x => `<option value="${esc(x.id)}" ${x.id === s.id ? 'selected' : ''}>${fmtDate(x.date)} · ${esc(x.grindRaw)} · ${x.time ? fmt(x.time,0) + ' s' : '–'}${FLOWS[x.id] ? ' · Kurve' : ''}</option>`).join('');
-  const reassign = fl ? `<div class="row" style="font-size:13px"><label for="flowMove" class="muted">Kurve gehört zu einem anderen Shot?</label><select id="flowMove" style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 6px"><option value="">verschieben nach …</option>${allShots().filter(x => x.id !== s.id).map(x => `<option value="${esc(x.id)}">${fmtDate(x.date)} · ${esc(x.bean)} · ${x.time ? fmt(x.time,0) + ' s' : ''}</option>`).join('')}</select><button class="btn small" type="button" id="flowDel">Kurve entfernen</button></div>` : '';
+  const cols = [['This shot', s], prev ? ['Previous', prev] : null, ref ? [chosen ? 'Chosen comparison' : 'Reference (best rated)', ref] : null].filter(Boolean);
+  const opts = sameCtx.slice().reverse().map(x => `<option value="${esc(x.id)}" ${x.id === s.id ? 'selected' : ''}>${fmtDate(x.date)} · ${esc(x.grindRaw)} · ${x.time ? fmt(x.time,0) + ' s' : '–'}${FLOWS[x.id] ? ' · curve' : ''}</option>`).join('');
+  const reassign = fl ? `<div class="row" style="font-size:13px"><label for="flowMove" class="muted">Curve belongs to another shot?</label><select id="flowMove" style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 6px"><option value="">move to …</option>${allShots().filter(x => x.id !== s.id).map(x => `<option value="${esc(x.id)}">${fmtDate(x.date)} · ${esc(x.bean)} · ${x.time ? fmt(x.time,0) + ' s' : ''}</option>`).join('')}</select><button class="btn small" type="button" id="flowDel">Remove curve</button></div>` : '';
   return `
   <section class="card" id="analyse" aria-labelledby="hAna">
     <div class="ana-head">
-      <div><h2 id="hAna">Shot-Analyse</h2><span class="muted" style="font-size:13px">${esc(s.bean)} · ${esc(s.grinder)} · ${fmtDate(s.date)}</span> ${tags}</div>
+      <div><h2 id="hAna">Shot analysis</h2><span class="muted" style="font-size:13px">${esc(s.bean)} · ${esc(s.grinder)} · ${fmtDate(s.date)}</span> ${tags}</div>
       <div class="ana-nav">
-        <button class="btn small" type="button" id="anaPrev" ${idx <= 0 ? 'disabled' : ''} aria-label="älterer Shot">←</button>
-        <select id="anaSel" aria-label="Shot wählen">${opts}</select>
-        <button class="btn small" type="button" id="recipeSave" title="Als Rezept für diese Bohne und Mühle merken">${UI.recipes[ctxKey()]?.shotId === s.id ? 'Ist dein Rezept' : 'Als Rezept merken'}</button>
-        <select id="cmpSel" aria-label="Vergleichen mit"><option value="">Vergleich: bester Shot</option>${allShots().filter(x => x.id !== s.id && x.time).map(x => `<option value="${esc(x.id)}" ${UI.cmpId === x.id ? 'selected' : ''}>Vergleich: ${fmtDate(x.date)} · ${esc(x.bean)}${FLOWS[x.id] ? ' · Kurve' : ''}</option>`).join('')}</select>
-        <button class="btn small" type="button" id="anaNext" ${idx >= sameCtx.length - 1 ? 'disabled' : ''} aria-label="neuerer Shot">→</button>
+        <button class="btn small" type="button" id="anaPrev" ${idx <= 0 ? 'disabled' : ''} aria-label="older shot">←</button>
+        <select id="anaSel" aria-label="Choose shot">${opts}</select>
+        <button class="btn small" type="button" id="recipeSave" title="Save as recipe for these beans and this grinder">${UI.recipes[ctxKey()]?.shotId === s.id ? 'Is your recipe' : 'Save as recipe'}</button>
+        <select id="cmpSel" aria-label="Compare with"><option value="">Compare: best shot</option>${allShots().filter(x => x.id !== s.id && x.time).map(x => `<option value="${esc(x.id)}" ${UI.cmpId === x.id ? 'selected' : ''}>Compare: ${fmtDate(x.date)} · ${esc(x.bean)}${FLOWS[x.id] ? ' · curve' : ''}</option>`).join('')}</select>
+        <button class="btn small" type="button" id="anaNext" ${idx >= sameCtx.length - 1 ? 'disabled' : ''} aria-label="newer shot">→</button>
       </div>
     </div>
-    ${s.notes ? `<div class="note">„${esc(s.notes)}“</div>` : ''}
+    ${s.notes ? `<div class="note">“${esc(s.notes)}”</div>` : ''}
     <div class="ana-grid">
       <div>
         ${phaseSVG(s, T, an?.fd)}
         ${an ? `${flowSVG(fl, an, refFl && ref.id !== s.id ? refFl : null, refAn && ref.id !== s.id ? refAn : null)}
-          <div class="legend"><span><i style="background:var(--ink)"></i>Gewicht (g)</span><span><i style="background:var(--accent)"></i>Durchfluss (g/s)${an.derived ? ', aus Gewicht berechnet' : ''}</span>${fl.p?.length ? '<span><i style="background:var(--sour)"></i>Druck (0–12 bar)</span>' : ''}${refFl && ref.id !== s.id ? `<span><i style="background:var(--muted)"></i>${chosen ? 'Vergleich' : 'Referenz'} ${fmtDate(ref.date)}</span>` : ''}</div>
+          <div class="legend"><span><i style="background:var(--ink)"></i>Weight (g)</span><span><i style="background:var(--accent)"></i>Flow (g/s)${an.derived ? ', calculated from weight' : ''}</span>${fl.p?.length ? '<span><i style="background:var(--sour)"></i>Pressure (0–12 bar)</span>' : ''}${refFl && ref.id !== s.id ? `<span><i style="background:var(--muted)"></i>${chosen ? 'Comparison' : 'Reference'} ${fmtDate(ref.date)}</span>` : ''}</div>
           ${reassign}`
-        : `<div class="flowhint">Keine Waagenkurve für diesen Shot. In Beanconqueror lässt sich in der Detailansicht eines Bezugs das Flowprofil als JSON oder Excel herunterladen (oder die Visualizer-Datei). Leg die Datei hier ab, sie wird automatisch dem passenden Shot zugeordnet.${s.deviceFlow ? ' Laut Backup existiert für diesen Bezug eine Kurve auf deinem Gerät.' : ''}</div>`}
+        : `<div class="flowhint">No scale curve for this shot. In Beanconqueror you can download the flow profile of a brew as JSON or Excel from its detail view (or the Visualizer file). Drop the file here and it is matched to the right shot automatically.${s.deviceFlow ? ' According to the backup, a curve for this shot exists on your phone.' : ''}</div>`}
         <div class="metrics">${metrics.join('')}</div>
       </div>
       <div>
-        <h3>Befund</h3>
+        <h3>Findings</h3>
         <ul class="findings">${F.map(f => `<li class="${f.lvl}"><i aria-hidden="true"></i><span><b>${f.title}.</b> ${f.text}</span></li>`).join('')}</ul>
       </div>
     </div>
-    ${cols.length > 1 ? `<h3>Vergleich</h3><div class="tablewrap"><table class="cmp"><thead><tr><th></th>${cols.map(c => `<th>${c[0]}<br><span class="muted num" style="text-transform:none;letter-spacing:0">${fmtDate(c[1].date)}</span></th>`).join('')}</tr></thead>
+    ${cols.length > 1 ? `<h3>Comparison</h3><div class="tablewrap"><table class="cmp"><thead><tr><th></th>${cols.map(c => `<th>${c[0]}<br><span class="muted num" style="text-transform:none;letter-spacing:0">${fmtDate(c[1].date)}</span></th>`).join('')}</tr></thead>
       <tbody>${cmpRows.map(([lab, f, fn]) => `<tr><td>${lab}</td>${cols.map((c, i) => `<td class="n">${f(c[1])}${i > 0 ? delta(fn, s, c[1]) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-      <span class="muted" style="font-size:12.5px">In Klammern: Unterschied dieses Shots zur jeweiligen Spalte.</span>` : ''}
+      <span class="muted" style="font-size:12.5px">In brackets: difference of this shot to that column.</span>` : ''}
   </section>`;
 }
 
@@ -1249,15 +1265,15 @@ function renderCtx(combos, T){
   const ch = UI.coarserHigher[UI.grinder] !== false;
   const f = isFilter(ctxShots());
   $('#ctx').innerHTML = `
-    <div class="field"><label for="selBean">Bohne</label><select id="selBean">${beans.map(b => `<option ${b === UI.bean ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
-    <div class="field"><label for="selGrinder">Mühle</label><select id="selGrinder">${grinders.map(g => `<option ${g === UI.grinder ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></div>
-    <label class="toggle"><input type="checkbox" id="dirToggle" ${ch ? 'checked' : ''}> höhere Zahl = gröber</label>
+    <div class="field"><label for="selBean">Beans</label><select id="selBean">${beans.map(b => `<option ${b === UI.bean ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
+    <div class="field"><label for="selGrinder">Grinder</label><select id="selGrinder">${grinders.map(g => `<option ${g === UI.grinder ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></div>
+    <label class="toggle"><input type="checkbox" id="dirToggle" ${ch ? 'checked' : ''}> higher number = coarser</label>
     <span class="sep" aria-hidden="true"></span>
-    <div class="field"><label for="tDose">Dosis g</label><input id="tDose" type="number" step="0.1" value="${T.dose}"></div>
+    <div class="field"><label for="tDose">Dose g</label><input id="tDose" type="number" step="0.1" value="${T.dose}"></div>
     <div class="field"><label for="tRatio">Ratio 1:x</label><input id="tRatio" type="number" step="${f ? 0.5 : 0.05}" value="${T.ratio}"></div>
-    <div class="field"><label for="tMin">Zeitfenster s</label><div class="pair"><input id="tMin" type="number" step="1" value="${T.tMin}"><span class="muted">–</span><input id="tMax" type="number" step="1" value="${T.tMax}"></div></div>
+    <div class="field"><label for="tMin">Time window s</label><div class="pair"><input id="tMin" type="number" step="1" value="${T.tMin}"><span class="muted">–</span><input id="tMax" type="number" step="1" value="${T.tMax}"></div></div>
     <div class="field"><label for="tTemp">Temp °C</label><input id="tTemp" type="number" step="0.5" value="${T.temp ?? ''}"></div>
-    <button class="btn small" id="tReset" type="button">Ziele zurücksetzen</button>
+    <button class="btn small" id="tReset" type="button">Reset targets</button>
     ${combos.length > 1 ? `<div class="combos" style="flex-basis:100%">${combos.map(c => `<button type="button" class="combo" data-b="${esc(c.bean)}" data-g="${esc(c.grinder)}" aria-pressed="${c.bean === UI.bean && c.grinder === UI.grinder}">${esc(c.bean)} · ${esc(c.grinder)} <span class="muted">${c.n}</span></button>`).join('')}</div>` : ''}`;
   $('#selBean').onchange = e => { UI.bean = e.target.value; const g = allShots().find(s => s.bean === UI.bean); UI.grinder = g.grinder; UI.anchorId = null; UI.detailId = null; formDirty = false; saveUI(); render(); };
   $('#selGrinder').onchange = e => { UI.grinder = e.target.value; UI.anchorId = null; UI.detailId = null; formDirty = false; saveUI(); render(); };
@@ -1277,20 +1293,20 @@ function insightsHTML(shots, anchor, model, T, rec){
   const rated = shots.filter(s => s.rating > 0);
   const best = rated.slice().sort((a, b) => b.rating - a.rating || b.date - a.date)[0];
   if(best){
-    out.push(`<div class="ins"><span class="eyebrow">Dein Referenz-Shot</span><span class="big">${esc(best.grindRaw)} · ${fmt(best.time,0)} s · 1:${fmt(ratio(best),2)}</span><p>${fmt(best.rating,0)}/${scale} am ${fmtDate(best.date)}${best.notes ? ` – „${esc(best.notes)}“` : ''}</p></div>`);
+    out.push(`<div class="ins"><span class="eyebrow">Your reference shot</span><span class="big">${esc(best.grindRaw)} · ${fmt(best.time,0)} s · 1:${fmt(ratio(best),2)}</span><p>${fmt(best.rating,0)}/${scale} am ${fmtDate(best.date)}${best.notes ? ` – “${esc(best.notes)}”` : ''}</p></div>`);
   }
   if(model.scope !== 'none' && anchor && flow(anchor)){
     const step = rec.res, Y = rec.yld, f0 = flow(anchor);
     const dt = Math.abs(Y / f0 - Y / (f0 + model.b * step));
-    out.push(`<div class="ins"><span class="eyebrow">Mühlen-Empfindlichkeit</span><span class="big">${fmtG(step, step)} ${step < 1 ? 'Einheit' : 'Klick'} ≈ ${fmt(dt,1)} s</span><p>Gemessen an ${model.n} Bezügen ${model.scope === 'bean' ? 'mit dieser Bohne' : 'aller Bohnen'} auf der ${esc(UI.grinder)} (R² ${fmt(model.r2,2)}), bei ${fmt(Y,0)} g Ausbeute.</p></div>`);
+    out.push(`<div class="ins"><span class="eyebrow">Grinder sensitivity</span><span class="big">${fmtG(step, step)} ${step < 1 ? 'unit' : 'click'} ≈ ${fmt(dt,1)} s</span><p>Measured from ${model.n} shots ${model.scope === 'bean' ? 'with these beans' : 'of all beans'} on the ${esc(UI.grinder)} (R² ${fmt(model.r2,2)}), at ${fmt(Y,0)} g yield.</p></div>`);
   } else {
-    out.push(`<div class="ins warn"><span class="eyebrow">Mühlen-Empfindlichkeit</span><p>${model.contradict ? 'Die Bezüge auf dieser Mühle widersprechen sich (feiner gemahlen lief teils schneller). Häufige Ursachen: unterschiedliche Bohnenalter, Dosis oder Puck-Vorbereitung. Prüfe auch, ob „höhere Zahl = gröber“ für deine Mühle stimmt.' : 'Noch zu wenige Bezüge mit unterschiedlichem Mahlgrad.'} Bis dahin rechnet die Empfehlung mit einer Faustregel.</p></div>`);
+    out.push(`<div class="ins warn"><span class="eyebrow">Grinder sensitivity</span><p>${model.contradict ? 'The shots on this grinder contradict each other (finer sometimes ran faster). Common causes: different bean ages, dose or puck prep. Also check whether “higher number = coarser” is right for your grinder.' : 'Not enough shots with different grind settings yet.'} Until then the recommendation uses a rule of thumb.</p></div>`);
   }
   const recent = shots.slice(0, 6), cnt = {sour:0, bitter:0, good:0};
   recent.forEach(s => { const t = shotTags(s); if(t.sour || t.sharp) cnt.sour++; if(t.bitter) cnt.bitter++; if(t.good) cnt.good++; });
   if(cnt.sour + cnt.bitter){
-    const tend = cnt.sour > cnt.bitter ? 'Tendenz Unterextraktion: eher feiner, länger, wärmer.' : cnt.bitter > cnt.sour ? 'Tendenz Überextraktion: eher gröber, kürzer, kühler.' : 'Sauer und bitter halten sich die Waage, das spricht für ungleichmäßige Extraktion.';
-    out.push(`<div class="ins"><span class="eyebrow">Geschmackstrend (letzte ${recent.length})</span><span class="big">${cnt.sour}× sauer · ${cnt.bitter}× bitter · ${cnt.good}× gut</span><p>${tend}</p></div>`);
+    const tend = cnt.sour > cnt.bitter ? 'Leaning under-extracted: finer, longer, hotter.' : cnt.bitter > cnt.sour ? 'Leaning over-extracted: coarser, shorter, cooler.' : 'Sour and bitter are balanced, which points to uneven extraction.';
+    out.push(`<div class="ins"><span class="eyebrow">Taste trend (last ${recent.length})</span><span class="big">${cnt.sour}× sour · ${cnt.bitter}× bitter · ${cnt.good}× good</span><p>${tend}</p></div>`);
   }
   const bean = anchor?.beanId ? DATA.beans[anchor.beanId] : null;
   const age = anchor ? beanAge(anchor) : null;
@@ -1299,16 +1315,16 @@ function insightsHTML(shots, anchor, model, T, rec){
   if(age != null || decaf || bags.size > 1){
     let p = [];
     if(age != null){
-      if(age < 5) p.push(`Die Bohne war beim letzten Bezug ${age} Tage alt. Sehr frischer Kaffee gast stark aus und läuft unruhig, einige Tage Ruhe helfen.`);
-      else if(age > 35) p.push(`Die Bohne war beim letzten Bezug ${age} Tage alt. Älterer Kaffee läuft schneller und schmeckt flacher, du wirst nach und nach feiner mahlen müssen.`);
-      else p.push(`Die Bohne war beim letzten Bezug ${age} Tage alt und liegt im guten Fenster.`);
+      if(age < 5) p.push(`At the last shot the beans were ${age} days old. Very fresh coffee degasses strongly and runs erratically; a few days of rest help.`);
+      else if(age > 35) p.push(`At the last shot the beans were ${age} days old. Older coffee runs faster and tastes flatter; you will gradually need to grind finer.`);
+      else p.push(`At the last shot the beans were ${age} days old, in the sweet spot.`);
     }
     if(bags.size > 1){
       const dates = [...bags].map(id => DATA.beans[id]?.roastDate).filter(Boolean).map(d => d.toLocaleDateString(LOCALE, {day:'2-digit', month:'2-digit'}));
-      p.push(`Die Bezüge stammen aus ${bags.size} Packungen${dates.length ? ` (Röstung ${dates.join(' und ')})` : ''}. Unterschiedlich alte Bohnen verschieben den passenden Mahlgrad.`);
+      p.push(`The shots come from ${bags.size} bags${dates.length ? ` (roasted ${dates.join(' and ')})` : ''}. Beans of different ages shift the right grind setting.`);
     }
-    if(decaf) p.push('Entkoffeinierter Kaffee ist meist löslicher und läuft schneller. Wird er bitter, lieber 1–2 °C kühler brühen als gröber mahlen.');
-    out.push(`<div class="ins"><span class="eyebrow">Bohne${bean?.roaster ? ' · ' + esc(bean.roaster) : ''}</span><p>${p.join(' ')}</p></div>`);
+    if(decaf) p.push('Decaf is usually more soluble and runs faster. If it turns bitter, brew 1–2 °C cooler rather than grinding coarser.');
+    out.push(`<div class="ins"><span class="eyebrow">Beans${bean?.roaster ? ' · ' + esc(bean.roaster) : ''}</span><p>${p.join(' ')}</p></div>`);
   }
   const fds = shots.filter(s => s.firstDrip && s.time);
   if(fds.length >= 2 && !isFilter(shots)){
@@ -1316,68 +1332,68 @@ function insightsHTML(shots, anchor, model, T, rec){
     const mfs = fds.map(mainFlow).filter(Boolean);
     const mf = mfs.length ? mfs.reduce((a, b) => a + b, 0) / mfs.length : null;
     const tgt = T.ratio * T.dose / ((T.tMin + T.tMax) / 2 - 7);
-    out.push(`<div class="ins"><span class="eyebrow">Erster Tropfen & Hauptphase</span><span class="big">Ø ${fmt(avg,1)} s · Ø ${fmt(mf,2)} g/s</span><p>Zeit bis zum ersten Tropfen über ${fds.length} Shots, danach der Durchfluss bis zum Stopp. Für dein Ziel passen etwa 5–10 s und ${fmt(tgt,1)} g/s.</p></div>`);
+    out.push(`<div class="ins"><span class="eyebrow">First drip & main phase</span><span class="big">Ø ${fmt(avg,1)} s · Ø ${fmt(mf,2)} g/s</span><p>Time to first drip over ${fds.length} shots, then the flow until stopping. For your target about 5–10 s and ${fmt(tgt,1)} g/s.</p></div>`);
   }
   const noAge = [...new Set(shots.filter(s => beanAge(s) == null).map(s => s.bean))];
-  if(noAge.length) out.push(`<div class="ins warn"><span class="eyebrow">Röstdatum fehlt</span><p>Für ${noAge.map(esc).join(', ')} kennt der Kompass kein Röstdatum. Trag es oben beim Ausgangs-Shot ein, dann fließt das Bohnenalter in Analyse und Hinweise ein.</p></div>`);
+  if(noAge.length) out.push(`<div class="ins warn"><span class="eyebrow">Roast date missing</span><p>For ${noAge.map(esc).join(', ')} there is no roast date. Enter it above at the base shot so bean age feeds into the analysis and tips.</p></div>`);
   const all = allShots();
   const since = ts => ts ? all.filter(s => s.date && s.date.getTime() > ts).length : null;
   const nb = since(UI.maint.backflush), ndc = since(UI.maint.descale);
-  out.push(`<div class="ins${nb != null && nb >= 60 ? ' warn' : ''}"><span class="eyebrow">Pflege</span><span class="big">${nb != null ? nb + ' Bezüge seit Rückspülen' : 'Rückspülen nicht erfasst'}</span><p>${ndc != null ? ndc + ' Bezüge seit dem Entkalken. ' : ''}Zählt alle erfassten Bezüge seit dem letzten Klick.</p><div class="row"><button class="btn small" type="button" id="mBack">Heute rückgespült</button><button class="btn small" type="button" id="mDesc">Heute entkalkt</button></div></div>`);
+  out.push(`<div class="ins${nb != null && nb >= 60 ? ' warn' : ''}"><span class="eyebrow">Maintenance</span><span class="big">${nb != null ? nb + ' shots since backflush' : 'Backflush not recorded'}</span><p>${ndc != null ? ndc + ' shots since descaling. ' : ''}Counts all recorded shots since the last click.</p><div class="row"><button class="btn small" type="button" id="mBack">Backflushed today</button><button class="btn small" type="button" id="mDesc">Descaled today</button></div></div>`);
   const issues = [];
   const nd = shots.filter(s => !s.dose).length, nt = shots.filter(s => s.tempRaw != null && s.temp == null).length, nr = shots.filter(s => !s.rating).length, nti = shots.filter(s => !s.time).length;
-  if(nd) issues.push(`${nd}× Dosis 0 g`);
-  if(nt) issues.push(`${nt}× unplausible Temperatur`);
-  if(nti) issues.push(`${nti}× ohne Zeit`);
-  if(nr) issues.push(`${nr}× ohne Bewertung`);
-  if(issues.length) out.push(`<div class="ins warn"><span class="eyebrow">Datenqualität</span><span class="big">${issues.join(' · ')}</span><p>Diese Werte fließen nicht in die Berechnung ein. Bewertung und Geschmacksnotiz bei jedem Shot machen die Empfehlung deutlich treffsicherer.</p></div>`);
+  if(nd) issues.push(`${nd}× dose 0 g`);
+  if(nt) issues.push(`${nt}× implausible temperature`);
+  if(nti) issues.push(`${nti}× no time`);
+  if(nr) issues.push(`${nr}× no rating`);
+  if(issues.length) out.push(`<div class="ins warn"><span class="eyebrow">Data quality</span><span class="big">${issues.join(' · ')}</span><p>These values are left out of the calculation. A rating and taste note for every shot make the recommendation much more accurate.</p></div>`);
   return out.join('');
 }
 
 function tableHTML(rows, anchor, scale){
   return `<div class="tablewrap"><table>
-  <thead><tr><th>Datum</th>${UI.onlyCtx ? '' : '<th>Bohne</th><th>Mühle</th>'}<th>Mahlgrad</th><th>Dosis</th><th>Ausbeute</th><th>Ratio</th><th>Zeit</th><th>1. Tropfen</th><th>g/s gesamt</th><th>g/s Haupt</th><th>Temp</th><th>Alter</th><th>Bewertung</th><th>Geschmack</th><th>Notiz</th><th></th></tr></thead>
+  <thead><tr><th>Date</th>${UI.onlyCtx ? '' : '<th>Beans</th><th>Grinder</th>'}<th>Grind</th><th>Dose</th><th>Yield</th><th>Ratio</th><th>Time</th><th>First drip</th><th>g/s overall</th><th>g/s main</th><th>Temp</th><th>Age</th><th>Rating</th><th>Taste</th><th>Note</th><th></th></tr></thead>
   <tbody>${rows.map(s => {
     const t = shotTags(s);
     const tags = TASTES.filter(T => t[T.k]).map(T => `<span class="tag ${T.k}">${T.label}</span>`).join('');
     const inCtx = s.bean === UI.bean && s.grinder === UI.grinder;
     return `<tr class="${anchor && s.id === anchor.id ? 'anchor' : ''}">
-      <td class="n">${fmtDate(s.date)}${s.source === 'app' ? ' <span class="src">neu</span>' : ''}${FLOWS[s.id] ? '<span class="badge" title="Waagenkurve vorhanden">Kurve</span>' : ''}</td>
+      <td class="n">${fmtDate(s.date)}${s.source === 'app' ? ' <span class="src">new</span>' : ''}${FLOWS[s.id] ? '<span class="badge" title="Scale curve available">curve</span>' : ''}</td>
       ${UI.onlyCtx ? '' : `<td>${esc(s.bean)}</td><td>${esc(s.grinder)}</td>`}
       <td class="n">${esc(s.grindRaw) || '–'}</td>
-      <td class="n">${s.dose ? fmt(s.dose,1) : '<span class="flag" title="Dosis fehlt">0</span>'}</td>
+      <td class="n">${s.dose ? fmt(s.dose,1) : '<span class="flag" title="Dose missing">0</span>'}</td>
       <td class="n">${s.yield ? fmt(s.yield,1) : '–'}</td>
       <td class="n">${ratio(s) ? '1:' + fmt(ratio(s),2) : '–'}</td>
       <td class="n">${s.time ? fmt(s.time,0) + ' s' : '<span class="flag">–</span>'}</td>
       <td class="n">${s.firstDrip ? fmt(s.firstDrip,0) + ' s' : '–'}</td>
       <td class="n">${flow(s) ? fmt(flow(s),2) : '–'}</td>
       <td class="n">${mainFlow(s) ? fmt(mainFlow(s),2) : '–'}</td>
-      <td class="n">${s.temp ? fmt(s.temp,0) : s.tempRaw != null ? `<span class="flag" title="unplausibel">${fmt(s.tempRaw,0)}</span>` : '–'}</td>
+      <td class="n">${s.temp ? fmt(s.temp,0) : s.tempRaw != null ? `<span class="flag" title="implausible">${fmt(s.tempRaw,0)}</span>` : '–'}</td>
       <td class="n">${beanAge(s) != null ? beanAge(s) + ' d' : '–'}</td>
       <td class="n">${s.rating ? fmt(s.rating,0) + '/' + scale : '<span class="muted">–</span>'}</td>
       <td>${tags || '<span class="muted">–</span>'}</td>
       <td>${esc(s.notes)}</td>
-      <td style="white-space:nowrap"><button class="btn small" type="button" data-detail="${esc(s.id)}">Analyse</button> ${inCtx && s.time ? `<button class="btn small" type="button" data-anchor="${esc(s.id)}">${anchor && s.id === anchor.id ? 'Basis' : 'als Basis'}</button>` : ''}${s.source === 'app' ? ` <button class="btn small" type="button" data-del="${esc(s.id)}" aria-label="Eintrag löschen">×</button>` : ''}</td>
+      <td style="white-space:nowrap"><button class="btn small" type="button" data-detail="${esc(s.id)}">Analyse</button> ${inCtx && s.time ? `<button class="btn small" type="button" data-anchor="${esc(s.id)}">${anchor && s.id === anchor.id ? 'Base' : 'use as base'}</button>` : ''}${s.source === 'app' ? ` <button class="btn small" type="button" data-del="${esc(s.id)}" aria-label="Delete entry">×</button>` : ''}</td>
     </tr>`;}).join('')}</tbody></table></div>`;
 }
 
 function welcomeHTML(){
   return `
   <section class="card welcome" aria-labelledby="hWel">
-    <h2 id="hWel">Willkommen beim Dial-in Kompass</h2>
-    <p>Der Kompass liest deine Bezüge aus Beanconqueror, analysiert jeden Shot und sagt dir, wie du Mühle, Dosis, Ausbeute und Temperatur für den nächsten Espresso einstellst. Deine Daten bleiben in diesem Browser.</p>
+    <h2 id="hWel">Welcome to Dial-in Kompass</h2>
+    <p>Dial-in Kompass reads your brews from Beanconqueror, analyses every shot and tells you how to set grinder, dose, yield and temperature for your next espresso. Your data stays in this browser.</p>
     <ol class="steps">
-      <li><b>Daten aus Beanconqueror holen.</b> Den Excel-Export oder das Backup (ZIP) speichern. Flowprofile einzelner Bezüge gehen auch.</li>
-      <li><b>Hier laden.</b> Über „Dateien laden“ oder die Datei einfach auf die Seite ziehen.</li>
-      <li><b>Optional: Cloud-Sync.</b> Mit Visualizer-Upload in Beanconqueror kommen neue Shots automatisch hierher.</li>
+      <li><b>Get your data from Beanconqueror.</b> Save the Excel export or the backup (ZIP). Flow profiles of single brews work too.</li>
+      <li><b>Load it here.</b> Use “Load files” or simply drag the file onto the page.</li>
+      <li><b>Optional: cloud sync.</b> With Visualizer upload enabled in Beanconqueror, new shots arrive here automatically.</li>
     </ol>
-    <div class="row"><label class="btn primary" for="file">Dateien laden</label><button class="btn" type="button" id="wSample">Mit Beispieldaten ausprobieren</button><button class="btn" type="button" id="wSync">Cloud-Sync einrichten</button></div>
+    <div class="row"><label class="btn primary" for="file">Load files</label><button class="btn" type="button" id="wSample">Try with sample data</button><button class="btn" type="button" id="wSync">Set up cloud sync</button></div>
   </section>`;
 }
 function render(){
   if(!DATA || !allShots().length){
     $('#ctx').hidden = true;
-    $('#status').textContent = 'Noch keine Daten geladen';
+    $('#status').textContent = 'No data loaded yet';
     $('#resetBtn').hidden = !APP.length && !Object.keys(FLOWS).length;
     const bn = $('#banner');
     if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html; } else bn.hidden = true;
@@ -1398,12 +1414,12 @@ function render(){
   renderCtx(combos, T);
   if(!$('#syncBox').dataset.init){ renderSync(); $('#syncBox').dataset.init = 1; }
   const st = allShots();
-  $('#status').textContent = `${DATA.label} · ${DATA.shots.length} Bezüge${APP.length ? ` + ${APP.length} neu` : ''} · ${new Set(st.map(s => s.bean)).size} Bohnen · ${new Set(st.map(s => s.grinder)).size} Mühlen`;
+  $('#status').textContent = `${DATA.label} · ${DATA.shots.length} shots${APP.length ? ` + ${APP.length} new` : ''} · ${new Set(st.map(s => s.bean)).size} beans · ${new Set(st.map(s => s.grinder)).size} grinders`;
   const bn = $('#banner');
-  if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html + ' <button class="btn small" type="button" id="noticeX">Ausblenden</button>'; $('#noticeX').onclick = () => { NOTICE = null; render(); }; }
-  else { bn.hidden = !IS_SAMPLE; bn.className = 'banner'; bn.innerHTML = 'Du siehst erfundene Beispieldaten. Lade deinen eigenen Beanconqueror-Export, um mit deinen Shots zu arbeiten. <button class="btn small" type="button" id="sampleX">Beispiel schließen</button>'; const sx = $('#sampleX'); if(sx) sx.onclick = () => { DATA = null; IS_SAMPLE = false; render(); }; }
+  if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html + ' <button class="btn small" type="button" id="noticeX">Dismiss</button>'; $('#noticeX').onclick = () => { NOTICE = null; render(); }; }
+  else { bn.hidden = !IS_SAMPLE; bn.className = 'banner'; bn.innerHTML = 'You are looking at made-up sample data. Load your own Beanconqueror export to work with your shots. <button class="btn small" type="button" id="sampleX">Close sample</button>'; const sx = $('#sampleX'); if(sx) sx.onclick = () => { DATA = null; IS_SAMPLE = false; render(); }; }
 
-  if(!anchor){ $('#app').innerHTML = '<div class="card empty">Für diese Kombination gibt es noch keine Bezüge.</div>'; return; }
+  if(!anchor){ $('#app').innerHTML = '<div class="card empty">No shots for this combination yet.</div>'; return; }
 
   const tags = shotTags(anchor);
   const model = buildModel(anchor);
@@ -1414,7 +1430,7 @@ function render(){
   const recipe = UI.recipes[ctxKey()];
   const negTaste = tags.sour || tags.bitter || tags.sharp || tags.thin;
   const res = rec.res;
-  const dirTxt = rec.dir === 'halten' ? 'halten' : `${fmtG(Math.abs(rec.dG), res)} ${rec.dir}`;
+  const dirTxt = rec.dir === 'keep' ? 'keep' : `${fmtG(Math.abs(rec.dG), res)} ${rec.dir}`;
   const tLo = Math.round(rec.tPred - (rec.filter ? 10 : 1.5)), tHi = Math.round(rec.tPred + (rec.filter ? 10 : 1.5));
 
   const rows = (UI.onlyCtx ? shots : allShots());
@@ -1426,51 +1442,51 @@ function render(){
   <div class="grid">
     <div class="col">
       <section class="card" aria-labelledby="hLast">
-        <div class="card-head"><h2 id="hLast">Ausgangs-Shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · neu erfasst' : ''}</span></div>
+        <div class="card-head"><h2 id="hLast">Base shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · added here' : ''}</span></div>
         <div class="shotline">
-          <div class="kv"><span class="k">Mahlgrad</span><span class="v">${esc(anchor.grindRaw) || '–'}</span></div>
-          <div class="kv"><span class="k">Dosis</span><span class="v">${anchor.dose ? fmt(anchor.dose,1) + ' g' : '–'}</span></div>
-          <div class="kv"><span class="k">Ausbeute</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) + ' g' : '–'}</span></div>
-          <div class="kv"><span class="k">Zeit</span><span class="v">${anchor.time ? fmt(anchor.time,0) + ' s' : '–'}</span></div>
+          <div class="kv"><span class="k">Grind</span><span class="v">${esc(anchor.grindRaw) || '–'}</span></div>
+          <div class="kv"><span class="k">Dose</span><span class="v">${anchor.dose ? fmt(anchor.dose,1) + ' g' : '–'}</span></div>
+          <div class="kv"><span class="k">Yield</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) + ' g' : '–'}</span></div>
+          <div class="kv"><span class="k">Time</span><span class="v">${anchor.time ? fmt(anchor.time,0) + ' s' : '–'}</span></div>
           <div class="kv"><span class="k">Ratio</span><span class="v">${anchorRatio ? '1:' + fmt(anchorRatio,2) : '–'}</span></div>
-          <div class="kv"><span class="k">Bewertung</span><span class="v">${anchor.rating ? fmt(anchor.rating,0) + '/' + scale : '–'}</span></div>
+          <div class="kv"><span class="k">Rating</span><span class="v">${anchor.rating ? fmt(anchor.rating,0) + '/' + scale : '–'}</span></div>
         </div>
-        ${anchor.notes ? `<div class="note">„${esc(anchor.notes)}“</div>` : ''}
-        ${ageA == null ? `<div class="roast"><label for="roastIn">Röstdatum von <b>${esc(anchor.bean)}</b> fehlt:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Übernehmen</button></div>` : `<div class="muted" style="font-size:13px">Bohne beim Bezug ${ageA} Tage nach Röstung${UI.roast[beanKey(anchor)] ? ` · <button class="btn small" type="button" id="roastClear">Röstdatum ändern</button>` : ''}${anchor.firstDrip ? ` · erster Tropfen nach ${fmt(anchor.firstDrip,0)} s` : ''}</div>`}
-        <div class="field"><label>Wie hat er geschmeckt?</label>
+        ${anchor.notes ? `<div class="note">“${esc(anchor.notes)}”</div>` : ''}
+        ${ageA == null ? `<div class="roast"><label for="roastIn">Roast date of <b>${esc(anchor.bean)}</b> is missing:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Apply</button></div>` : `<div class="muted" style="font-size:13px">Beans at this shot: ${ageA} days after roasting${UI.roast[beanKey(anchor)] ? ` · <button class="btn small" type="button" id="roastClear">Change roast date</button>` : ''}${anchor.firstDrip ? ` · first drip after ${fmt(anchor.firstDrip,0)} s` : ''}</div>`}
+        <div class="field"><label>How did it taste?</label>
           <div class="chips" id="tasteChips">${TASTES.map(T => `<button type="button" class="chip" data-t="${T.k}" aria-pressed="${!!tags[T.k]}">${T.label}</button>`).join('')}</div>
         </div>
-        ${negTaste ? `<div class="row" style="font-size:13px"><span class="muted">Wie deutlich?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
-        ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Aus Notiz übernehmen</button>' : '<span class="muted" style="font-size:12.5px">Vorauswahl aus deiner Notiz und Bewertung. Antippen, um zu korrigieren.</span>'}
+        ${negTaste ? `<div class="row" style="font-size:13px"><span class="muted">How strong?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
+        ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Take from note</button>' : '<span class="muted" style="font-size:12.5px">Pre-selected from your note and rating. Tap to correct.</span>'}
       </section>
 
       <section class="card rec" aria-labelledby="hRec">
-        <div class="card-head"><h2 id="hRec">Nächster Shot</h2><span class="conf ${rec.conf}">Sicherheit ${CONF_LABEL[rec.conf]}</span></div>
+        <div class="card-head"><h2 id="hRec">Next shot</h2><span class="conf ${rec.conf}">Confidence ${CONF_LABEL[rec.conf]}</span></div>
         <div class="tiles">
-          <div class="tile main"><span class="k">Mahlgrad</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span><span class="d">${anchor.grind != null ? dirTxt : 'Mahlgrad nicht numerisch'}</span></div>
-          <div class="tile"><span class="k">Dosis</span><span class="v">${fmt(rec.dose,1)}</span><span class="d">g</span></div>
-          <div class="tile"><span class="k">Ausbeute</span><span class="v">${fmt(rec.yld,0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>Waage stoppen bei ${fmt(stopAt, stopAt % 1 ? 1 : 0)} g` : ''}</span></div>
-          <div class="tile"><span class="k">Zeit</span><span class="v">${tLo}–${tHi}</span><span class="d">s erwartet</span></div>
+          <div class="tile main"><span class="k">Grind</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span><span class="d">${anchor.grind != null ? dirTxt : 'Grind is not numeric'}</span></div>
+          <div class="tile"><span class="k">Dose</span><span class="v">${fmt(rec.dose,1)}</span><span class="d">g</span></div>
+          <div class="tile"><span class="k">Yield</span><span class="v">${fmt(rec.yld,0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>stop the scale at ${fmt(stopAt, stopAt % 1 ? 1 : 0)} g` : ''}</span></div>
+          <div class="tile"><span class="k">Time</span><span class="v">${tLo}–${tHi}</span><span class="d">s expected</span></div>
           <div class="tile"><span class="k">Temp</span><span class="v">${rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) : '–'}</span><span class="d">°C${rec.dT ? (rec.dT > 0 ? ' · +' : ' · ') + rec.dT : ''}</span></div>
         </div>
         <div class="ruler">${rulerSVG(shots, anchor, rec)}</div>
-        ${recipe ? (() => { const ageNow = beanAge({ ...anchor, date:new Date() }); const dAge = recipe.age != null && ageNow != null ? ageNow - recipe.age : null; return `<div class="flowhint" style="color:var(--ink)"><b>Dein Rezept</b> für ${esc(UI.bean)} · ${esc(UI.grinder)}: Mahlgrad ${esc(recipe.grindRaw)} · ${fmt(recipe.dose,1)} g → ${fmt(recipe.yield,1)} g · ${fmt(recipe.time,0)} s${recipe.temp ? ' · ' + fmt(recipe.temp,0) + ' °C' : ''} <span class="muted">(${fmtDate(new Date(recipe.date))}${recipe.rating ? ', ' + recipe.rating + '/' + scale : ''})</span>${dAge != null && dAge >= 7 ? `<br><span class="muted">Die Bohne ist seit dem Rezept ${dAge} Tage älter geworden. Älterer Kaffee läuft schneller, rechne eher mit einer feineren Einstellung.</span>` : ''}<div class="row" style="margin-top:6px"><button class="btn small" type="button" id="recipeCopy">Rezept kopieren</button><button class="btn small" type="button" id="recipeDel">Rezept entfernen</button></div></div>`; })() : ''}
+        ${recipe ? (() => { const ageNow = beanAge({ ...anchor, date:new Date() }); const dAge = recipe.age != null && ageNow != null ? ageNow - recipe.age : null; return `<div class="flowhint" style="color:var(--ink)"><b>Your recipe</b> for ${esc(UI.bean)} · ${esc(UI.grinder)}: grind ${esc(recipe.grindRaw)} · ${fmt(recipe.dose,1)} g → ${fmt(recipe.yield,1)} g · ${fmt(recipe.time,0)} s${recipe.temp ? ' · ' + fmt(recipe.temp,0) + ' °C' : ''} <span class="muted">(${fmtDate(new Date(recipe.date))}${recipe.rating ? ', ' + recipe.rating + '/' + scale : ''})</span>${dAge != null && dAge >= 7 ? `<br><span class="muted">The beans have aged ${dAge} days since this recipe. Older coffee runs faster, so expect a finer setting.</span>` : ''}<div class="row" style="margin-top:6px"><button class="btn small" type="button" id="recipeCopy">Copy recipe</button><button class="btn small" type="button" id="recipeDel">Remove recipe</button></div></div>`; })() : ''}
         <ul class="why">${rec.why.map(w => `<li>${w}</li>`).join('')}
-          <li>${rec.method === 'model' ? `Der Mahlgrad ist aus deinen eigenen Bezügen errechnet (Durchfluss in g/s je Mahlgrad-Stufe, neuere Bezüge zählen stärker).` : `Der Mahlgrad folgt einer Faustregel (${res < 1 ? '0,1 Einheit ≈ 1,5 s' : '1 Klick ≈ 3 s'}), weil die Daten noch keinen klaren Zusammenhang zeigen.`}</li>
+          <li>${rec.method === 'model' ? `The grind is calculated from your own shots (flow in g/s per grind step; newer shots count more).` : `The grind follows a rule of thumb (${res < 1 ? '0.1 unit ≈ 1.5 s' : '1 click ≈ 3 s'}) because the data do not show a clear relationship yet.`}</li>
         </ul>
-        ${over ? `<span class="muted" style="font-size:12.5px">Nachlauf gelernt aus ${over.n} ${over.src === 'Kurve' ? 'Waagenkurven' : 'eingetragenen Shots'}: nach dem Stoppen kommen im Schnitt noch ${fmt(over.g,1)} g in die Tasse.</span>` : ''}
+        ${over ? `<span class="muted" style="font-size:12.5px">Post-stop drip learned from ${over.n} ${over.src === 'curve' ? 'scale curves' : 'logged shots'}: after stopping, on average another ${fmt(over.g,1)} g ends up in the cup.</span>` : ''}
         ${rec.hints.map(h => `<div class="hint">${h}</div>`).join('')}
       </section>
     </div>
 
     <div class="col">
       <section class="card chart" aria-labelledby="hMap">
-        <div class="card-head"><h2 id="hMap">Extraktionskarte</h2><span class="muted" style="font-size:13px">${esc(UI.bean)} · ${esc(UI.grinder)}</span></div>
+        <div class="card-head"><h2 id="hMap">Extraction map</h2><span class="muted" style="font-size:13px">${esc(UI.bean)} · ${esc(UI.grinder)}</span></div>
         ${compassSVG(shots, anchor, rec, T)}
-        <div class="legend"><span><i style="background:var(--sour)"></i>sauer/spitz</span><span><i style="background:var(--bitter)"></i>bitter</span><span><i style="background:var(--good)"></i>gut</span><span><i style="background:var(--mixed)"></i>gemischt/dünn</span><span><i style="background:var(--none)"></i>ohne Angabe</span><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 6L6 12L0 6Z" fill="var(--accent)"/></svg>nächster Shot</span></div>
+        <div class="legend"><span><i style="background:var(--sour)"></i>sour/sharp</span><span><i style="background:var(--bitter)"></i>bitter</span><span><i style="background:var(--good)"></i>good</span><span><i style="background:var(--mixed)"></i>mixed/thin</span><span><i style="background:var(--none)"></i>not rated</span><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 6L6 12L0 6Z" fill="var(--accent)"/></svg>next shot</span></div>
       </section>
       ${grindSVG(shots, anchor, rec, model, T) ? `<section class="card chart" aria-labelledby="hGrind">
-        <div class="card-head"><h2 id="hGrind">Mahlgrad und Laufzeit</h2><span class="muted" style="font-size:13px">Linie: erwartete Zeit bei ${fmt(rec.yld,0)} g</span></div>
+        <div class="card-head"><h2 id="hGrind">Grind and shot time</h2><span class="muted" style="font-size:13px">Line: expected time at ${fmt(rec.yld,0)} g</span></div>
         ${grindSVG(shots, anchor, rec, model, T)}
       </section>` : ''}
     </div>
@@ -1481,42 +1497,42 @@ function render(){
   ${analysisHTML(detail, T, shots, scale)}
 
   <section class="card" aria-labelledby="hIns">
-    <h2 id="hIns">Was deine Daten zeigen</h2>
+    <h2 id="hIns">What your data show</h2>
     <div class="insights">${insightsHTML(shots, anchor, model, T, rec)}</div>
   </section>
 
   <section class="card" aria-labelledby="hAdd">
-    <div class="card-head"><h2 id="hAdd">Shot eintragen</h2><span class="muted" style="font-size:13px">Vorausgefüllt mit der Empfehlung. Nach dem Speichern wird er zur neuen Basis.</span></div>
+    <div class="card-head"><h2 id="hAdd">Log a shot</h2><span class="muted" style="font-size:13px">Pre-filled with the recommendation. After saving it becomes the new base.</span></div>
     <form class="add" id="addForm">
-      <div class="field"><label for="fGrind">Mahlgrad</label><input id="fGrind" required inputmode="decimal"></div>
-      <div class="field"><label for="fDose">Dosis g</label><input id="fDose" type="number" step="0.1" required></div>
-      <div class="field"><label for="fYield">Ausbeute g</label><input id="fYield" type="number" step="0.1" required></div>
-      <div class="field"><label for="fTime">Zeit s</label><input id="fTime" type="number" step="1" required></div>
-      <div class="field"><label for="fDrip">1. Tropfen s</label><input id="fDrip" type="number" step="1"></div>
+      <div class="field"><label for="fGrind">Grind</label><input id="fGrind" required inputmode="decimal"></div>
+      <div class="field"><label for="fDose">Dose g</label><input id="fDose" type="number" step="0.1" required></div>
+      <div class="field"><label for="fYield">Yield g</label><input id="fYield" type="number" step="0.1" required></div>
+      <div class="field"><label for="fTime">Time s</label><input id="fTime" type="number" step="1" required></div>
+      <div class="field"><label for="fDrip">First drip s</label><input id="fDrip" type="number" step="1"></div>
       <div class="field"><label for="fTemp">Temp °C</label><input id="fTemp" type="number" step="0.5"></div>
-      <div class="field"><label for="fRating">Bewertung /${scale}</label><input id="fRating" type="number" min="0" max="${scale}" step="1"></div>
-      <div class="field wide"><label>Geschmack</label><div class="chips" id="formChips">${TASTES.map(T => `<button type="button" class="chip" data-t="${T.k}" aria-pressed="false">${T.label}</button>`).join('')}</div></div>
-      <div class="field wide"><label for="fNotes">Notiz</label><textarea id="fNotes" placeholder="z. B. süßer, noch leicht spitz im Abgang"></textarea></div>
-      <div class="row wide"><button class="btn primary" type="submit">Shot speichern</button>${APP.length ? `<button class="btn" type="button" id="copyApp">Neue Einträge kopieren (${APP.length})</button><button class="btn" type="button" id="clearApp">Neue Einträge löschen</button>` : ''}<span class="muted" id="formMsg" style="font-size:13px"></span></div>
+      <div class="field"><label for="fRating">Rating /${scale}</label><input id="fRating" type="number" min="0" max="${scale}" step="1"></div>
+      <div class="field wide"><label>Taste</label><div class="chips" id="formChips">${TASTES.map(T => `<button type="button" class="chip" data-t="${T.k}" aria-pressed="false">${T.label}</button>`).join('')}</div></div>
+      <div class="field wide"><label for="fNotes">Note</label><textarea id="fNotes" placeholder="e.g. sweeter, still slightly sharp in the finish"></textarea></div>
+      <div class="row wide"><button class="btn primary" type="submit">Save shot</button>${APP.length ? `<button class="btn" type="button" id="copyApp">Copy new entries (${APP.length})</button><button class="btn" type="button" id="clearApp">Delete new entries</button>` : ''}<span class="muted" id="formMsg" style="font-size:13px"></span></div>
       <div class="wide" id="copyOut"></div>
     </form>
   </section>
 
   <section class="card" aria-labelledby="hHist">
-    <div class="card-head"><h2 id="hHist">Verlauf</h2><label class="toggle"><input type="checkbox" id="onlyCtx" ${UI.onlyCtx ? 'checked' : ''}> nur ${esc(UI.bean)} · ${esc(UI.grinder)}</label></div>
+    <div class="card-head"><h2 id="hHist">History</h2><label class="toggle"><input type="checkbox" id="onlyCtx" ${UI.onlyCtx ? 'checked' : ''}> only ${esc(UI.bean)} · ${esc(UI.grinder)}</label></div>
     ${tableHTML(rows, anchor, scale)}
   </section>
 
   <details class="card">
-    <summary>So rechnet der Kompass</summary>
+    <summary>How the Kompass calculates</summary>
     <ul>
-      <li>Basis ist dein letzter Shot dieser Bohnen-Mühlen-Kombination (oder der, den du im Verlauf als Basis wählst).</li>
-      <li>Aus allen Bezügen mit Zeit und Ausbeute wird der Durchfluss (g/s) je Mahlgrad als gewichtete Regression geschätzt. Neuere Bezüge zählen mehr, weil Bohnen mit dem Alter schneller laufen. Reichen die Daten einer Bohne nicht, nutzt der Kompass die Bezüge aller Bohnen auf derselben Mühle.</li>
-      <li>Der Geschmack entscheidet, was sich ändert: sauer und schnell → feiner; sauer bei passender Zeit → längere Ratio und wärmer; bitter und langsam → gröber; bitter bei passender Zeit → kürzere Ratio und kühler; sauer und bitter → Puck-Vorbereitung.</li>
-      <li>Große Sprünge werden begrenzt (${res < 1 ? '0,6 Einheiten' : '3 Klicks'}), damit du dich in Schritten annäherst. Dosisfehler (0 g) und unplausible Temperaturen werden ignoriert.</li>
-      <li>Die Shot-Analyse nutzt den ersten Tropfen, den Durchfluss danach (Hauptphase), das Bohnenalter und, falls vorhanden, die Waagenkurve: Spitzenflow, Schwankung des Flows, plötzliche Flow-Sprünge (Channeling) und Druck.</li>
-      <li>Importierbar sind: der Excel-Export, das vollständige Backup (ZIP mit Beanconqueror.json, enthält Röstdaten und Millisekunden), Flowprofile einzelner Bezüge als JSON oder Excel sowie Visualizer-Dateien. Mehrere Dateien gleichzeitig ablegen geht auch.</li>
-      <li>Daten bleiben in diesem Browser. Nichts wird hochgeladen.</li>
+      <li>The base is your latest shot for this bean/grinder combination (or the one you pick as base in the history).</li>
+      <li>From all shots with time and yield, flow (g/s) per grind setting is estimated with a weighted regression. Newer shots count more because beans run faster as they age. If one bean has too little data, shots of all beans on the same grinder are used.</li>
+      <li>Taste decides what changes: sour and fast → finer; sour with the right time → longer ratio and hotter; bitter and slow → coarser; bitter with the right time → shorter ratio and cooler; sour and bitter → puck prep.</li>
+      <li>Big jumps are capped (${res < 1 ? '0.6 units' : '3 clicks'}) so you approach the target step by step. Dose errors (0 g) and implausible temperatures are ignored.</li>
+      <li>The shot analysis uses the first drip, the flow after it (main phase), bean age and, if available, the scale curve: peak flow, flow variation, sudden flow jumps (channeling) and pressure.</li>
+      <li>You can import: the Excel export, the full backup (ZIP with Beanconqueror.json, includes roast dates and milliseconds), flow profiles of single brews as JSON or Excel, and Visualizer files. Several files at once work too.</li>
+      <li>Data stays in this browser. Nothing is uploaded.</li>
     </ul>
   </details>`;
 
@@ -1529,10 +1545,10 @@ function render(){
   });
   document.querySelectorAll('#intenChips .chip').forEach(c => c.onclick = () => { UI.intensity[anchor.id] = c.dataset.i; formDirty = false; saveUI(); render(); });
   const rcp = $('#recipeCopy'); if(rcp) rcp.onclick = () => {
-    const txt = `${UI.bean} · ${UI.grinder}: Mahlgrad ${recipe.grindRaw}, ${recipe.dose} g → ${recipe.yield} g in ${recipe.time} s${recipe.temp ? ', ' + recipe.temp + ' °C' : ''}`;
-    try{ navigator.clipboard.writeText(txt).then(() => { rcp.textContent = 'Kopiert'; }, () => { rcp.textContent = txt; }); }catch(e){ rcp.textContent = txt; }
+    const txt = `${UI.bean} · ${UI.grinder}: grind ${recipe.grindRaw}, ${recipe.dose} g → ${recipe.yield} g in ${recipe.time} s${recipe.temp ? ', ' + recipe.temp + ' °C' : ''}`;
+    try{ navigator.clipboard.writeText(txt).then(() => { rcp.textContent = 'Copied'; }, () => { rcp.textContent = txt; }); }catch(e){ rcp.textContent = txt; }
   };
-  const rcd = $('#recipeDel'); if(rcd) rcd.onclick = () => { if(rcd.dataset.c){ delete UI.recipes[ctxKey()]; saveUI(); render(); } else { rcd.dataset.c = 1; rcd.textContent = 'Wirklich entfernen?'; } };
+  const rcd = $('#recipeDel'); if(rcd) rcd.onclick = () => { if(rcd.dataset.c){ delete UI.recipes[ctxKey()]; saveUI(); render(); } else { rcd.dataset.c = 1; rcd.textContent = 'Really remove?'; } };
   const rsv = $('#recipeSave'); if(rsv) rsv.onclick = () => { const d = detail; UI.recipes[ctxKey()] = { shotId:d.id, grindRaw:d.grindRaw, grind:d.grind, dose:d.dose, yield:d.yield, time:d.time, temp:d.temp, rating:d.rating, date:d.date?.getTime(), age:beanAge(d) }; delete UI.targets[ctxKey()]; saveUI(); render(); };
   const cs = $('#cmpSel'); if(cs) cs.onchange = e => { UI.cmpId = e.target.value || null; render(); };
   const mb = $('#mBack'); if(mb) mb.onclick = () => { UI.maint.backflush = Date.now(); saveUI(); render(); };
@@ -1552,7 +1568,7 @@ function render(){
   $('#anaPrev').onclick = () => { if(di > 0) goDetail(ordered[di - 1].id); };
   $('#anaNext').onclick = () => { if(di < ordered.length - 1) goDetail(ordered[di + 1].id); };
   const fm = $('#flowMove'); if(fm) fm.onchange = e => { if(!e.target.value) return; FLOWS[e.target.value] = FLOWS[detail.id]; delete FLOWS[detail.id]; saveFlows(); const tgt = allShots().find(x => x.id === e.target.value); if(tgt){ UI.bean = tgt.bean; UI.grinder = tgt.grinder; saveUI(); } goDetail(e.target.value); };
-  const fdl = $('#flowDel'); if(fdl) fdl.onclick = () => { if(fdl.dataset.c){ delete FLOWS[detail.id]; saveFlows(); render(); } else { fdl.dataset.c = 1; fdl.textContent = 'Wirklich entfernen?'; } };
+  const fdl = $('#flowDel'); if(fdl) fdl.onclick = () => { if(fdl.dataset.c){ delete FLOWS[detail.id]; saveFlows(); render(); } else { fdl.dataset.c = 1; fdl.textContent = 'Really remove?'; } };
   const rs = $('#roastSave'); if(rs) rs.onclick = () => { const v = $('#roastIn').value; if(!v) return; UI.roast[beanKey(anchor)] = v; saveUI(); render(); };
   const rc = $('#roastClear'); if(rc) rc.onclick = () => { delete UI.roast[beanKey(anchor)]; saveUI(); render(); };
 
@@ -1573,27 +1589,27 @@ function render(){
     };
     s.tags = Object.keys(tg).length ? tg : tagNotes(s.notes, s.rating, scale);
     APP.push(s); store.set('dk.app', APP); UI.anchorId = s.id; UI.detailId = s.id; formDirty = false; saveUI(); render();
-    $('#formMsg') && ($('#formMsg').textContent = 'Gespeichert. Neue Empfehlung oben.');
+    $('#formMsg') && ($('#formMsg').textContent = 'Saved. New recommendation above.');
     window.scrollTo({top:0, behavior:'smooth'});
   };
   const ca = $('#copyApp');
   if(ca) ca.onclick = () => {
-    const head = ['Datum','Bohne','Mühle','Mahlgrad','Dosis','Ausbeute','Zeit','Temp','Bewertung','Notiz'];
+    const head = ['Date','Beans','Grinder','Grind','Dose','Yield','Time','Temp','Rating','Note'];
     const txt = [head.join('\t')].concat(APP.map(s => [fmtDate(s.date), s.bean, s.grinder, s.grindRaw, s.dose, s.yield, s.time, s.temp ?? '', s.rating || '', s.notes].join('\t'))).join('\n');
     const show = () => { $('#copyOut').innerHTML = `<textarea class="copy" readonly>${esc(txt)}</textarea>`; const ta = $('#copyOut textarea'); ta.focus(); ta.select(); };
-    try{ navigator.clipboard.writeText(txt).then(() => { $('#formMsg').textContent = 'In die Zwischenablage kopiert.'; }, show); }catch(e){ show(); }
+    try{ navigator.clipboard.writeText(txt).then(() => { $('#formMsg').textContent = 'Copied to the clipboard.'; }, show); }catch(e){ show(); }
   };
   const cl = $('#clearApp');
   if(cl) cl.onclick = () => {
     if(cl.dataset.confirm){ APP = []; store.set('dk.app', APP); UI.anchorId = null; render(); }
-    else { cl.dataset.confirm = '1'; cl.textContent = 'Wirklich löschen?'; }
+    else { cl.dataset.confirm = '1'; cl.textContent = 'Really delete?'; }
   };
 }
 
 /* ---------- Dateien laden ---------- */
 function setNotice(ok, lines){ NOTICE = { ok, html: lines.length > 1 ? `<b>${esc(lines[0])}</b><ul>${lines.slice(1).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : esc(lines[0]) }; }
 function sheetsOf(buf){
-  if(typeof XLSX === 'undefined') throw new Error('Die Excel-Bibliothek konnte nicht geladen werden. Prüfe die Internetverbindung und lade die Seite neu.');
+  if(typeof XLSX === 'undefined') throw new Error('The Excel library could not be loaded. Check your internet connection and reload the page.');
   const wb = XLSX.read(new Uint8Array(buf), {type:'array'});
   const sheets = {};
   wb.SheetNames.forEach(n => sheets[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:null}));
@@ -1603,7 +1619,7 @@ function classifyJSON(J, name, out){
   if(J && Array.isArray(J.BREWS)){ out.data = parseBackup(J, name); return; }
   if(J && J.brewFlow && J.brew){ out.flows.push({ name, flow: compactFlow(J.brewFlow), vis: J }); return; }
   if(J && (Array.isArray(J.weight) || Array.isArray(J.realtimeFlow))){ out.flows.push({ name, flow: compactFlow(J) }); return; }
-  throw new Error('unbekanntes JSON-Format');
+  throw new Error('unknown JSON format');
 }
 function matchShot(flow){
   const fw = flow.w?.length ? Math.max(...flow.w.slice(-8)) : null;
@@ -1623,7 +1639,7 @@ function ingestVisualizer(vis){
   let shot = allShots().find(s => Math.abs((s.date?.getTime() || 0) / 1000 - ts) <= 90);
   let isNew = false;
   if(!shot){
-    const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Mühle', config:{uuid:'vis'} }] }, '');
+    const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Grinder', config:{uuid:'vis'} }] }, '');
     shot = one.shots[0]; shot.beanId = null; ensureData().shots.push(shot); isNew = true;
   } else if(!shot.firstDrip && b.coffee_first_drip_time){
     shot.firstDrip = (+b.coffee_first_drip_time || 0) + (+b.coffee_first_drip_time_milliseconds || 0) / 1000 || null;
@@ -1644,18 +1660,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function visGet(path){
   let res;
   try{ res = await fetch(VIS + path, { headers:{ Authorization:'Basic ' + b64(SYNC.email + ':' + SYNC.pw), Accept:'application/json' } }); }
-  catch(e){ throw new Error('Visualizer ist von dieser Seite aus nicht erreichbar. Der Cloud-Sync funktioniert nur in der selbst gehosteten Version (z. B. auf Vercel), nicht in der Claude-Vorschau.'); }
-  if(res.status === 401) throw new Error('Anmeldung bei Visualizer fehlgeschlagen. E-Mail und Passwort prüfen.');
-  if(res.status === 429) throw new Error('Visualizer bremst gerade (zu viele Anfragen). In einer Minute erneut versuchen.');
-  if(!res.ok) throw new Error('Visualizer antwortet mit Fehler ' + res.status + '.');
+  catch(e){ throw new Error('Visualizer cannot be reached from this page. Cloud sync only works in the self-hosted version (e.g. on Vercel), not in the Claude preview.'); }
+  if(res.status === 401) throw new Error('Visualizer sign-in failed. Check email and password.');
+  if(res.status === 429) throw new Error('Visualizer is rate-limiting (too many requests). Try again in a minute.');
+  if(!res.ok) throw new Error('Visualizer responded with error ' + res.status + '.');
   return res.json();
 }
 async function cloudSync(status){
   if(syncing) return; syncing = true;
   const say = m => { const el = $('#syncState'); if(el) el.textContent = m; };
   try{
-    if(!SYNC.email || !SYNC.pw) throw new Error('Bitte E-Mail und Passwort deines Visualizer-Kontos eintragen.');
-    say('Verbinde …');
+    if(!SYNC.email || !SYNC.pw) throw new Error('Please enter the email and password of your Visualizer account.');
+    say('Connecting …');
     const ids = [];
     for(let page = 1; page <= 5; page++){
       const q = `/shots?items=100&page=${page}` + (SYNC.last ? `&updated_after=${SYNC.last - 3600}` : '');
@@ -1666,7 +1682,7 @@ async function cloudSync(status){
     let added = 0, flows = 0, skipped = 0, n = 0;
     const todo = ids.slice(0, 45);
     for(const s of todo){
-      n++; say(`Lade Shot ${n} von ${todo.length} …`);
+      n++; say(`Loading shot ${n} of ${todo.length} …`);
       const d = await visGet(`/shots/${s.id}/download`);
       const bd = d.brewdata;
       if(bd && bd.brew){
@@ -1679,24 +1695,24 @@ async function cloudSync(status){
     SYNC.last = Math.floor(Date.now() / 1000);
     if(added || flows){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
     saveSync();
-    const more = ids.length > todo.length ? ` Noch ${ids.length - todo.length} weitere, nochmal synchronisieren.` : '';
-    setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more}`]);
+    const more = ids.length > todo.length ? ` Another ${ids.length - todo.length} remaining; sync again.` : '';
+    setNotice(true, [`Cloud sync: ${added} new shots, ${flows} scale curves${skipped ? `, ${skipped} skipped (no Beanconqueror data)` : ''}.${more}`]);
     const latest = allShots()[0]; if(added && latest){ UI.bean = latest.bean; UI.grinder = latest.grinder; UI.anchorId = null; UI.detailId = null; }
-  }catch(e){ setNotice(false, ['Cloud-Sync: ' + e.message]); }
+  }catch(e){ setNotice(false, ['Cloud sync: ' + e.message]); }
   syncing = false; renderSync(); render();
 }
 function renderSync(){
   const el = $('#syncBox'); if(!el) return;
-  el.innerHTML = `<summary>Cloud-Sync mit Visualizer${SYNC.last ? ` <span class="muted" style="font-weight:400">· zuletzt ${fmtDate(new Date(SYNC.last * 1000))}</span>` : ''}</summary>
-    <p>Beanconqueror kann jeden Bezug samt Waagenkurve automatisch zu visualizer.coffee hochladen. Der Kompass holt sie von dort ab. Einmalig in Beanconqueror die Visualizer-Anbindung mit automatischem Upload aktivieren, dann hier dieselben Zugangsdaten eintragen.</p>
+  el.innerHTML = `<summary>Cloud sync with Visualizer${SYNC.last ? ` <span class="muted" style="font-weight:400">· last ${fmtDate(new Date(SYNC.last * 1000))}</span>` : ''}</summary>
+    <p>Beanconqueror can upload every brew including its scale curve to visualizer.coffee automatically. The Kompass fetches them from there. Enable the Visualizer connection with automatic upload in Beanconqueror once, then enter the same credentials here.</p>
     <form id="syncForm" class="row" style="align-items:flex-end">
-      <div class="field"><label for="sEmail">E-Mail</label><input id="sEmail" type="email" autocomplete="username" value="${esc(SYNC.email)}" style="width:15em;font-family:var(--f-body)"></div>
-      <div class="field"><label for="sPw">Passwort</label><input id="sPw" type="password" autocomplete="current-password" value="${SYNC.remember ? esc(SYNC.pw) : ''}" style="width:11em;font-family:var(--f-body)"></div>
-      <label class="toggle"><input type="checkbox" id="sRemember" ${SYNC.remember ? 'checked' : ''}> auf diesem Gerät merken</label>
-      <button class="btn primary" type="submit">Jetzt synchronisieren</button>
+      <div class="field"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="username" value="${esc(SYNC.email)}" style="width:15em;font-family:var(--f-body)"></div>
+      <div class="field"><label for="sPw">Password</label><input id="sPw" type="password" autocomplete="current-password" value="${SYNC.remember ? esc(SYNC.pw) : ''}" style="width:11em;font-family:var(--f-body)"></div>
+      <label class="toggle"><input type="checkbox" id="sRemember" ${SYNC.remember ? 'checked' : ''}> remember on this device</label>
+      <button class="btn primary" type="submit">Sync now</button>
       <span class="muted" id="syncState" style="font-size:13px"></span>
     </form>
-    <p style="font-size:12.5px">Die Zugangsdaten gehen nur direkt an visualizer.coffee. Mit „merken“ liegen sie im Browserspeicher dieses Geräts, und der Abgleich läuft bei jedem Öffnen automatisch. Ohne Premium liefert Visualizer die Shots der letzten 30 Tage, das reicht fürs Dial-in.</p>`;
+    <p style="font-size:12.5px">Credentials are only sent directly to visualizer.coffee. With “remember” they are kept in this device’s browser storage and sync runs automatically on every visit. Without premium, Visualizer returns the last 30 days of shots, which is enough for dialling in.</p>`;
   $('#syncForm').onsubmit = e => {
     e.preventDefault();
     SYNC.email = $('#sEmail').value.trim(); const pw = $('#sPw').value; if(pw) SYNC.pw = pw; SYNC.remember = $('#sRemember').checked;
@@ -1710,7 +1726,7 @@ async function importFiles(list){
     const name = f.name;
     try{
       if(/\.zip$/i.test(name)){
-        if(typeof JSZip === 'undefined') throw new Error('ZIP-Bibliothek nicht geladen');
+        if(typeof JSZip === 'undefined') throw new Error('ZIP library not loaded');
         const z = await JSZip.loadAsync(await f.arrayBuffer());
         const main = z.file('Beanconqueror.json');
         if(main){
@@ -1723,7 +1739,7 @@ async function importFiles(list){
         const others = z.file(/\.json$/i).filter(e => !/^Beanconqueror(_(Brews|Beans|Baristamode)_\d+)?\.json$/.test(e.name.split('/').pop()));
         for(const e of others){ try{ classifyJSON(JSON.parse(await e.async('string')), e.name, out); }catch(err){} }
         for(const e of z.file(/\.xlsx$/i)){ const fl = flowFromSheets(sheetsOf(await e.async('arraybuffer'))); if(fl) out.flows.push({ name:e.name, flow:compactFlow(fl) }); }
-        if(!main && !others.length) throw new Error('Kein Beanconqueror-Backup im ZIP gefunden');
+        if(!main && !others.length) throw new Error('No Beanconqueror backup found in the ZIP');
       } else if(/\.json$/i.test(name)){
         classifyJSON(JSON.parse(await f.text()), name, out);
       } else {
@@ -1737,24 +1753,24 @@ async function importFiles(list){
   if(out.data){
     DATA = out.data; IS_SAMPLE = false;
     const latest = allShots()[0]; UI.bean = latest.bean; UI.grinder = latest.grinder; UI.anchorId = null; UI.detailId = null;
-    msgs.push(`${DATA.label}: ${DATA.shots.length} Bezüge geladen.`);
+    msgs.push(`${DATA.label}: ${DATA.shots.length} shots loaded.`);
   }
   let lastFlowShot = null;
   for(const item of out.flows){
-    if(!item.flow){ errs.push(`${item.name}: keine verwertbaren Messwerte`); continue; }
+    if(!item.flow){ errs.push(`${item.name}: no usable measurements`); continue; }
     let shot = null;
     if(item.vis) shot = ingestVisualizer(item.vis).shot;
     if(!shot) shot = matchShot(item.flow);
     if(!shot) shot = allShots().find(s => s.id === UI.detailId) || null;
-    if(!shot){ errs.push(`${item.name}: kein passender Shot gefunden`); continue; }
+    if(!shot){ errs.push(`${item.name}: no matching shot found`); continue; }
     FLOWS[shot.id] = item.flow; lastFlowShot = shot;
-    msgs.push(`Waagenkurve ${item.name} → Shot ${fmtDate(shot.date)} (${shot.bean}${shot.time ? ', ' + fmt(shot.time,0) + ' s' : ''})${item.vis ? '' : '. Falls falsch: in der Analyse verschieben.'}`);
+    msgs.push(`Scale curve ${item.name} → shot ${fmtDate(shot.date)} (${shot.bean}${shot.time ? ', ' + fmt(shot.time,0) + ' s' : ''})${item.vis ? '' : '. If wrong: move it in the analysis.'}`);
   }
   if(lastFlowShot){ UI.bean = lastFlowShot.bean; UI.grinder = lastFlowShot.grinder; UI.detailId = lastFlowShot.id; }
   if(DATA && !IS_SAMPLE) store.set('dk.data', DATA);
   saveFlows(); saveUI(); formDirty = false;
-  const lines = msgs.concat(errs.map(e => 'Nicht importiert: ' + e));
-  setNotice(!errs.length, lines.length > 1 ? ['Import abgeschlossen', ...lines] : lines.length ? lines : ['Nichts importiert.']);
+  const lines = msgs.concat(errs.map(e => 'Not imported: ' + e));
+  setNotice(!errs.length, lines.length > 1 ? ['Import complete', ...lines] : lines.length ? lines : ['Nothing imported.']);
   render();
   if(lastFlowShot){ const a = $('#analyse'); if(a) a.scrollIntoView({behavior:'smooth'}); }
 }
@@ -1771,3 +1787,6 @@ $('#resetYes').onclick = () => { $('#resetConfirm').hidden = true; resetAll(); }
 render();
 if(SYNC.remember && SYNC.email && SYNC.pw && location.protocol.startsWith('http') && !/claude/.test(location.hostname)) cloudSync();
 </script>
+
+</body>
+</html>
