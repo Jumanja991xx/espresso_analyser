@@ -637,3 +637,6 @@ PHRASES += [('<div class="targetline">Dein Ziel: <b>', '<div class="targetline">
 EXACT.update({' als die Ziel-Einstellung': ' than the target setting', 'Mahlgrad wie bei der Ziel-Einstellung': 'Same grind as the target setting',
   '<span class="muted" style="font-size:13px">Ausgehend von deinem Ziel: Mahlgrad ': '<span class="muted" style="font-size:13px">Starting from your target: grind ',
   ' g in ~': ' g in ~', ' s. Alle Optionen bleiben im Zeitfenster ': ' s. All options stay within the time window '})
+
+PHRASES += [('">Rezept-Werkstatt</button>', '">Recipe workshop</button>'), ('id="goWs">Ziel ändern</button>', 'id="goWs">Change target</button>'),
+  ('aria-label="Ansicht"', 'aria-label="View"')]

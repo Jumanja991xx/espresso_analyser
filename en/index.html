@@ -48,6 +48,12 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 .wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:22px 60px;display:flex;flex-direction:column;gap:var(--gap)}
 #app{display:flex;flex-direction:column;gap:var(--gap)}
 #app:empty{display:none}
+.view{display:flex;flex-direction:column;gap:var(--gap)}
+.viewtabs{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);align-self:flex-start;max-width:100%;overflow-x:auto}
+.viewtabs button{border:0;background:none;padding:8px 18px;border-radius:999px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.viewtabs button:hover{color:var(--ink)}
+.viewtabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.viewtabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;font-weight:700;letter-spacing:-.01em}
 h1{font-size:clamp(26px,4vw,34px)}
 h2{font-size:18px}
@@ -644,7 +650,7 @@ UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -1299,7 +1305,7 @@ function bindWorkshop(anchor, T, model, shots){
   document.querySelectorAll('#goalChips .chip').forEach(c => c.onclick = () => rr(() => { UI.goal = c.dataset.g; }));
   const opts = goalOptions(GOALS[UI.goal] ? UI.goal : Object.keys(GOALS)[0], base, T, model, grinderRes());
   document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => rr(() => { UI.calc[key] = { ...opts[+b.dataset.opt].plan }; }));
-  $('#cApply').onclick = () => { const c = readCalc(); UI.targets[key] = { dose:c.dose, ratio:Math.round(c.yield / c.dose * 100) / 100, tMin:Math.round(c.time - 2.5), tMax:Math.round(c.time + 2.5) }; saveUI(); render(); window.scrollTo({ top:0, behavior:'smooth' }); };
+  $('#cApply').onclick = () => { const c = readCalc(); UI.targets[key] = { dose:c.dose, ratio:Math.round(c.yield / c.dose * 100) / 100, tMin:Math.round(c.time - 2.5), tMax:Math.round(c.time + 2.5) }; UI.view = 'dial'; saveUI(); render(); window.scrollTo({ top:0, behavior:'smooth' }); };
 }
 
 /* ---------- Shot-Analyse ---------- */
@@ -1713,7 +1719,13 @@ function render(){
   UI.detailId = detail.id;
   const ageA = beanAge(anchor);
   const anchorRatio = ratio(anchor);
+  const wsView = UI.view === 'ws' && !isFilter(shots);
   $('#app').innerHTML = `
+  <nav class="viewtabs" role="tablist" aria-label="View">
+    <button type="button" role="tab" id="tabDial" aria-controls="vDial" aria-selected="${!wsView}">Dial-in</button>
+    ${isFilter(shots) ? '' : `<button type="button" role="tab" id="tabWs" aria-controls="vWs" aria-selected="${wsView}">Recipe workshop</button>`}
+  </nav>
+  <div class="view" id="vDial" role="tabpanel" aria-labelledby="tabDial" ${wsView ? 'hidden' : ''}>
   <section class="card basecard" aria-labelledby="hLast">
         <div class="card-head"><h2 id="hLast">Base shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · added here' : ''}</span></div>
         <div class="shotline">
@@ -1747,7 +1759,7 @@ function render(){
   <div class="grid">
       <section class="card rec" aria-labelledby="hRec">
         <div class="card-head"><h2 id="hRec">Next shot</h2><span class="conf ${rec.conf}">Confidence ${CONF_LABEL[rec.conf]}</span></div>
-        <div class="targetline">Your target: <b>${fmt(T.dose,1)} g → ${fmt(T.dose * T.ratio,0)} g (1:${fmt(T.ratio,2)}) in ${T.tMin}–${T.tMax} s</b>${Math.abs(rec.R - T.ratio) >= 0.04 ? ` · for this shot 1:${fmt(rec.R,2)} because of the taste` : ''}</div>
+        <div class="targetline">Your target: <b>${fmt(T.dose,1)} g → ${fmt(T.dose * T.ratio,0)} g (1:${fmt(T.ratio,2)}) in ${T.tMin}–${T.tMax} s</b>${Math.abs(rec.R - T.ratio) >= 0.04 ? ` · for this shot 1:${fmt(rec.R,2)} because of the taste` : ''}${isFilter(shots) ? '' : ' <button class="btn small" type="button" id="goWs">Change target</button>'}</div>
         <div class="tiles">
           ${(() => {
             const pill = (on, txt) => `<span class="delta ${on ? 'on' : 'off'}">${on ? txt : 'same as last'}</span>`;
@@ -1783,8 +1795,6 @@ function render(){
         <div class="card-head"><h2 id="hGrind">Grind and shot time</h2><span class="muted" style="font-size:13px">Line: expected time at ${fmt(rec.yld,0)} g</span></div>
         ${grindSVG(shots, anchor, rec, model, T, true)}
       </section>` : ''}
-
-  ${workshopHTML(anchor, T, model, shots, scale)}
 
   ${analysisHTML(detail, T, shots, scale)}
 
@@ -1826,7 +1836,15 @@ function render(){
       <li>You can import: the Excel export, the full backup (ZIP with Beanconqueror.json, includes roast dates and milliseconds), flow profiles of single brews as JSON or Excel, and Visualizer files. Several files at once work too.</li>
       <li>Data stays in this browser. Nothing is uploaded.</li>
     </ul>
-  </details>`;
+  </details>
+  </div>
+  <div class="view" id="vWs" role="tabpanel" aria-labelledby="tabWs" ${wsView ? '' : 'hidden'}>
+  ${workshopHTML(anchor, T, model, shots, scale)}
+  </div>`;
+  const setView = v => { UI.view = v; saveUI(); const ws = v === 'ws'; $('#vDial').hidden = ws; $('#vWs').hidden = !ws; $('#tabDial').setAttribute('aria-selected', !ws); const tw = $('#tabWs'); if(tw) tw.setAttribute('aria-selected', ws); };
+  $('#tabDial').onclick = () => setView('dial');
+  { const tw = $('#tabWs'); if(tw) tw.onclick = () => setView('ws'); }
+  $('#app').querySelector('.viewtabs').addEventListener('keydown', ev => { if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return; const tw = $('#tabWs'); if(!tw) return; const ws = ev.key === 'ArrowRight'; setView(ws ? 'ws' : 'dial'); (ws ? tw : $('#tabDial')).focus(); });
 
   // Ereignisse
   document.querySelectorAll('#tasteChips .chip').forEach(c => c.onclick = () => { toggleTaste(anchor, c.dataset.t); formDirty = false; render(); });
@@ -1841,6 +1859,7 @@ function render(){
   };
   const rcd = $('#recipeDel'); if(rcd) rcd.onclick = () => { if(rcd.dataset.c){ delete UI.recipes[ctxKey()]; saveUI(); render(); } else { rcd.dataset.c = 1; rcd.textContent = 'Really remove?'; } };
   const rsv = $('#recipeSave'); if(rsv) rsv.onclick = () => { const d = detail; UI.recipes[ctxKey()] = { shotId:d.id, grindRaw:d.grindRaw, grind:d.grind, dose:d.dose, yield:d.yield, time:d.time, temp:d.temp, rating:d.rating, date:d.date?.getTime(), age:beanAge(d) }; delete UI.targets[ctxKey()]; saveUI(); render(); };
+  const gw = $('#goWs'); if(gw) gw.onclick = () => { $('#tabWs').click(); window.scrollTo({ top:0, behavior:'smooth' }); };
   const cs = $('#cmpSel'); if(cs) cs.onchange = e => { UI.cmpId = e.target.value || null; render(); };
   const mb = $('#mBack'); if(mb) mb.onclick = () => { UI.maint.backflush = Date.now(); saveUI(); render(); };
   const md = $('#mDesc'); if(md) md.onclick = () => { UI.maint.descale = Date.now(); saveUI(); render(); };
