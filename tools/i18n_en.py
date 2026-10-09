@@ -553,3 +553,33 @@ PHRASES += [
 EXACT.update({'„': '“'})
 
 EXACT.update({' am ': ' on '})
+
+EXACT.update({
+    'zu stark': 'too strong', 'schwer · intensiv': 'heavy · intense', 'zu schwach': 'too weak', 'dünn · wässrig': 'thin · watery',
+    'sauer · unterextrahiert': 'sour · under-extracted', 'bitter · überextrahiert': 'bitter · over-extracted',
+    'Punkt ziehen, um den Geschmack einzuordnen.': 'Drag the point to place the taste.',
+    'deutlich sauer': 'clearly sour', 'leicht sauer': 'slightly sour', 'deutlich bitter': 'clearly bitter', 'leicht bitter': 'slightly bitter',
+    'deutlich zu stark': 'clearly too strong', 'etwas zu stark': 'a bit too strong', 'deutlich zu dünn': 'clearly too thin', 'etwas zu dünn': 'a bit too thin',
+    'ausgewogen': 'balanced',
+    'Im Kompass ausgewogen und der Shot ': 'Balanced on the compass and the shot ',
+    '. Rezept halten.': '. Keep the recipe.',
+    'Kompass: ': 'Compass: ',
+    '. Mehr Extraktion nötig, Zielzeit ': '. More extraction needed, target time ',
+    '. Weniger Extraktion nötig, Zielzeit ': '. Less extraction needed, target time ',
+    '. Die Extraktion passt, nur die Stärke ändert sich.': '. Extraction is fine; only the strength changes.',
+    'Eine längere Ratio macht ihn milder und extrahiert gleichzeitig mehr, das hilft doppelt.': 'A longer ratio makes it milder and extracts more at the same time, which helps twice.',
+    'Zu stark: längere Ratio. Damit die Extraktion nicht kippt, wird die Zielzeit angepasst.': 'Too strong: longer ratio. The target time is adjusted so extraction does not tip over.',
+    'Eine kürzere Ratio macht ihn kräftiger und nimmt gleichzeitig Bitterkeit weg.': 'A shorter ratio makes it stronger and removes bitterness at the same time.',
+    'Zu schwach: kürzere Ratio. Damit er nicht sauer wird, läuft er dafür etwas länger.': 'Too weak: shorter ratio. To keep it from turning sour, it runs a little longer.',
+    'Weil die Abweichung groß ist, zusätzlich 1 °C wärmer.': 'Because the deviation is large, also 1 °C hotter.',
+    'Weil die Abweichung groß ist, zusätzlich 1 °C kühler.': 'Because the deviation is large, also 1 °C cooler.',
+    'Alternative zur kürzeren Ratio: 0,5–1 g mehr Kaffeemehl bei gleicher Ratio. Dann muss die Mühle etwas gröber.': 'Alternative to a shorter ratio: 0.5–1 g more coffee at the same ratio. The grinder then needs to go a little coarser.',
+    'Von dir gesetzt. Die Empfehlung rechnet mit diesem Punkt.': 'Set by you. The recommendation uses this point.',
+    'Geschätzt aus den Geschmacksangaben. Punkt ziehen oder in die Fläche tippen, um ihn festzulegen.': 'Estimated from the taste tags. Drag the point or tap the area to set it.',
+    '<button class="btn small" type="button" id="cmpReset" style="align-self:flex-start">Kompass zurücksetzen</button>': '<button class="btn small" type="button" id="cmpReset" style="align-self:flex-start">Reset compass</button>',
+})
+PHRASES += [
+    ('aria-label="Dial-in-Kompass: Geschmack verschieben"', 'aria-label="Dial-in compass: move the taste"'),
+    ('<span class="eyebrow">Dial-in-Kompass</span>', '<span class="eyebrow">Dial-in compass</span>'),
+    ('Waagerecht: Extraktion. Senkrecht: Stärke. Ziel ist die Mitte. Graue Punkte zeigen deine letzten Shots.', 'Horizontal: extraction. Vertical: strength. Aim for the centre. Grey dots show your last shots.'),
+]
