@@ -285,6 +285,11 @@ td.tastecell .tgl{padding-top:0}
 .aitext code{font-family:var(--f-data);font-size:13px;background:var(--sunk);padding:0 4px;border-radius:4px}
 .aitext .mdrow{font-family:var(--f-data);font-size:13px}
 .aicard{border-left:3px solid var(--accent)}
+.aikey{border-top:1px solid var(--line);padding-top:10px}
+.aikey summary{cursor:pointer;font-size:13.5px;font-weight:600}
+.aikey-body{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.aikey input,.aikey select{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:13.5px}
+.aikey input{flex:1;min-width:200px;font-family:var(--f-data)}
 .tastebox{flex:1;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line);border-radius:var(--r);padding:16px}
 .tastebox .tgroups{gap:16px}
 @media (min-width:861px){.tastebox .chip{padding:6px 14px;font-size:14px}.tastebox .chips{gap:8px}.tastebox .tgl{padding-top:9px}}
@@ -673,7 +678,7 @@ let DATA = revive(store.get('dk.data', null));
 let IS_SAMPLE = false;
 const ensureData = () => { if(!DATA){ DATA = { shots:[], beans:{}, label:'Cloud' }; IS_SAMPLE = false; } return DATA; };
 function loadSample(){ DATA = parseSheets(SAMPLE, SAMPLE_LABEL); IS_SAMPLE = true; UI.bean = null; UI.grinder = null; UI.anchorId = null; UI.detailId = null; NOTICE = null; render(); window.scrollTo({ top:0 }); }
-const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync'];
+const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
@@ -1797,7 +1802,26 @@ function analysisHTML(s, T, shots, scale){
 /* ---------- KI-Analyse ----------
    Schickt ein kompaktes Datenpaket an die Edge Function "ai-analyse" (Claude API, nur mit Konto).
    Ohne Konto: Datenpaket mit Anleitung kopieren und selbst in Claude einfügen. */
-const AI = { busy:false, err:null };
+const AI = { busy:false, err:null, keyOpen:false };
+/* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
+const AI_MODELS = { 'claude-sonnet-5-5':'Sonnet 5.5 (empfohlen)', 'claude-opus-5-5':'Opus 5.5 (gründlicher, teurer)', 'claude-haiku-5-5':'Haiku 5.5 (schnell, günstig)' };
+const aiOwn = () => { try{ const v = JSON.parse(localStorage.getItem('dk.aikey') || 'null'); return v && v.key ? v : null; }catch(e){ return null; } };
+const AI_SYSTEM = `Du bist ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Mühle und deren Skala, Ziele (Dosis, Ratio, Zeitfenster), ein gelerntes Modell Durchfluss je Mahlgrad-Stufe, die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index, Kennzahlen der Waagenkurve) und die Empfehlung, die die App selbst berechnet hat.
+
+Deine Aufgabe: Werte alles gemeinsam aus und gib eine fundierte, ehrliche Einschätzung, wie der nächste Espresso besser wird.
+- Erkenne Muster über mehrere Shots (Trends, Widersprüche, Ausreißer), nicht nur den letzten Shot.
+- Beziehe Röstgrad, Bohnenalter, Channeling und Geschmack ein. Unterscheide, ob ein Problem an Extraktion, Stärke oder Puck-Vorbereitung liegt.
+- Gib einen konkreten nächsten Shot an: Mahlgrad in den Einheiten der Mühle, Dosis, Ausbeute, erwartete Zeit, Temperatur. Ändere möglichst nur einen oder zwei Hebel.
+- Sag, ob du der Empfehlung der App zustimmst. Wenn nicht, begründe kurz.
+- Erfinde keine Daten. Wenn etwas fehlt oder unsicher ist, sag es.
+- Antworte auf Deutsch, knapp und direkt, höchstens etwa 350 Wörter. Keine Tabellen, nur Überschriften, Absätze und Listen.
+
+Gliederung (Markdown):
+## Kurzfazit
+## Was die Daten zeigen
+## Nächster Shot
+## Danach
+## Datenlage`;
 const AI_LANG = () => (document.documentElement.lang || 'de').slice(0, 2) === 'en' ? 'en' : 'de';
 const AI_PROMPT = 'Du bist ein erfahrener Barista. Werte die folgenden Daten aus meiner Espresso-App gemeinsam aus: Muster über mehrere Shots, Röstgrad, Bohnenalter, Channeling, Geschmack. Gib einen konkreten nächsten Shot an (Mahlgrad in den Einheiten der Mühle, Dosis, Ausbeute, Zeit, Temperatur) und sag, ob du der Empfehlung der App zustimmst. Erfinde keine Daten. Antworte knapp, gegliedert in: Kurzfazit, Was die Daten zeigen, Nächster Shot, Danach, Datenlage.';
 function aiPayload(anchor, shots, T, model, rec){
@@ -1857,6 +1881,7 @@ function mdToHTML(md){
 function aiCardHTML(anchor){
   const r = (UI.ai || {})[ctxKey()];
   const stale = r && r.anchorId !== anchor.id;
+  const own = aiOwn();
   return `
   <section class="card aicard" aria-labelledby="hAi">
     <div class="card-head"><h2 id="hAi">KI-Analyse</h2><span class="muted" style="font-size:13px">wertet alle Shots dieser Bohne zusammen aus: Mühle, Röstgrad, Kurven, Channeling und Geschmack</span></div>
@@ -1865,16 +1890,47 @@ function aiCardHTML(anchor){
     : `<p class="muted" style="margin:0;font-size:14px">Eine KI liest deine Shots, die Waagenkurven, den Röstgrad und deine Geschmacksangaben gemeinsam und schreibt eine Einschätzung mit konkretem Vorschlag für den nächsten Shot. Sie sieht auch die Empfehlung der App und sagt, ob sie zustimmt.</p>`}
     ${AI.err ? `<div class="acctmsg err">${AI.err}</div>` : ''}
     <div class="row">
-      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled' : ''}>${AI.busy ? 'Analysiere …' : !SESSION ? 'Anmelden für KI-Analyse' : r ? 'Neu analysieren' : 'Analyse erstellen'}</button>
+      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled' : ''}>${AI.busy ? 'Analysiere …' : !SESSION && !own ? 'Anmelden für KI-Analyse' : r ? 'Neu analysieren' : 'Analyse erstellen'}</button>
       <button class="btn" type="button" id="aiCopy" title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude">Daten für Claude kopieren</button>
       ${r ? '<button class="btn" type="button" id="aiDel">Analyse entfernen</button>' : ''}
     </div>
-    ${!SESSION ? '<span class="muted" style="font-size:12.5px">Die KI-Analyse in der App braucht ein Konto. Ohne Konto kannst du die Daten kopieren und selbst in Claude einfügen.</span>' : ''}
+    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">Für die KI-Analyse in der App brauchst du ein Konto oder einen eigenen API-Schlüssel. Oder du kopierst die Daten und fügst sie selbst in Claude ein.</span>' : ''}
+    <details class="aikey" ${AI.keyOpen ? 'open' : ''}>
+      <summary>${own ? `Eigener API-Schlüssel aktiv <span class="num muted">(…${esc(own.key.slice(-4))}, ${esc(AI_MODELS[own.model] || own.model)})</span>` : 'Eigenen API-Schlüssel verwenden'}</summary>
+      <div class="aikey-body">
+        <p class="muted" style="margin:0;font-size:13px">Mit eigenem Schlüssel von Anthropic geht die Anfrage direkt aus diesem Browser an Claude, ohne Umweg über den Server und ohne Tageslimit. Die Kosten laufen über dein Anthropic-Konto, meist ein paar Cent pro Analyse. Den Schlüssel erstellst du unter <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+        <div class="row" style="gap:8px">
+          <input id="aiKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="${own ? 'neuen Schlüssel einfügen, um ihn zu ersetzen' : 'sk-ant-…'}" aria-label="API-Schlüssel">
+          <select id="aiModelIn" aria-label="Modell">${Object.entries(AI_MODELS).map(([k, v]) => `<option value="${k}" ${(own?.model || 'claude-sonnet-5-5') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+          <button class="btn small" type="button" id="aiKeySave">Speichern</button>
+          ${own ? '<button class="btn small" type="button" id="aiKeyDel">Schlüssel entfernen</button>' : ''}
+        </div>
+        <span class="muted" style="font-size:12px">Der Schlüssel bleibt nur in diesem Browser auf diesem Gerät. Er wird nicht mit deinem Konto synchronisiert und nirgends sonst gespeichert. Auf einem geteilten Gerät besser nicht hinterlegen.</span>
+      </div>
+    </details>
   </section>`;
 }
+async function runAIDirect(own, payload){
+  const key = ctxKey(), anchorId = UI.anchorId;
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST',
+      headers:{ 'x-api-key': own.key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model: own.model || 'claude-sonnet-5-5', max_tokens: 1800, system: AI_SYSTEM, messages: [{ role:'user', content: 'Hier sind meine Daten:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
+    const j = await r.json().catch(() => ({}));
+    const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+    if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true }; saveUI(); }
+    else if(r.status === 401 || r.status === 403) AI.err = 'Anthropic lehnt den Schlüssel ab. Bitte prüfen, ob er stimmt und aktiv ist.';
+    else if(r.status === 404) AI.err = 'Das gewählte Modell ist für deinen Schlüssel nicht verfügbar. Wähle ein anderes Modell.';
+    else if(r.status === 429) AI.err = 'Zu viele Anfragen oder Guthaben aufgebraucht. Bitte später erneut versuchen oder das Anthropic-Konto prüfen.';
+    else if(r.status === 529 || r.status >= 500) AI.err = 'Claude ist gerade überlastet. Bitte in ein paar Minuten nochmal versuchen.';
+    else AI.err = 'Die Analyse ist fehlgeschlagen' + (j.error?.message ? `: ${esc(String(j.error.message).slice(0, 200))}` : ` (Status ${r.status}).`);
+  }catch(e){ AI.err = 'Keine Verbindung zu Anthropic. Bitte später noch einmal versuchen.'; }
+}
 async function runAI(payload){
-  if(!SESSION){ openAcct(); return; }
+  const own = aiOwn();
+  if(!own && !SESSION){ openAcct(); return; }
   AI.busy = true; AI.err = null; render();
+  if(own){ await runAIDirect(own, payload); AI.busy = false; render(); return; }
   const key = ctxKey(), anchorId = UI.anchorId;
   try{
     const { data: { session } } = await SB.auth.getSession();
@@ -2273,6 +2329,15 @@ function render(){
     const done = () => { aic.textContent = 'Kopiert. Jetzt in Claude einfügen.'; };
     try{ navigator.clipboard.writeText(txt).then(done, () => { prompt('Kopieren:', txt); }); }catch(e){ prompt('Kopieren:', txt); }
   };
+  const aks = $('#aiKeySave'); if(aks) aks.onclick = () => {
+    const k = $('#aiKeyIn').value.trim(), m = $('#aiModelIn').value, cur = aiOwn();
+    if(!k && !cur){ AI.err = 'Bitte einen API-Schlüssel einfügen.'; AI.keyOpen = true; render(); return; }
+    if(k && !/^sk-ant-/.test(k)){ AI.err = 'Das sieht nicht nach einem Anthropic-Schlüssel aus (beginnt mit sk-ant-).'; AI.keyOpen = true; render(); return; }
+    try{ localStorage.setItem('dk.aikey', JSON.stringify({ key: k || cur.key, model: m })); }catch(e){}
+    AI.err = null; AI.keyOpen = false; render();
+  };
+  const akd = $('#aiKeyDel'); if(akd) akd.onclick = () => { try{ localStorage.removeItem('dk.aikey'); }catch(e){} AI.keyOpen = true; render(); };
+  const akx = document.querySelector('details.aikey'); if(akx) akx.ontoggle = () => { AI.keyOpen = akx.open; };
   const aid = $('#aiDel'); if(aid) aid.onclick = () => { delete (UI.ai || {})[ctxKey()]; AI.err = null; saveUI(); render(); };
   const gw = $('#goWs'); if(gw) gw.onclick = () => { $('#tabWs').click(); window.scrollTo({ top:0, behavior:'smooth' }); };
   const cs = $('#cmpSel'); if(cs) cs.onchange = e => { UI.cmpId = e.target.value || null; render(); };
