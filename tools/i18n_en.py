@@ -597,3 +597,36 @@ EXACT.update({'wie zuletzt': 'same as last', '<span class="d">Mahlgrad nicht num
 
 EXACT.update({'besser als der vorherige Shot': 'better than the previous shot', 'schlechter als der vorherige Shot': 'worse than the previous shot',
   ' <span class="cmpkey better">grün</span> näher am Ziel als der vorherige Shot, <span class="cmpkey worse">rot</span> weiter weg.': ' <span class="cmpkey better">green</span> closer to target than the previous shot, <span class="cmpkey worse">red</span> further away.'})
+
+EXACT.update({
+  'Synchronisiere …': 'Syncing …', 'Konto': 'Account', 'Anmelden': 'Sign in', 'Registrieren': 'Sign up',
+  'Konto anlegen': 'Create account', 'Schließen': 'Close', 'Neues Passwort': 'New password',
+  'Fehler beim Abgleich: ': 'Sync error: ', 'Zuletzt abgeglichen ': 'Last synced ',
+  'current-password': 'current-password', 'new-password': 'new-password',
+  'Schon ein Konto? Anmelden': 'Already have an account? Sign in', 'Noch kein Konto? Registrieren': 'No account yet? Sign up',
+  '<button class="linkbtn" type="button" id="acctMagic">Anmeldelink per E-Mail</button><button class="linkbtn" type="button" id="acctForgot">Passwort vergessen</button>': '<button class="linkbtn" type="button" id="acctMagic">Email me a sign-in link</button><button class="linkbtn" type="button" id="acctForgot">Forgot password</button>',
+  'Bitte zuerst die E-Mail-Adresse eintragen.': 'Please enter your email address first.',
+  'Anmeldelink gesendet. Öffne ihn auf diesem Gerät.': 'Sign-in link sent. Open it on this device.',
+  'E-Mail zum Zurücksetzen gesendet.': 'Password reset email sent.',
+  'Konto angelegt, du bist angemeldet.': 'Account created, you are signed in.',
+  'Fast geschafft: Bitte bestätige die E-Mail, die wir dir geschickt haben.': 'Almost done: please confirm the email we sent you.',
+  'E-Mail oder Passwort stimmt nicht.': 'Email or password is incorrect.',
+  'Passwort gespeichert.': 'Password saved.', 'Abgemeldet.': 'Signed out.',
+  'Alle Shots, Kurven, Rezepte und Einstellungen in diesem Browser und in deinem Konto löschen?': 'Delete all shots, curves, recipes and settings in this browser and in your account?',
+})
+PHRASES += [
+  ('>Anmelden</button>', '>Sign in</button>'),
+  ('<label for="aNewPw">Neues Passwort</label>', '<label for="aNewPw">New password</label>'),
+  ('>Passwort speichern</button>', '>Save password</button>'),
+  ('<p style="margin:0">Angemeldet als <b>', '<p style="margin:0">Signed in as <b>'),
+  ('</b>. Shots, Waagenkurven, Rezepte und Einstellungen werden automatisch in deinem Konto gespeichert und auf allen Geräten abgeglichen.</p>', '</b>. Shots, scale curves, recipes and settings are saved to your account automatically and synced across all your devices.</p>'),
+  ('>Jetzt abgleichen</button>', '>Sync now</button>'), ('>Abmelden</button>', '>Sign out</button>'),
+  ('Beim Abmelden werden die Daten auf diesem Gerät entfernt, im Konto bleiben sie erhalten. Visualizer-Zugangsdaten bleiben immer nur auf dem Gerät.', 'Signing out removes the data from this device; it stays in your account. Visualizer credentials always stay on the device only.'),
+  ('Mit einem Konto sind deine Shots auf iPad, Handy und Computer gleich. Ohne Konto bleibt alles nur in diesem Browser.', 'With an account your shots are the same on iPad, phone and computer. Without one, everything stays in this browser only.'),
+  ('<label for="aEmail">E-Mail</label>', '<label for="aEmail">Email</label>'), ('<label for="aPw">Passwort</label>', '<label for="aPw">Password</label>'),
+  ('<h2>Dein Konto</h2>', '<h2>Your account</h2>'),
+]
+PHRASES += [
+  ('id="acctClose">Schließen</button>', 'id="acctClose">Close</button>'),
+  ('<h2>Neues Passwort</h2>', '<h2>New password</h2>'),
+]

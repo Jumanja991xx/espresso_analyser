@@ -219,6 +219,11 @@ td.tastecell .tgl{padding-top:0}
 .cmpkey.better{box-shadow:inset 0 0 0 1.5px var(--good);color:var(--good)}
 .cmpkey.worse{box-shadow:inset 0 0 0 1.5px var(--mixed);color:var(--mixed)}
 @media (pointer:coarse){input,select,textarea{font-size:16px!important}.chip{padding:6px 13px}}
+.acctbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+#acctBox{gap:10px}
+.acctmsg{border-radius:8px;padding:8px 12px;font-size:13.5px}
+.acctmsg.ok{background:var(--accent-soft)}
+.acctmsg.err{background:color-mix(in srgb,var(--mixed) 14%,transparent)}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
 .linkbtn:hover{color:var(--mixed)}
 .confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
@@ -237,7 +242,7 @@ td.tastecell .tgl{padding-top:0}
       <p>Lädt deinen Beanconqueror-Export samt Waagenkurven, analysiert jeden Shot und rechnet aus Mahlgrad, Zeit, Ausbeute, erstem Tropfen und Geschmack den nächsten Shot aus.</p>
     </div>
     <div class="import">
-      <!--LANG-->
+      <div class="row" style="gap:8px"><!--LANG--><button class="btn small acctbtn" type="button" id="acctBtn" hidden>Anmelden</button></div>
       <div class="row">
         <label class="btn primary" for="file">Dateien laden</label>
         <input id="file" type="file" accept=".xlsx,.xls,.csv,.zip,.json" multiple hidden>
@@ -248,6 +253,7 @@ td.tastecell .tgl{padding-top:0}
     </div>
   </header>
   <div id="banner" class="banner" hidden></div>
+  <section class="card" id="acctBox" hidden></section>
   <details class="card" id="syncBox"></details>
   <section class="ctx" id="ctx"></section>
   <div id="app"></div>
@@ -255,6 +261,7 @@ td.tastecell .tgl{padding-top:0}
 <div class="drop" id="drop" hidden>Export hier ablegen</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const SAMPLE = __SAMPLE__;
@@ -264,7 +271,7 @@ const SAMPLE_LABEL = "Beispieldaten";
 const $ = s => document.querySelector(s);
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} if(typeof onLocalChange === 'function') onLocalChange(k); }
 };
 const LOCALE = 'de-DE';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1593,11 +1600,11 @@ function welcomeHTML(){
       <li><b>Hier laden.</b> Über „Dateien laden“ oder die Datei einfach auf die Seite ziehen.</li>
       <li><b>Optional: Cloud-Sync.</b> Mit Visualizer-Upload in Beanconqueror kommen neue Shots automatisch hierher.</li>
     </ol>
-    <div class="row"><label class="btn primary" for="file">Dateien laden</label><button class="btn" type="button" id="wSample">Mit Beispieldaten ausprobieren</button><button class="btn" type="button" id="wSync">Cloud-Sync einrichten</button></div>
+    <div class="row"><label class="btn primary" for="file">Dateien laden</label><button class="btn" type="button" id="wSample">Mit Beispieldaten ausprobieren</button><button class="btn" type="button" id="wSync">Cloud-Sync einrichten</button><button class="btn" type="button" id="wAcct" hidden>Anmelden</button></div>
   </section>`;
 }
 function render(){
-  if(!DATA || !allShots().length){
+  if(!allShots().length){
     $('#ctx').hidden = true;
     $('#status').textContent = 'Noch keine Daten geladen';
     $('#resetBtn').hidden = !APP.length && !Object.keys(FLOWS).length;
@@ -1606,9 +1613,11 @@ function render(){
     if(!$('#syncBox').dataset.init){ renderSync(); $('#syncBox').dataset.init = 1; }
     $('#app').innerHTML = welcomeHTML();
     $('#wSample').onclick = loadSample;
+    const wa = $('#wAcct'); if(wa){ wa.hidden = !SB || !!SESSION; wa.onclick = openAcct; }
     $('#wSync').onclick = () => { const sb = $('#syncBox'); sb.open = true; sb.scrollIntoView({ behavior:'smooth' }); };
     return;
   }
+  ensureData();
   $('#ctx').hidden = false;
   $('#resetBtn').hidden = false;
   const combos = ensureCtx();
@@ -1946,6 +1955,138 @@ async function cloudSync(status){
   }catch(e){ setNotice(false, ['Cloud-Sync: ' + e.message]); }
   syncing = false; renderSync(); render();
 }
+/* ---------- Konto & Synchronisation (Supabase) ---------- */
+const SB_URL = 'https://shgzffiomwsujedhkoqn.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoZ3pmZmlvbXdzdWplZGhrb3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1MzM3NjYsImV4cCI6MjEwNzEwOTc2Nn0.XkGNme3yFyMOgCfVD-OlcbxCuxQpcWbd3LfCMOWUv6o';
+let SB = null;
+try{ if(window.supabase && location.protocol.startsWith('http')) SB = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }); }catch(e){ SB = null; }
+let SESSION = null, ACCT = { busy:false, lastSync:null, err:null, msg:null, recovery:false, mode:'login', open:false };
+let pushTimer = null, suppressHook = false;
+const SYNC_KEYS = ['dk.data', 'dk.app', 'dk.flows', 'dk.ui'];
+function onLocalChange(k){
+  try{ if(suppressHook || !SYNC_KEYS.includes(k)) return; }catch(e){ return; }
+  try{ localStorage.setItem('dk.meta', JSON.stringify({ changedAt: new Date().toISOString() })); }catch(e){}
+  if(SESSION){ clearTimeout(pushTimer); pushTimer = setTimeout(pushState, 2500); }
+}
+const rawSet = (k, v) => { suppressHook = true; try{ v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); }catch(e){} suppressHook = false; };
+async function pushState(){
+  if(!SB || !SESSION) return;
+  ACCT.busy = true; renderAcct();
+  const row = { user_id: SESSION.user.id, data: store.get('dk.data', null), app: store.get('dk.app', []), flows: store.get('dk.flows', {}), ui: store.get('dk.ui', {}), client_changed_at: (store.get('dk.meta', {}) || {}).changedAt || new Date().toISOString() };
+  const { error } = await SB.from('user_state').upsert(row, { onConflict: 'user_id' });
+  ACCT.busy = false; ACCT.err = error ? error.message : null; if(!error) ACCT.lastSync = new Date();
+  renderAcct();
+}
+function mergeState(l, r, remoteNewer){
+  const byId = (a = [], b = []) => { const m = new Map(); const [x, y] = remoteNewer ? [a || [], b || []] : [b || [], a || []]; x.forEach(s => m.set(s.id, s)); y.forEach(s => m.set(s.id, s)); return [...m.values()]; };
+  const map = (a = {}, b = {}) => remoteNewer ? { ...(a || {}), ...(b || {}) } : { ...(b || {}), ...(a || {}) };
+  const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
+  const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Konto' } : null;
+  const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
+}
+function applyLoaded(){
+  DATA = revive(store.get('dk.data', null)); IS_SAMPLE = false;
+  APP = (store.get('dk.app', []) || []).map(s => ({ ...s, date: new Date(s.date) }));
+  FLOWS = store.get('dk.flows', {}) || {};
+  Object.assign(UI, store.get('dk.ui', {}));
+  ['intensity','recipes','maint','compass','roast','targets','taste','coarserHigher'].forEach(k => UI[k] ||= {});
+}
+async function pullState(){
+  if(!SB || !SESSION) return;
+  ACCT.busy = true; renderAcct();
+  const { data: row, error } = await SB.from('user_state').select('*').eq('user_id', SESSION.user.id).maybeSingle();
+  if(error){ ACCT.busy = false; ACCT.err = error.message; renderAcct(); return; }
+  const local = { data: store.get('dk.data', null), app: store.get('dk.app', []), flows: store.get('dk.flows', {}), ui: store.get('dk.ui', {}) };
+  const localAt = new Date((store.get('dk.meta', {}) || {}).changedAt || 0);
+  const hasLocal = !!(local.data?.shots?.length || local.app?.length);
+  if(!row){
+    ACCT.busy = false;
+    if(hasLocal) await pushState(); else { ACCT.lastSync = new Date(); renderAcct(); }
+    return;
+  }
+  const remoteAt = new Date(row.client_changed_at || row.updated_at || 0);
+  const merged = mergeState(local, row, remoteAt >= localAt);
+  rawSet('dk.data', merged.data); rawSet('dk.app', merged.app); rawSet('dk.flows', merged.flows); rawSet('dk.ui', merged.ui);
+  rawSet('dk.meta', { changedAt: new Date(Math.max(remoteAt, localAt) || Date.now()).toISOString() });
+  applyLoaded();
+  ACCT.busy = false; ACCT.lastSync = new Date(); ACCT.err = null;
+  render();
+  if(hasLocal && localAt > remoteAt) await pushState(); else renderAcct();
+}
+function acctMsg(ok, text){ ACCT.msg = { ok, text }; renderAcct(); }
+function renderAcct(){
+  const btn = $('#acctBtn'), box = $('#acctBox');
+  if(!btn || !box) return;
+  if(!SB){ btn.hidden = true; box.hidden = true; return; }
+  btn.hidden = false;
+  btn.textContent = SESSION ? (ACCT.busy ? 'Synchronisiere …' : 'Konto') : 'Anmelden';
+  btn.classList.toggle('on', !!SESSION);
+  box.hidden = !ACCT.open;
+  if(!ACCT.open) return;
+  const m = ACCT.msg ? `<div class="acctmsg ${ACCT.msg.ok ? 'ok' : 'err'}">${esc(ACCT.msg.text)}</div>` : '';
+  if(ACCT.recovery){
+    box.innerHTML = `<div class="card-head"><h2>Neues Passwort</h2><button class="btn small" type="button" id="acctClose">Schließen</button></div>${m}
+      <form id="pwForm" class="row" style="align-items:flex-end"><div class="field"><label for="aNewPw">Neues Passwort</label><input id="aNewPw" type="password" autocomplete="new-password" minlength="8" required style="width:14em;font-family:var(--f-body)"></div><button class="btn primary" type="submit">Passwort speichern</button></form>`;
+  } else if(SESSION){
+    box.innerHTML = `<div class="card-head"><h2>Dein Konto</h2><button class="btn small" type="button" id="acctClose">Schließen</button></div>${m}
+      <p style="margin:0">Angemeldet als <b>${esc(SESSION.user.email || '')}</b>. Shots, Waagenkurven, Rezepte und Einstellungen werden automatisch in deinem Konto gespeichert und auf allen Geräten abgeglichen.</p>
+      <p class="muted" style="margin:0;font-size:13px">${ACCT.busy ? 'Synchronisiere …' : ACCT.err ? 'Fehler beim Abgleich: ' + esc(ACCT.err) : ACCT.lastSync ? 'Zuletzt abgeglichen ' + fmtDate(ACCT.lastSync) : ''}</p>
+      <div class="row"><button class="btn" type="button" id="acctSync">Jetzt abgleichen</button><button class="btn" type="button" id="acctOut">Abmelden</button></div>
+      <p class="muted" style="margin:0;font-size:12.5px">Beim Abmelden werden die Daten auf diesem Gerät entfernt, im Konto bleiben sie erhalten. Visualizer-Zugangsdaten bleiben immer nur auf dem Gerät.</p>`;
+  } else {
+    const reg = ACCT.mode === 'register';
+    box.innerHTML = `<div class="card-head"><h2>${reg ? 'Konto anlegen' : 'Anmelden'}</h2><button class="btn small" type="button" id="acctClose">Schließen</button></div>${m}
+      <p class="muted" style="margin:0;font-size:13.5px">Mit einem Konto sind deine Shots auf iPad, Handy und Computer gleich. Ohne Konto bleibt alles nur in diesem Browser.</p>
+      <form id="acctForm" class="row" style="align-items:flex-end">
+        <div class="field"><label for="aEmail">E-Mail</label><input id="aEmail" type="email" autocomplete="email" required style="width:15em;font-family:var(--f-body)"></div>
+        <div class="field"><label for="aPw">Passwort</label><input id="aPw" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}" minlength="8" required style="width:12em;font-family:var(--f-body)"></div>
+        <button class="btn primary" type="submit">${reg ? 'Registrieren' : 'Anmelden'}</button>
+      </form>
+      <div class="row" style="font-size:13px"><button class="linkbtn" type="button" id="acctMode">${reg ? 'Schon ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}</button>${reg ? '' : '<button class="linkbtn" type="button" id="acctMagic">Anmeldelink per E-Mail</button><button class="linkbtn" type="button" id="acctForgot">Passwort vergessen</button>'}</div>`;
+  }
+  const on = (id, fn) => { const el = $(id); if(el) el.onclick = fn; };
+  on('#acctClose', () => { ACCT.open = false; ACCT.msg = null; renderAcct(); });
+  on('#acctMode', () => { ACCT.mode = ACCT.mode === 'register' ? 'login' : 'register'; ACCT.msg = null; renderAcct(); });
+  const redirect = location.origin + location.pathname;
+  const email = () => ($('#aEmail')?.value || '').trim();
+  on('#acctMagic', async () => { if(!email()) return acctMsg(false, 'Bitte zuerst die E-Mail-Adresse eintragen.'); const { error } = await SB.auth.signInWithOtp({ email: email(), options: { emailRedirectTo: redirect } }); acctMsg(!error, error ? error.message : 'Anmeldelink gesendet. Öffne ihn auf diesem Gerät.'); });
+  on('#acctForgot', async () => { if(!email()) return acctMsg(false, 'Bitte zuerst die E-Mail-Adresse eintragen.'); const { error } = await SB.auth.resetPasswordForEmail(email(), { redirectTo: redirect }); acctMsg(!error, error ? error.message : 'E-Mail zum Zurücksetzen gesendet.'); });
+  on('#acctSync', async () => { await pullState(); });
+  on('#acctOut', async () => { await SB.auth.signOut(); });
+  const f = $('#acctForm');
+  if(f) f.onsubmit = async e => {
+    e.preventDefault();
+    const pw = $('#aPw').value;
+    if(ACCT.mode === 'register'){
+      const { data, error } = await SB.auth.signUp({ email: email(), password: pw, options: { emailRedirectTo: redirect } });
+      if(error) return acctMsg(false, error.message);
+      acctMsg(true, data.session ? 'Konto angelegt, du bist angemeldet.' : 'Fast geschafft: Bitte bestätige die E-Mail, die wir dir geschickt haben.');
+    } else {
+      const { error } = await SB.auth.signInWithPassword({ email: email(), password: pw });
+      if(error) acctMsg(false, /invalid/i.test(error.message) ? 'E-Mail oder Passwort stimmt nicht.' : error.message);
+    }
+  };
+  const pf = $('#pwForm');
+  if(pf) pf.onsubmit = async e => { e.preventDefault(); const { error } = await SB.auth.updateUser({ password: $('#aNewPw').value }); if(!error) ACCT.recovery = false; acctMsg(!error, error ? error.message : 'Passwort gespeichert.'); };
+}
+function openAcct(){ ACCT.open = true; renderAcct(); const b = $('#acctBox'); if(b) b.scrollIntoView({ behavior:'smooth', block:'start' }); }
+function initAcct(){
+  if(!SB){ renderAcct(); return; }
+  $('#acctBtn').onclick = () => { ACCT.open = !ACCT.open; renderAcct(); };
+  SB.auth.onAuthStateChange((event, session) => {
+    const was = SESSION?.user?.id;
+    SESSION = session;
+    if(event === 'PASSWORD_RECOVERY'){ ACCT.recovery = true; ACCT.open = true; }
+    if(event === 'SIGNED_OUT'){ ACCT.msg = { ok: true, text: 'Abgemeldet.' }; resetAll(); }
+    if(session && session.user.id !== was){ ACCT.msg = null; setTimeout(pullState, 0); }
+    renderAcct();
+  });
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && SESSION && (!ACCT.lastSync || Date.now() - ACCT.lastSync > 60000)) pullState(); });
+  renderAcct();
+}
+
 function renderSync(){
   const el = $('#syncBox'); if(!el) return;
   el.innerHTML = `<summary>Cloud-Sync mit Visualizer${SYNC.last ? ` <span class="muted" style="font-weight:400">· zuletzt ${fmtDate(new Date(SYNC.last * 1000))}</span>` : ''}</summary>
@@ -2026,9 +2167,10 @@ addEventListener('dragleave', () => { dragN = Math.max(0, dragN - 1); if(!dragN)
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); dragN = 0; $('#drop').hidden = true; const f = [...e.dataTransfer.files]; if(f.length) importFiles(f); });
 
-$('#resetBtn').onclick = () => { $('#resetConfirm').hidden = false; $('#resetBtn').hidden = true; };
+$('#resetBtn').onclick = () => { $('#resetConfirm').querySelector('span').textContent = SESSION ? 'Alle Shots, Kurven, Rezepte und Einstellungen in diesem Browser und in deinem Konto löschen?' : 'Alle Shots, Kurven, Rezepte und Zugangsdaten in diesem Browser löschen?'; $('#resetConfirm').hidden = false; $('#resetBtn').hidden = true; };
 $('#resetNo').onclick = () => { $('#resetConfirm').hidden = true; $('#resetBtn').hidden = false; };
-$('#resetYes').onclick = () => { $('#resetConfirm').hidden = true; resetAll(); };
+$('#resetYes').onclick = async () => { $('#resetConfirm').hidden = true; if(SB && SESSION){ await SB.from('user_state').delete().eq('user_id', SESSION.user.id); } resetAll(); };
 render();
+initAcct();
 if(SYNC.remember && SYNC.email && SYNC.pw && location.protocol.startsWith('http') && !/claude/.test(location.hostname)) cloudSync();
 </script>
