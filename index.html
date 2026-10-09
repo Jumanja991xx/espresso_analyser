@@ -1736,6 +1736,9 @@ function channelingCheck(s, shots, T){
   if(under && T && s.time && s.time > T.tMax) add('soursl', 12, 'Geschmack', 'Sauer trotz langer Laufzeit', 'Lange Kontaktzeit und trotzdem sauer: Das Wasser hat einen großen Teil des Pucks umgangen.');
   if(tg.thin && T && s.time && s.time >= T.tMin && !under) add('thin', 6, 'Geschmack', 'Dünn bei normaler Zeit', 'Wenig Körper trotz passender Laufzeit kann auf einen Kanal hindeuten, durch den das Wasser vorbeifließt.');
 
+  // Liegt eine Waagenkurve vor und zeigt sie nichts Auffälliges, zählen Geschmack und Shot-Daten nur halb
+  const curveSig = sig.filter(x => x.src === 'Kurve');
+  if(curve && !curveSig.length) sig.forEach(x => { x.pts = Math.round(x.pts / 2); x.weak = true; });
   const score = Math.min(100, sig.reduce((a, x) => a + x.pts, 0));
   const level = score >= 45 ? 'high' : score >= 20 ? 'mid' : 'low';
   // passende Gegenmaßnahmen
@@ -1777,7 +1780,7 @@ function channelingHTML(s, shots, T){
           <div class="chscale num"><span>0</span><span>20</span><span>45</span><span>100</span></div>
           <div class="chrow"><div class="chverdict"><b class="num" style="color:${col}">${ch.score}</b><span>Channeling <b>${CH_LABEL[ch.level]}</b></span></div>${bars}</div>
         </div>
-        ${ch.sig.length ? `<ul class="findings">${ch.sig.map(x => `<li class="${x.pts >= 15 ? 'bad' : x.pts >= 8 ? 'warn' : 'info'}"><i aria-hidden="true"></i><span><b>${x.title}.</b> ${x.text} <span class="chsrc">${x.src} · ${x.pts} P.</span></span></li>`).join('')}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Keine Hinweise auf Channeling. ${ch.curve ? (evs.some(e => e.ignored) ? 'Die markierten Ausreißer sind nicht gewertet.' : 'Die Kurve läuft ruhig und ohne Sprünge.') : 'Lade die Waagenkurve dazu, um es genauer zu prüfen.'}</p>`}
+        ${ch.sig.length ? `<ul class="findings">${ch.sig.map(x => `<li class="${x.pts >= 15 ? 'bad' : x.pts >= 8 ? 'warn' : 'info'}"><i aria-hidden="true"></i><span><b>${x.title}.</b> ${x.text}${x.weak ? ' <span class="muted">Die Kurve ist ruhig, deshalb nur halb gewertet.</span>' : ''} <span class="chsrc">${x.src} · ${x.pts} P.</span></span></li>`).join('')}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Keine Hinweise auf Channeling. ${ch.curve ? (evs.some(e => e.ignored) ? 'Die markierten Ausreißer sind nicht gewertet.' : 'Die Kurve läuft ruhig und ohne Sprünge.') : 'Lade die Waagenkurve dazu, um es genauer zu prüfen.'}</p>`}
         ${evList ? `<span class="eyebrow">Markierungen in der Kurve</span>${evList}` : ''}
         ${ch.tips.length ? `<h3>Was hilft</h3><ul class="why">${ch.tips.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
       </div>`;
@@ -1922,7 +1925,8 @@ function aiPayload(anchor, shots, T, model, rec){
       taste: TASTES.filter(x => shotTags(s)[x.k]).map(x => x.label), notes: s.notes || undefined,
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
       beanAgeDays: beanAge(s), daysSinceBagOpened: daysOpen(s) != null ? (daysOpen(s) < 0 ? 'bag still sealed' : r1(daysOpen(s))) : undefined,
-      channeling: ch ? { index: ch.score, signals: ch.sig.map(x => x.title), basis: ch.curve ? 'curve' : 'data' } : undefined,
+      channeling: ch ? { index: ch.score, fromCurve: ch.sig.filter(x => x.src === 'Kurve').map(x => x.title), fromTasteOrData: ch.sig.filter(x => x.src !== 'Kurve').map(x => x.title), note: ch.curve && !ch.sig.some(x => x.src === 'Kurve') && ch.sig.length ? 'curve looks clean; index comes only from taste/data, weak evidence, do not treat as proof of channeling' : undefined } : undefined,
+      firstShotOfDay: s.date && !allShots().some(o => o !== s && o.date && o.date < s.date && o.date.toDateString() === s.date.toDateString()) || undefined,
       curve: an ? { mainFlow: r2(an.mMain), ...(ch && ch.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5) ? { ignoredOutlier: `${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s, probably manual (scale/cup touched), not counted` } : { peakFlow: r2(an.peak), peakAt: r1(an.tPeak) }), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
     };
   });

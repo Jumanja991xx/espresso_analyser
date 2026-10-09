@@ -846,3 +846,5 @@ EXACT.update({
 })
 PHRASES += [('id="openToday">Heute</button>', 'id="openToday">Today</button>')]
 EXACT.update({'Tage': 'days'})
+
+EXACT.update({' <span class="muted">Die Kurve ist ruhig, deshalb nur halb gewertet.</span>': ' <span class="muted">The curve is calm, so this counts only half.</span>'})
