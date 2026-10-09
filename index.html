@@ -850,14 +850,21 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       dR = clamp(Math.round(s * 0.3 * 20) / 20, -0.3, 0.3) * fs;
       const eRatio = (dR / (0.2 * fs)) * 0.25;
       const eNeed = -e - eRatio;
-      tGoal = clamp((t || center) + clamp(eNeed * 6, -6, 6) * fs, T.tMin - 3 * fs, T.tMax + 3 * fs);
-      if(Math.abs(eNeed) > 0.55 && T.temp) dT = eNeed > 0 ? 1 : -1;
+      // Ausgangspunkt ist die letzte Zeit, aber ins Zielfenster geholt; die Extraktion verschiebt nur innerhalb des Fensters
+      const base = t ? clamp(t, T.tMin, T.tMax) : center;
+      const desired = base + eNeed * 4 * fs;
+      tGoal = clamp(desired, T.tMin, T.tMax);
+      const overflow = desired - tGoal;                       // was das Fenster nicht mehr hergibt
+      if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
+      else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
+      if(status === 'slow' && e < -0.15) hints.push('Sauer trotz langer Laufzeit: Mehr Zeit allein hilft hier nicht. Wärmer brühen und die Puck-Vorbereitung prüfen (ungleichmäßiger Durchfluss lässt Teile des Pucks unterextrahiert).');
+      if(status === 'fast' && e > 0.15) hints.push('Bitter trotz kurzer Laufzeit deutet auf Channeling oder eine sehr dunkle Röstung. Kühler brühen und Puck-Vorbereitung prüfen.');
       if(e < -0.15) why.push(`Kompass: ${compassText(comp)}. Mehr Extraktion nötig, Zielzeit ${fmt(tGoal,0)} s.`);
       else if(e > 0.15) why.push(`Kompass: ${compassText(comp)}. Weniger Extraktion nötig, Zielzeit ${fmt(tGoal,0)} s.`);
       else why.push(`Kompass: ${compassText(comp)}. Die Extraktion passt, nur die Stärke ändert sich.`);
       if(s > 0.15) why.push(e < -0.15 ? 'Eine längere Ratio macht ihn milder und extrahiert gleichzeitig mehr, das hilft doppelt.' : 'Zu stark: längere Ratio. Damit die Extraktion nicht kippt, wird die Zielzeit angepasst.');
       if(s < -0.15) why.push(e > 0.15 ? 'Eine kürzere Ratio macht ihn kräftiger und nimmt gleichzeitig Bitterkeit weg.' : 'Zu schwach: kürzere Ratio. Damit er nicht sauer wird, läuft er dafür etwas länger.');
-      if(dT) why.push(dT > 0 ? 'Weil die Abweichung groß ist, zusätzlich 1 °C wärmer.' : 'Weil die Abweichung groß ist, zusätzlich 1 °C kühler.');
+      if(dT) why.push(dT > 0 ? `Das Zeitfenster allein reicht nicht für die nötige Extraktion, deshalb zusätzlich ${dT} °C wärmer.` : `Das Zeitfenster allein reicht nicht, um die Extraktion zu senken, deshalb zusätzlich ${-dT} °C kühler.`);
       if(s < -0.4) hints.push('Alternative zur kürzeren Ratio: 0,5–1 g mehr Kaffeemehl bei gleicher Ratio. Dann muss die Mühle etwas gröber.');
     }
   } else if(mixed){

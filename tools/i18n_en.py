@@ -583,3 +583,12 @@ PHRASES += [
     ('<span class="eyebrow">Dial-in-Kompass</span>', '<span class="eyebrow">Dial-in compass</span>'),
     ('Waagerecht: Extraktion. Senkrecht: Stärke. Ziel ist die Mitte. Graue Punkte zeigen deine letzten Shots.', 'Horizontal: extraction. Vertical: strength. Aim for the centre. Grey dots show your last shots.'),
 ]
+
+EXACT.update({
+    'Sauer trotz langer Laufzeit: Mehr Zeit allein hilft hier nicht. Wärmer brühen und die Puck-Vorbereitung prüfen (ungleichmäßiger Durchfluss lässt Teile des Pucks unterextrahiert).': 'Sour despite a long shot: more time alone will not help. Brew hotter and check puck prep (uneven flow leaves parts of the puck under-extracted).',
+    'Bitter trotz kurzer Laufzeit deutet auf Channeling oder eine sehr dunkle Röstung. Kühler brühen und Puck-Vorbereitung prüfen.': 'Bitter despite a short shot points to channeling or a very dark roast. Brew cooler and check puck prep.',
+    'Das Zeitfenster allein reicht nicht für die nötige Extraktion, deshalb zusätzlich ': 'The time window alone is not enough for the extraction needed, so also ',
+    ' °C wärmer.': ' °C hotter.',
+    'Das Zeitfenster allein reicht nicht, um die Extraktion zu senken, deshalb zusätzlich ': 'The time window alone is not enough to lower extraction, so also ',
+    ' °C kühler.': ' °C cooler.',
+})

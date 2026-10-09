@@ -850,14 +850,21 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       dR = clamp(Math.round(s * 0.3 * 20) / 20, -0.3, 0.3) * fs;
       const eRatio = (dR / (0.2 * fs)) * 0.25;
       const eNeed = -e - eRatio;
-      tGoal = clamp((t || center) + clamp(eNeed * 6, -6, 6) * fs, T.tMin - 3 * fs, T.tMax + 3 * fs);
-      if(Math.abs(eNeed) > 0.55 && T.temp) dT = eNeed > 0 ? 1 : -1;
+      // Ausgangspunkt ist die letzte Zeit, aber ins Zielfenster geholt; die Extraktion verschiebt nur innerhalb des Fensters
+      const base = t ? clamp(t, T.tMin, T.tMax) : center;
+      const desired = base + eNeed * 4 * fs;
+      tGoal = clamp(desired, T.tMin, T.tMax);
+      const overflow = desired - tGoal;                       // was das Fenster nicht mehr hergibt
+      if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
+      else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
+      if(status === 'slow' && e < -0.15) hints.push('Sour despite a long shot: more time alone will not help. Brew hotter and check puck prep (uneven flow leaves parts of the puck under-extracted).');
+      if(status === 'fast' && e > 0.15) hints.push('Bitter despite a short shot points to channeling or a very dark roast. Brew cooler and check puck prep.');
       if(e < -0.15) why.push(`Compass: ${compassText(comp)}. More extraction needed, target time ${fmt(tGoal,0)} s.`);
       else if(e > 0.15) why.push(`Compass: ${compassText(comp)}. Less extraction needed, target time ${fmt(tGoal,0)} s.`);
       else why.push(`Compass: ${compassText(comp)}. Extraction is fine; only the strength changes.`);
       if(s > 0.15) why.push(e < -0.15 ? 'A longer ratio makes it milder and extracts more at the same time, which helps twice.' : 'Too strong: longer ratio. The target time is adjusted so extraction does not tip over.');
       if(s < -0.15) why.push(e > 0.15 ? 'A shorter ratio makes it stronger and removes bitterness at the same time.' : 'Too weak: shorter ratio. To keep it from turning sour, it runs a little longer.');
-      if(dT) why.push(dT > 0 ? 'Because the deviation is large, also 1 °C hotter.' : 'Because the deviation is large, also 1 °C cooler.');
+      if(dT) why.push(dT > 0 ? `The time window alone is not enough for the extraction needed, so also ${dT} °C hotter.` : `The time window alone is not enough to lower extraction, so also ${-dT} °C cooler.`);
       if(s < -0.4) hints.push('Alternative to a shorter ratio: 0.5–1 g more coffee at the same ratio. The grinder then needs to go a little coarser.');
     }
   } else if(mixed){
