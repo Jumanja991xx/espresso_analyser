@@ -594,3 +594,6 @@ EXACT.update({
 })
 
 EXACT.update({'wie zuletzt': 'same as last', '<span class="d">Mahlgrad nicht numerisch</span>': '<span class="d">Grind is not numeric</span>'})
+
+EXACT.update({'besser als der vorherige Shot': 'better than the previous shot', 'schlechter als der vorherige Shot': 'worse than the previous shot',
+  ' <span class="cmpkey better">grün</span> näher am Ziel als der vorherige Shot, <span class="cmpkey worse">rot</span> weiter weg.': ' <span class="cmpkey better">green</span> closer to target than the previous shot, <span class="cmpkey worse">red</span> further away.'})
