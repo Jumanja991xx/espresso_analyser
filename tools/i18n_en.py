@@ -811,3 +811,19 @@ PHRASES += [
 PHRASES += [('</span>Analysiere …', '</span>Analysing …')]
 EXACT.update({'keine Bewertung': 'no rating', 'Bewertung bearbeiten': 'Edit rating', '+ Bewertung': '+ rating', 'Original': 'Original'})
 EXACT.update({'hell / mittel-hell / mittel / mittel-dunkel / dunkel': 'light / medium-light / medium / medium-dark / dark'})
+
+# Temperatur-Modus der Maschine
+EXACT.update({
+  'In 0,5-°C-Schritten': 'In 0.5 °C steps', 'In 1-°C-Schritten': 'In 1 °C steps', 'In Stufen (z. B. niedrig, mittel, hoch)': 'In levels (e.g. low, medium, high)', 'Gar nicht oder ohne Anzeige': 'Not at all or without a display',
+  'eine Stufe': 'one level', 'eine Stufe wärmer': 'one level hotter', 'eine Stufe kühler': 'one level cooler', 'Stufe wie zuletzt': 'same level as last', '▲ wärmer': '▲ hotter', '▼ kühler': '▼ cooler',
+  'Die Temperatur lässt sich an deiner Maschine nicht einstellen, deshalb übernimmt die Ratio den Rest.': 'Your machine has no adjustable temperature, so the ratio takes over the rest.',
+  'Deine Maschine hat keine einstellbare Temperatur. Die Empfehlung arbeitet deshalb nur mit Mahlgrad, Ratio und Dosis. Kleiner Trick: Siebträger und Tasse gut vorheizen hilft bei sauren Shots, ein kurzer Leerbezug vor dem Shot kühlt bei bitteren.': 'Your machine has no adjustable temperature, so the recommendation works only with grind, ratio and dose. Small trick: preheating portafilter and cup well helps with sour shots, a short flush before the shot cools things down for bitter ones.',
+  'an „': 'on “', 'an deiner Maschine': 'on your machine',
+  '<div class="tile"><span class="k">Temp</span><span class="v">–</span><span class="d">an der Maschine nicht einstellbar</span></div>': '<div class="tile"><span class="k">Temp</span><span class="v">–</span><span class="d">not adjustable on the machine</span></div>',
+  '<div class="muted" style="font-size:12.5px">Temperatur an der Maschine: ': '<div class="muted" style="font-size:12.5px">Machine temperature: ',
+  ' · <button class="linkbtn" type="button" id="tmodeEdit">ändern</button></div>': ' · <button class="linkbtn" type="button" id="tmodeEdit">change</button></div>',
+})
+PHRASES += [
+  ('<b id="tqTitle">Wie stellst du die Brühtemperatur ', '<b id="tqTitle">How do you set the brew temperature '),
+  (' ein?</b>\n          <span class="muted" style="font-size:12.5px">Damit die Empfehlung nur Temperaturen vorschlägt, die du auch einstellen kannst.</span>', '?</b>\n          <span class="muted" style="font-size:12.5px">So the recommendation only suggests temperatures you can actually set.</span>'),
+]

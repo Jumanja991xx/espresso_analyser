@@ -286,6 +286,7 @@ td.tastecell .tgl{padding-top:0}
 .aitext code{font-family:var(--f-data);font-size:13px;background:var(--sunk);padding:0 4px;border-radius:4px}
 .aitext .mdrow{font-family:var(--f-data);font-size:13px}
 .aicard{border-left:3px solid var(--accent)}
+.tempask{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px dashed var(--accent);border-radius:8px;background:var(--accent-soft)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:8px}
 .spin.big{width:22px;height:22px;border-width:3px;color:var(--accent);margin:0;flex:none}
@@ -688,19 +689,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -793,13 +794,19 @@ function defaultTargets(shots, anchor){
     temp: anchor?.temp || shots.find(s => s.temp)?.temp || (filter ? 94 : 93)
   };
 }
+/* Wie lässt sich die Brühtemperatur an der Maschine einstellen? Je Zubereitung/Maschine (Beanconqueror „Zubereitungsmethode“) */
+const TEMP_MODES = { half:'In 0,5-°C-Schritten', one:'In 1-°C-Schritten', levels:'In Stufen (z. B. niedrig, mittel, hoch)', none:'Gar nicht oder ohne Anzeige' };
+const LEVEL_TXT = 'eine Stufe';
+const machineKey = s => (s && s.method) || 'default';
+function tempMode(s){ return (UI.machineTemp || {})[machineKey(s)] || null; }
 function getTargets(shots, anchor){
   const d = defaultTargets(shots, anchor);
   const rc = UI.recipes[ctxKey()];
   if(rc){ if(rc.dose) d.dose = rc.dose; if(rc.dose && rc.yield) d.ratio = Math.round(rc.yield / rc.dose * 20) / 20; }
   // Temperatur ist kein Ziel, sondern die aktuelle Maschineneinstellung: letzter Shot, sonst Rezept, sonst Standard
   const { temp: _ignored, ...tg } = UI.targets[ctxKey()] || {};
-  return { ...d, ...tg, temp: anchor?.temp || rc?.temp || d.temp };
+  const tm = tempMode(anchor);
+  return { ...d, ...tg, tempMode: tm || 'half', temp: tm === 'none' ? null : (anchor?.temp || rc?.temp || d.temp) };
 }
 
 /* Wie deutlich war der Fehlgeschmack? (steuert die Schrittgröße) */
@@ -940,7 +947,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const filter = isFilter(shots);
   const res = grinderRes(), sign = model.sign;
   const why = [], hints = [];
-  let dR = 0, dT = 0, dDose = 0;
+  let dR = 0, dT = 0, dDose = 0, tempNote = false;
   const center = (T.tMin + T.tMax) / 2;
   let tGoal = center;
   const t = anchor.time;
@@ -971,6 +978,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       const overflow = desired - tGoal;                       // was das Fenster nicht mehr hergibt
       if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
       else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
+      else if(!T.temp && Math.abs(overflow) > 0.8 * fs){ dR += Math.sign(overflow) * (filter ? 1 : 0.1); why.push('Die Temperatur lässt sich an deiner Maschine nicht einstellen, deshalb übernimmt die Ratio den Rest.'); tempNote = true; }
       if(status === 'slow' && e < -0.05) hints.push('Sauer trotz langer Laufzeit: Mehr Zeit allein hilft hier nicht. Wärmer brühen und die Puck-Vorbereitung prüfen (ungleichmäßiger Durchfluss lässt Teile des Pucks unterextrahiert).');
       if(status === 'fast' && e > 0.05) hints.push('Bitter trotz kurzer Laufzeit deutet auf Channeling oder eine sehr dunkle Röstung. Kühler brühen und Puck-Vorbereitung prüfen.');
       if(e < -0.05) why.push(`Kompass: ${compassText(comp)}. Mehr Extraktion nötig, Zielzeit ${fmt(tGoal,0)} s.`);
@@ -992,13 +1000,13 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   } else if(sour || sharp){
     const label = tags.salty ? 'Salzig' : tags.sour ? 'Sauer' : tags.flat ? 'Flach' : 'Spitz';
     if(status === 'fast'){ why.push(`${label} und zu schnell: klassische Unterextraktion. Feiner mahlen, damit der Shot länger läuft.`); tGoal = center + (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, obwohl die Zeit passt: mehr Ausbeute (längere Ratio) zieht mehr Süße und Körper.`); if((T.temp || 0) < 95){ dT = 1; why.push('Zusätzlich 1 °C wärmer brühen.'); } }
-    else if(status === 'slow'){ dR = rStep; dT = (T.temp || 0) < 95 ? 1 : 0; tGoal = center; why.push(`${label} trotz langer Laufzeit deutet auf ungleichmäßigen Durchfluss oder zu kühles Wasser.`); hints.push('Puck-Vorbereitung prüfen (WDT, gerade tampen). Die Temperatur leicht anheben.'); }
+    else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, obwohl die Zeit passt: mehr Ausbeute (längere Ratio) zieht mehr Süße und Körper.`); if(T.temp && T.temp < 95){ dT = 1; why.push('Zusätzlich 1 °C wärmer brühen.'); } }
+    else if(status === 'slow'){ dR = rStep; dT = T.temp && T.temp < 95 ? 1 : 0; tGoal = center; why.push(`${label} trotz langer Laufzeit deutet auf ungleichmäßigen Durchfluss oder zu kühles Wasser.`); hints.push('Puck-Vorbereitung prüfen (WDT, gerade tampen). Die Temperatur leicht anheben.'); }
     else { dR = rStep / 2; why.push(`${label}: Ausbeute leicht erhöhen.`); }
   } else if(bitter){
     if(status === 'slow'){ why.push('Bitter und zu lange: Überextraktion. Gröber mahlen, damit der Shot schneller läuft.'); tGoal = center - (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = -rStep; tGoal = Math.max(T.tMin, t - (filter ? 10 : 2) * k); why.push('Bitter bei passender Zeit: Shot früher stoppen (kürzere Ratio).'); if((T.temp || 0) > 90){ dT = -1; why.push('Zusätzlich 1 °C kühler brühen.'); } }
-    else if(status === 'fast'){ dT = -1; tGoal = center; why.push('Bitter trotz schneller Laufzeit ist untypisch und deutet meist auf Channeling oder eine dunkle Röstung hin.'); hints.push('Puck-Vorbereitung prüfen und die Temperatur um 1–2 °C senken.'); }
+    else if(status === 'ok'){ dR = -rStep; tGoal = Math.max(T.tMin, t - (filter ? 10 : 2) * k); why.push('Bitter bei passender Zeit: Shot früher stoppen (kürzere Ratio).'); if(T.temp && T.temp > 90){ dT = -1; why.push('Zusätzlich 1 °C kühler brühen.'); } }
+    else if(status === 'fast'){ dT = T.temp ? -1 : 0; tGoal = center; why.push('Bitter trotz schneller Laufzeit ist untypisch und deutet meist auf Channeling oder eine dunkle Röstung hin.'); hints.push('Puck-Vorbereitung prüfen und die Temperatur um 1–2 °C senken.'); }
     else { dR = -rStep / 2; why.push('Bitter: Ausbeute leicht reduzieren.'); }
   } else {
     why.push(`Keine Geschmacksangabe. Der Shot ${sTxt}, die Empfehlung steuert auf die Mitte des Zeitfensters.`);
@@ -1008,7 +1016,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     why.push('Dünn und wässrig: etwas mehr Kaffeemehl und eine kürzere Ratio geben mehr Körper.');
   }
   if(tags.strong && !thin && !comp){ dR += rStep; why.push('Zu stark: eine längere Ratio verdünnt den Espresso, ohne die Extraktion zu verschlechtern.'); }
-  if(tags.burnt && !comp){ if(!tags.bitter && !tags.astr) dR = Math.max(dR, 0); dT = Math.min(dT, 0) - 1; why.push('Verbrannt oder aschig: Die Temperatur ist für diese Röstung meist zu hoch. Kühler brühen hilft am schnellsten.'); }
+  if(tags.burnt && !comp && T.temp){ if(!tags.bitter && !tags.astr) dR = Math.max(dR, 0); dT = Math.min(dT, 0) - 1; why.push('Verbrannt oder aschig: Die Temperatur ist für diese Röstung meist zu hoch. Kühler brühen hilft am schnellsten.'); }
   if(tags.astr && !mixed) hints.push('Trocken oder pelzig im Abgang entsteht oft durch Channeling oder zu viel Feinanteil. Puck-Vorbereitung prüfen; hilft das nicht, minimal gröber oder früher stoppen.');
   if(tags.flat){ const ag = beanAge(anchor); if(ag != null && ag > 35) hints.push(`Flacher Geschmack passt zum Bohnenalter (${ag} Tage). Aromen bauen ab, mehr Extraktion hilft nur begrenzt.`); }
   if(tags.salty && status !== 'slow') hints.push('Salzig ist ein deutliches Zeichen für Unterextraktion: Der Shot braucht mehr Kontaktzeit.');
@@ -1027,8 +1035,8 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     const needLess = comp ? comp.x > 0.05 : (bitter || !!tags.burnt);
     const tNow = T.temp, [ta, tb] = RP.temp, [ra, rb] = RP.ratio;
     if(tNow){
-      if(tNow < ta - 0.5 && !needLess){ const d = Math.min(2, Math.round((ta - tNow) * 2) / 2); if(dT < d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} Röstung: ${fmt(tNow,0)} °C liegt unter dem üblichen Bereich von ${ta}–${tb} °C, deshalb wärmer.`); } }
-      else if(tNow > tb + 0.5 && !needMore){ const d = -Math.min(2, Math.round((tNow - tb) * 2) / 2); if(dT > d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} Röstung: ${fmt(tNow,0)} °C liegt über dem üblichen Bereich von ${ta}–${tb} °C, deshalb kühler.`); } }
+      if(T.tempMode !== 'levels' && tNow < ta - 0.5 && !needLess){ const d = Math.min(2, Math.round((ta - tNow) * 2) / 2); if(dT < d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} Röstung: ${fmt(tNow,0)} °C liegt unter dem üblichen Bereich von ${ta}–${tb} °C, deshalb wärmer.`); } }
+      else if(T.tempMode !== 'levels' && tNow > tb + 0.5 && !needMore){ const d = -Math.min(2, Math.round((tNow - tb) * 2) / 2); if(dT > d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} Röstung: ${fmt(tNow,0)} °C liegt über dem üblichen Bereich von ${ta}–${tb} °C, deshalb kühler.`); } }
       else if(needMore && LIGHTISH(rl) && dT <= 0 && tNow + 1 <= tb + 0.5){ dT = 1; why.push('Helle Röstungen lösen sich schwer. Die Temperatur ist hier der wirksamste Hebel, deshalb 1 °C wärmer.'); }
       else if(needLess && DARKISH(rl) && dT >= 0 && tNow - 1 >= ta - 0.5){ dT = -1; why.push('Dunkle Röstungen extrahieren leicht. Kühler brühen nimmt Bitterkeit am schnellsten heraus, deshalb 1 °C kühler.'); }
     }
@@ -1046,9 +1054,14 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const R = Math.round(clamp(T.ratio + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
   const dose = Math.round((T.dose + dDose) * 10) / 10;
   const yld = Math.round(dose * R);
-  dT = Math.round(dT * k * 2) / 2;
+  dT = dT * k;
+  if(T.tempMode === 'one' || T.tempMode === 'levels') dT = Math.abs(dT) < 0.5 ? 0 : Math.sign(dT) * Math.max(1, Math.round(Math.abs(dT)));
+  else dT = Math.round(dT * 2) / 2;
+  if(T.tempMode === 'levels' && dT) dT = Math.sign(dT);
+  if(T.tempMode === 'levels'){ const st = s0 => s0.replace(/(\d+([.,]\d+)?[–-])?\d+([.,]\d+)?\s?°C/g, LEVEL_TXT); why.forEach((w, i) => why[i] = st(w)); hints.forEach((h, i) => hints[i] = st(h)); }
+  if(T.tempMode === 'none' && !filter && (sour || bitter || comp) && !tempNote) hints.push('Deine Maschine hat keine einstellbare Temperatur. Die Empfehlung arbeitet deshalb nur mit Mahlgrad, Ratio und Dosis. Kleiner Trick: Siebträger und Tasse gut vorheizen hilft bei sauren Shots, ein kurzer Leerbezug vor dem Shot kühlt bei bitteren.');
   if(!comp && k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'light' ? 'Nur leichter Fehlgeschmack: kleine Schritte bei Ratio und Temperatur.' : 'Deutlicher Fehlgeschmack: größere Schritte bei Ratio und Temperatur.');
-  const temp = T.temp ? T.temp + dT : null;
+  const temp = T.temp && T.tempMode !== 'levels' ? T.temp + dT : null;
 
   let dG = 0, tPred = tGoal, conf = 'low', method = 'rule';
   const fL = flow(anchor);
@@ -1080,7 +1093,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   }
   const newGrind = anchor.grind != null ? Math.round((anchor.grind + dG) / res) * res : null;
   const dir = Math.abs(dG) < res / 2 ? 'halten' : (dG * sign > 0 ? 'gröber' : 'feiner');
-  return { R, dose, yld, temp, dT, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter, roast: rl };
+  return { R, dose, yld, temp, dT, tempMode: T.tempMode, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter, roast: rl };
 }
 
 /* ---------- Diagramme ---------- */
@@ -1314,6 +1327,7 @@ function goalOptions(goal, base, T, model, res){
     }
     return { ...o, plan, sim, rel };
   });
+  if(T.tempMode === 'none') for(let i = opts.length - 1; i >= 0; i--){ if(opts[i].temp && !opts[i].ratio && !opts[i].dose) opts.splice(i, 1); else if(opts[i].temp) opts[i] = { ...opts[i], plan: { ...opts[i].plan, temp: null } }; }
   const rl = roastClass(base);
   const ti = opts.findIndex(o => o.temp && !o.ratio);
   const gi = Object.keys(GOALS).indexOf(goal);   // 0 weniger sauer, 1 weniger bitter, 2 mehr Süße, 5 weniger trocken
@@ -1372,7 +1386,7 @@ function workshopHTML(anchor, T, model, shots, scale){
         <div class="opts">${opts.map((o, i) => `
           <div class="opt">
             <div class="opt-head"><b>${i + 1}. ${o.t}</b><button class="btn small" type="button" data-opt="${i}">In Rechner</button></div>
-            <span class="num opt-plan">Mahlgrad ${fmtG(o.sim.grind, res)} · ${fmt(o.plan.dose,1)} g → ${fmt(o.plan.yield,1)} g · ~${o.sim.tPred ? fmt(o.sim.tPred,0) : '–'} s${o.plan.temp ? ' · ' + fmt(o.plan.temp, o.plan.temp % 1 ? 1 : 0) + ' °C' : ''}</span>
+            <span class="num opt-plan">Mahlgrad ${fmtG(o.sim.grind, res)} · ${fmt(o.plan.dose,1)} g → ${fmt(o.plan.yield,1)} g · ~${o.sim.tPred ? fmt(o.sim.tPred,0) : '–'} s${T.tempMode === 'levels' ? (o.temp ? ' · ' + (o.temp > 0 ? 'eine Stufe wärmer' : 'eine Stufe kühler') : '') : o.plan.temp ? ' · ' + fmt(o.plan.temp, o.plan.temp % 1 ? 1 : 0) + ' °C' : ''}</span>
             <span class="muted" style="font-size:13px">${o.d} ${o.rel.steps ? stepTxt(o.rel, res) + ' als die Ziel-Einstellung' : 'Mahlgrad wie bei der Ziel-Einstellung'}.</span>
           </div>`).join('')}
         </div>
@@ -1860,6 +1874,7 @@ function aiPayload(anchor, shots, T, model, rec){
     app: 'Dial-in Kompass', language: AI_LANG(), today: new Date().toISOString().slice(0, 10),
     bean: { name: anchor.bean, roaster: b?.roaster || null, roastLevel: rl ? ROAST[rl].label : null, roastScale: 'hell / mittel-hell / mittel / mittel-dunkel / dunkel', typicalForThisRoast: rl ? { tempC: ROAST[rl].temp, ratio: ROAST[rl].ratio, advice: ROAST[rl].tip } : null, roastLevelSource: roastLevel(anchor) ? 'set by user' : rl ? 'estimated' : 'unknown', ageDays: beanAge(anchor), decaf: b?.decaf || undefined, flavorNotes: b?.flavor || undefined },
     grinder: { name: anchor.grinder, step: res, higherNumberIsCoarser: UI.coarserHigher[UI.grinder] !== false },
+    machine: { name: anchor.method || undefined, temperatureControl: { half:'adjustable in 0.5 °C steps', one:'adjustable in 1 °C steps', levels:'only coarse levels (e.g. low/medium/high), no exact °C', none:'not adjustable, no display' }[T.tempMode] || 'unknown', note: T.tempMode === 'none' || T.tempMode === 'levels' ? 'Only suggest temperature changes the machine can do.' : undefined },
     targets: { dose: T.dose, ratio: T.ratio, timeWindowSec: [T.tMin, T.tMax], machineTemp: T.temp || null },
     flowModel: model.scope === 'none' ? { scope: 'none, app uses rule of thumb' } : { scope: model.scope, meaning: 'change of total flow (yield / shot time, g/s) per ONE grind step coarser (negative = finer slows the shot)', flowChangePerStep: r2(model.b * res * (UI.coarserHigher[UI.grinder] === false ? -1 : 1)) , stepSize: res, r2: r2(model.r2), n: model.n },
     predictedShotTimes: (() => {
@@ -2240,6 +2255,11 @@ function render(){
 
   <div class="grid">
       <section class="card rec" aria-labelledby="hRec">
+        ${!tempMode(anchor) || UI.askTemp ? `<div class="tempask" role="group" aria-labelledby="tqTitle">
+          <b id="tqTitle">Wie stellst du die Brühtemperatur ${anchor.method ? `an „${esc(anchor.method)}“` : 'an deiner Maschine'} ein?</b>
+          <span class="muted" style="font-size:12.5px">Damit die Empfehlung nur Temperaturen vorschlägt, die du auch einstellen kannst.</span>
+          <div class="chips">${Object.entries(TEMP_MODES).map(([k, v]) => `<button type="button" class="chip" data-tmode="${k}" aria-pressed="${tempMode(anchor) === k}">${v}</button>`).join('')}</div>
+        </div>` : ''}
         <div class="card-head"><h2 id="hRec">Nächster Shot</h2><span class="conf ${rec.conf}">Sicherheit ${CONF_LABEL[rec.conf]}</span></div>
         <div class="targetline">Dein Ziel: <b>${fmt(T.dose,1)} g → ${fmt(T.dose * T.ratio,0)} g (1:${fmt(T.ratio,2)}) in ${T.tMin}–${T.tMax} s</b>${Math.abs(rec.R - T.ratio) >= 0.04 ? ` · für diesen Shot 1:${fmt(rec.R,2)} wegen des Geschmacks` : ''}${isFilter(shots) ? '' : ' <button class="btn small" type="button" id="goWs">Ziel ändern</button>'}</div>
         <div class="tiles">
@@ -2256,7 +2276,11 @@ function render(){
           <div class="tile ${Math.abs(dDose) >= 0.1 ? 'chg' : ''}"><span class="k">Dosis</span><span class="v">${fmt(rec.dose,1)}</span><span class="d">g</span>${pill(Math.abs(dDose) >= 0.1, sgn(dDose, 1) + ' g')}</div>
           <div class="tile ${Math.abs(dY) >= 0.5 ? 'chg' : ''}"><span class="k">Ausbeute</span><span class="v">${fmt(rec.yld,0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>ausschalten bei ${fmt(stopAt,1)} g` : ''}</span>${pill(Math.abs(dY) >= 0.5, sgn(dY, 0) + ' g')}</div>
           <div class="tile ${Math.abs(dTime) >= 1.5 ? 'chg' : ''}"><span class="k">Zeit</span><span class="v">${tLo}–${tHi}</span><span class="d">s erwartet</span>${pill(Math.abs(dTime) >= 1.5, sgn(dTime, 0) + ' s')}</div>
-          <div class="tile ${Math.abs(dTemp) >= 0.5 ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) : '–'}</span><span class="d">°C</span>${pill(Math.abs(dTemp) >= 0.5, sgn(dTemp, Math.abs(dTemp) % 1 ? 1 : 0) + ' °C')}</div>`;
+          ${rec.tempMode === 'levels'
+            ? `<div class="tile ${rec.dT ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.dT > 0 ? '▲' : rec.dT < 0 ? '▼' : '='}</span><span class="d">${rec.dT > 0 ? 'eine Stufe wärmer' : rec.dT < 0 ? 'eine Stufe kühler' : 'Stufe wie zuletzt'}</span>${pill(!!rec.dT, rec.dT > 0 ? '▲ wärmer' : '▼ kühler')}</div>`
+            : rec.tempMode === 'none'
+            ? `<div class="tile"><span class="k">Temp</span><span class="v">–</span><span class="d">an der Maschine nicht einstellbar</span></div>`
+            : `<div class="tile ${Math.abs(dTemp) >= 0.5 ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) : '–'}</span><span class="d">°C</span>${pill(Math.abs(dTemp) >= 0.5, sgn(dTemp, Math.abs(dTemp) % 1 ? 1 : 0) + ' °C')}</div>`}`;
           })()}
         </div>
         <div class="ruler">${rulerSVG(shots, anchor, rec)}</div>
@@ -2266,6 +2290,7 @@ function render(){
         </ul>
         ${over && stopAt ? `<div class="flowhint" style="color:var(--ink)"><b>Ausschalten bei ${fmt(stopAt,1)} g auf der Waage.</b> Nach dem Ausschalten laufen bei dir im Schnitt noch ${fmt(over.g,1)} g nach${over.min != null && over.n > 1 ? ` (Spanne ${fmt(over.min,1)}–${fmt(over.max,1)} g` + (over.dur ? `, ca. ${fmt(over.dur,1)} s` : '') + ')' : ''}${over.k ? `, beim geplanten Durchfluss etwa ${fmt(dripNext,1)} g` : ''}. <span class="muted">Gelernt aus ${over.n} ${over.src === 'Kurve' ? (over.n === 1 ? 'Waagenkurve' : 'Waagenkurven') : 'eingetragenen Shots'}.</span></div>` : ''}
         ${rec.hints.map(h => `<div class="hint">${h}</div>`).join('')}
+        ${tempMode(anchor) && !UI.askTemp ? `<div class="muted" style="font-size:12.5px">Temperatur an der Maschine: ${TEMP_MODES[tempMode(anchor)]} · <button class="linkbtn" type="button" id="tmodeEdit">ändern</button></div>` : ''}
       </section>
       <section class="card chart" aria-labelledby="hMap">
         <div class="card-head"><h2 id="hMap">Extraktionskarte</h2><span class="muted" style="font-size:13px">${esc(UI.bean)} · ${esc(UI.grinder)}</span></div>
@@ -2365,6 +2390,8 @@ function render(){
   const akd = $('#aiKeyDel'); if(akd) akd.onclick = () => { try{ localStorage.removeItem('dk.aikey'); }catch(e){} AI.keyOpen = true; render(); };
   const akx = document.querySelector('details.aikey'); if(akx) akx.ontoggle = () => { AI.keyOpen = akx.open; };
   const aid = $('#aiDel'); if(aid) aid.onclick = () => { delete (UI.ai || {})[ctxKey()]; AI.err = null; saveUI(); render(); };
+  document.querySelectorAll('[data-tmode]').forEach(b => b.onclick = () => { (UI.machineTemp ||= {})[machineKey(anchor)] = b.dataset.tmode; UI.askTemp = false; formDirty = false; saveUI(); render(); });
+  const tme = $('#tmodeEdit'); if(tme) tme.onclick = () => { UI.askTemp = true; render(); };
   const gw = $('#goWs'); if(gw) gw.onclick = () => { $('#tabWs').click(); window.scrollTo({ top:0, behavior:'smooth' }); };
   const cs = $('#cmpSel'); if(cs) cs.onchange = e => { UI.cmpId = e.target.value || null; render(); };
   const mb = $('#mBack'); if(mb) mb.onclick = () => { UI.maint.backflush = Date.now(); saveUI(); render(); };
@@ -2569,7 +2596,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Konto' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){
