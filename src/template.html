@@ -1915,10 +1915,11 @@ async function runAIDirect(own, payload){
   try{
     const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST',
       headers:{ 'x-api-key': own.key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model: own.model || 'claude-haiku-5-5', max_tokens: 1800, system: AI_SYSTEM, messages: [{ role:'user', content: 'Hier sind meine Daten:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
+      body: JSON.stringify({ model: own.model || 'claude-haiku-5-5', max_tokens: 8000, output_config: { effort: 'low' }, system: AI_SYSTEM, messages: [{ role:'user', content: 'Hier sind meine Daten:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
     const j = await r.json().catch(() => ({}));
     const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
     if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true }; saveUI(); }
+    else if(r.ok) AI.err = 'Die KI hat keinen Text geliefert' + (j.stop_reason === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
     else if(r.status === 401 || r.status === 403) AI.err = 'Anthropic lehnt den Schlüssel ab. Bitte prüfen, ob er stimmt und aktiv ist.';
     else if(r.status === 404) AI.err = 'Das gewählte Modell ist für deinen Schlüssel nicht verfügbar. Wähle ein anderes Modell.';
     else if(r.status === 429) AI.err = 'Zu viele Anfragen oder Guthaben aufgebraucht. Bitte später erneut versuchen oder das Anthropic-Konto prüfen.';
@@ -1941,6 +1942,7 @@ async function runAI(payload){
     else if(j.error === 'no_key') AI.err = 'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für Claude kopieren“.';
     else if(j.error === 'limit') AI.err = `Tageslimit erreicht (${j.limit} Analysen in 24 Stunden). Morgen geht es weiter.`;
     else if(r.status === 401 || j.error === 'auth') AI.err = 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.';
+    else if(j.error === 'empty') AI.err = 'Die KI hat keinen Text geliefert' + (j.stop === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
     else if(j.error === 'upstream') AI.err = 'Die KI hat nicht geantwortet' + (j.detail ? `: ${esc(j.detail)}` : '.') ;
     else AI.err = 'Die Analyse ist fehlgeschlagen' + (j.detail ? `: ${esc(j.detail)}` : ` (Status ${r.status}).`);
   }catch(e){ AI.err = 'Keine Verbindung zum Server. Bitte später noch einmal versuchen.'; }

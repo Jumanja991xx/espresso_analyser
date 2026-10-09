@@ -1936,10 +1936,11 @@ async function runAIDirect(own, payload){
   try{
     const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST',
       headers:{ 'x-api-key': own.key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model: own.model || 'claude-haiku-5-5', max_tokens: 1800, system: AI_SYSTEM, messages: [{ role:'user', content: 'Here is my data:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
+      body: JSON.stringify({ model: own.model || 'claude-haiku-5-5', max_tokens: 8000, output_config: { effort: 'low' }, system: AI_SYSTEM, messages: [{ role:'user', content: 'Here is my data:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
     const j = await r.json().catch(() => ({}));
     const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
     if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true }; saveUI(); }
+    else if(r.ok) AI.err = 'The AI returned no text' + (j.stop_reason === 'max_tokens' ? ', the answer was too long. Please try again.' : '. Please try again.');
     else if(r.status === 401 || r.status === 403) AI.err = 'Anthropic rejects the key. Please check that it is correct and active.';
     else if(r.status === 404) AI.err = 'The selected model is not available for your key. Choose another model.';
     else if(r.status === 429) AI.err = 'Too many requests or credit used up. Try again later or check your Anthropic account.';
@@ -1962,6 +1963,7 @@ async function runAI(payload){
     else if(j.error === 'no_key') AI.err = 'The AI is not set up yet: the server is missing its API key. Until then, “Copy data for Claude” works.';
     else if(j.error === 'limit') AI.err = `Daily limit reached (${j.limit} analyses in 24 hours). Try again tomorrow.`;
     else if(r.status === 401 || j.error === 'auth') AI.err = 'Your session has expired. Please sign in again.';
+    else if(j.error === 'empty') AI.err = 'The AI returned no text' + (j.stop === 'max_tokens' ? ', the answer was too long. Please try again.' : '. Please try again.');
     else if(j.error === 'upstream') AI.err = 'The AI did not respond' + (j.detail ? `: ${esc(j.detail)}` : '.') ;
     else AI.err = 'The analysis failed' + (j.detail ? `: ${esc(j.detail)}` : ` (Status ${r.status}).`);
   }catch(e){ AI.err = 'No connection to the server. Please try again later.'; }

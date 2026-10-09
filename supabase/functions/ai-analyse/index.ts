@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model,
-        max_tokens: 1800,
+        // Die 5.5-Modelle denken adaptiv; das Denken zählt zu max_tokens. Niedriger Aufwand hält es kurz und günstig.
+        max_tokens: 8000,
+        output_config: { effort: "low" },
         system: lang === "en" ? SYSTEM_EN : SYSTEM_DE,
         messages: [{ role: "user", content: (lang === "en" ? "Here is my data:" : "Hier sind meine Daten:") + "\n\n```json\n" + payload + "\n```" }],
       }),
@@ -85,6 +87,7 @@ Deno.serve(async (req) => {
     const text = (out.content || []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("\n").trim();
 
     await admin.from("ai_runs").insert({ user_id: user.id, model, tokens_in: out.usage?.input_tokens ?? null, tokens_out: out.usage?.output_tokens ?? null });
+    if (!text) return json({ error: "empty", stop: out.stop_reason ?? null }, 502);
     return json({ text, model, left: Math.max(0, daily - used - 1), limit: daily });
   } catch (e) {
     return json({ error: "server", detail: String(e).slice(0, 200) }, 500);
