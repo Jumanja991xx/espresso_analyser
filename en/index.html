@@ -284,6 +284,25 @@ td.tastecell .tgl{padding-top:0}
 .stat{display:flex;flex-direction:column;gap:2px;background:var(--sunk);border-radius:8px;padding:10px 14px}
 .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .stat .v{font-family:var(--f-data);font-size:20px;line-height:1.25}
+.roastlvl{display:flex;flex-direction:column;gap:8px}
+.rl-head{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-size:12.5px}
+.rl-head .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.rl-scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.rl{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 2px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;font:inherit;font-size:12px;color:var(--muted);min-width:0}
+.rl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.rl i{display:block;width:20px;height:14px;border-radius:50%;background:var(--rc);box-shadow:inset -3px 0 0 rgba(0,0,0,.18);transform:rotate(-20deg)}
+.rl:hover{border-color:var(--muted);color:var(--ink)}
+.rl[aria-checked="true"]{border-color:var(--ink);color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 1px var(--ink)}
+.rl.est[aria-checked="true"]{border-style:dashed;box-shadow:none}
+.rl-tip{font-size:12.5px;color:var(--muted)}
+.aitext{display:flex;flex-direction:column;gap:6px;font-size:14.5px;line-height:1.55}
+.aitext h4{font-family:var(--f-display);font-size:15px;margin:10px 0 0}
+.aitext h4:first-child{margin-top:0}
+.aitext p,.aitext ul,.aitext ol{margin:0}
+.aitext ul,.aitext ol{padding-left:20px;display:flex;flex-direction:column;gap:3px}
+.aitext code{font-family:var(--f-data);font-size:13px;background:var(--sunk);padding:0 4px;border-radius:4px}
+.aitext .mdrow{font-family:var(--f-data);font-size:13px}
+.aicard{border-left:3px solid var(--accent)}
 .tastebox{flex:1;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line);border-radius:var(--r);padding:16px}
 .tastebox .tgroups{gap:16px}
 @media (min-width:861px){.tastebox .chip{padding:6px 14px;font-size:14px}.tastebox .chips{gap:8px}.tastebox .tgl{padding-top:9px}}
@@ -292,7 +311,7 @@ td.tastecell .tgl{padding-top:0}
 .basecmp svg{max-width:440px;margin:0 auto}
 .basecmp .cmpinfo{text-align:center;align-items:center}
 .basecmp .cmpinfo .btn{align-self:center!important}
-@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.baseleft{display:contents}.basecard > *{grid-column:1!important;grid-row:auto!important}.statgrid{order:1}.baseleft > .note{order:2}.baseleft > .roast,.baseleft > .muted{order:3}.basecard > .basecmp{order:4}.tastebox{order:5}}
+@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.baseleft{display:contents}.basecard > *{grid-column:1!important;grid-row:auto!important}.statgrid{order:1}.baseleft > .note{order:2}.baseleft > .roast,.baseleft > .muted,.baseleft > .roastlvl{order:3}.basecard > .basecmp{order:4}.tastebox{order:5}}
 @media (max-width:560px){.stat{padding:8px 10px}.stat .v{font-size:17px}}
 .targetline{font-size:13px;color:var(--muted);margin-top:-4px}
 .targetline b{color:var(--ink);font-weight:600}
@@ -528,7 +547,7 @@ function parseSheets(sheets, label){
 function validDate(v){ if(!v) return null; const d = new Date(v); return isNaN(d) ? null : d; }
 function parseBackup(J, label){
   const beans = {}, mills = {}, preps = {};
-  (J.BEANS || []).forEach(b => { const id = b.config?.uuid; if(id) beans[id] = { name:b.name, roaster:b.roaster, roastDate:validDate(b.roastingDate), decaf:!!b.decaffeinated, flavor:b.aromatics }; });
+  (J.BEANS || []).forEach(b => { const id = b.config?.uuid; if(id) beans[id] = { name:b.name, roaster:b.roaster, roastDate:validDate(b.roastingDate), decaf:!!b.decaffeinated, flavor:b.aromatics, roast:b.roast && b.roast !== 'UNKNOWN' ? b.roast : null, roastRange:+b.roast_range || null }; });
   (J.MILL || []).forEach(m => { if(m.config?.uuid) mills[m.config.uuid] = m.name; });
   (J.PREPARATION || []).forEach(p => { if(p.config?.uuid) preps[p.config.uuid] = p.name; });
   const sec = (s, ms) => { const v = (+s || 0) + (+ms || 0) / 1000; return v > 0 ? v : null; };
@@ -679,19 +698,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -1009,6 +1028,26 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   if(chA && chA.level === 'high') hints.unshift(`Channeling likely (index ${chA.score}/100: ${chA.sig.slice(0, 2).map(x => x.title).join(', ')}). Fix the puck prep first, otherwise the grind setting tells you little. Details in the shot analysis.`);
   else if(chA && chA.level === 'mid' && chA.curve) hints.push(`Mild signs of channeling in the curve (index ${chA.score}/100). Pay attention to even distribution.`);
 
+  // Röstgrad: andere Hebel je nach Röstung
+  const rl = roastClass(anchor), RP = rl ? ROAST[rl] : null;
+  if(RP && !filter){
+    const needMore = comp ? comp.x < -0.05 : (sour || !!tags.salty);
+    const needLess = comp ? comp.x > 0.05 : (bitter || !!tags.burnt);
+    const tNow = T.temp, [ta, tb] = RP.temp, [ra, rb] = RP.ratio;
+    if(tNow){
+      if(tNow < ta - 0.5 && !needLess){ const d = Math.min(2, Math.round((ta - tNow) * 2) / 2); if(dT < d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} roast: ${fmt(tNow,0)} °C is below the usual range of ${ta}–${tb} °C, so brew hotter.`); } }
+      else if(tNow > tb + 0.5 && !needMore){ const d = -Math.min(2, Math.round((tNow - tb) * 2) / 2); if(dT > d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} roast: ${fmt(tNow,0)} °C is above the usual range of ${ta}–${tb} °C, so brew cooler.`); } }
+      else if(needMore && LIGHTISH(rl) && dT <= 0 && tNow + 1 <= tb + 0.5){ dT = 1; why.push('Light roasts are hard to extract. Temperature is the most effective lever here, so 1 °C hotter.'); }
+      else if(needLess && DARKISH(rl) && dT >= 0 && tNow - 1 >= ta - 0.5){ dT = -1; why.push('Dark roasts extract easily. Brewing cooler removes bitterness fastest, so 1 °C cooler.'); }
+    }
+    const Rn = T.ratio + dR;
+    if(needMore && LIGHTISH(rl) && Rn < ra){ dR += Math.min(0.2, ra - Rn); why.push(`Light roast: a longer ratio (typically 1:${fmt(ra,1)}–1:${fmt(rb,1)}) brings more sweetness than just more time.`); }
+    else if(needLess && DARKISH(rl) && Rn > rb){ dR -= Math.min(0.2, Rn - rb); why.push(`Dark roast: a shorter ratio (typically 1:${fmt(ra,1)}–1:${fmt(rb,1)}) cuts the bitter last grams.`); }
+    if(T.ratio < ra - 0.25 || T.ratio > rb + 0.25) hints.push(`For a ${RP.adj} roast, ratios from 1:${fmt(ra,1)} to 1:${fmt(rb,1)} are typical. Your target 1:${fmt(T.ratio,2)} is ${T.ratio < ra ? 'below' : 'above'}. That may be intended, but it is a possible lever.`);
+    if(needMore && DARKISH(rl) && status !== 'fast') hints.push('Sour with a dark roast is unusual. Often the water is too cool, the shot runs unevenly, or the bean is lighter than assumed.');
+    if(needLess && LIGHTISH(rl) && status !== 'slow') hints.push('Bitter with a light roast usually comes from too many fines or channeling, less often from too much extraction.');
+  }
+
   // Ziel ist immer das Zeitfenster: Zielzeit mit etwas Abstand zum Rand
   const margin = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
   tGoal = clamp(tGoal, T.tMin + margin, T.tMax - margin);
@@ -1049,7 +1088,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   }
   const newGrind = anchor.grind != null ? Math.round((anchor.grind + dG) / res) * res : null;
   const dir = Math.abs(dG) < res / 2 ? 'keep' : (dG * sign > 0 ? 'coarser' : 'finer');
-  return { R, dose, yld, temp, dT, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter };
+  return { R, dose, yld, temp, dT, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter, roast: rl };
 }
 
 /* ---------- Diagramme ---------- */
@@ -1158,16 +1197,36 @@ function rulerSVG(shots, anchor, rec){
 }
 
 /* ---------- Rezept-Werkstatt ---------- */
-function roastClass(anchor){
-  const b = anchor?.beanId ? DATA.beans[anchor.beanId] : null;
-  const s = [b?.roast, b?.name, anchor?.bean].join(' ').toLowerCase();
-  if(/italian|french|dunkel|dark|vienna|spanish/.test(s)) return 'dark';
-  if(/light|hell|nordic|filter|city\b/.test(s)) return 'light';
-  if(/medium|mittel|full city/.test(s)) return 'medium';
+/* Röstgrad: fünf Stufen von hell bis dunkel. Je Stufe übliche Temperatur- und Ratio-Spanne für Espresso. */
+const ROAST = {
+  light:    { label:'light',          adj:'light',        temp:[93, 96], ratio:[2.2, 2.8], col:'#CBA57C', tip:'Hard to extract. Brew hot, longer ratio, finer and longer. Acidity is normal here, the goal is to make it sweet.' },
+  medlight: { label:'medium-light',   adj:'medium-light',  temp:[92, 95], ratio:[2.0, 2.5], col:'#A97B50' },
+  medium:   { label:'medium',        adj:'medium',     temp:[91, 94], ratio:[1.8, 2.3], col:'#87592F' },
+  meddark:  { label:'medium-dark', adj:'medium-dark', temp:[89, 93], ratio:[1.7, 2.1], col:'#5F3B1F' },
+  dark:     { label:'dark',        adj:'dark',       temp:[88, 91], ratio:[1.5, 2.0], col:'#3B2314', tip:'Extracts easily and turns bitter quickly. Brew cooler, shorter ratio, coarser. Body and chocolate rather than acidity.' },
+};
+ROAST.medlight.tip = 'A bit hotter and a slightly longer ratio bring out sweetness and fruit.';
+ROAST.medium.tip = 'Classic range. Small steps in temperature and ratio are usually enough.';
+ROAST.meddark.tip = 'Rather cooler and shorter. Bitterness comes quickly if the shot runs too long.';
+const ROAST_KEYS = Object.keys(ROAST);
+const LIGHTISH = k => k === 'light' || k === 'medlight', DARKISH = k => k === 'dark' || k === 'meddark';
+/* Schätzung aus den Bohnendaten (Beanconqueror: Rösttyp, Röstgrad-Regler, Name) */
+function roastGuess(anchor){
+  const b = anchor?.beanId ? DATA?.beans?.[anchor.beanId] : null;
+  const rr = +b?.roastRange;
+  if(rr >= 1 && rr <= 5) return ROAST_KEYS[Math.round(rr) - 1];
+  const s = [b?.roast, b?.name, anchor?.bean].join(' ').toLowerCase().replace(/_/g, ' ');
+  if(/italian|french|spanish|dunkel|dark/.test(s)) return 'dark';
+  if(/vienna|vieanna|full city plus|full city\+|mittel-?dunkel|medium.dark/.test(s)) return 'meddark';
+  if(/full city|medium|mittel\b/.test(s)) return 'medium';
+  if(/city plus|city\+|half city|moderate light|american|mittel-?hell|medium.light/.test(s)) return 'medlight';
+  if(/cinnamon|new england|light|hell|nordic|filter|city\b/.test(s)) return 'light';
   return null;
 }
-const TEMP_RANGE = { dark:[89, 92], medium:[91, 94], light:[93, 96] };
-const ROAST_ADJ = { dark:'dark', medium:'medium', light:'light' };
+function roastLevel(anchor){ return anchor ? ((UI.roastLvl || {})[beanKey(anchor)] || null) : null; }
+function roastClass(anchor){ return roastLevel(anchor) || roastGuess(anchor); }
+const TEMP_RANGE = Object.fromEntries(ROAST_KEYS.map(k => [k, ROAST[k].temp]));
+const ROAST_ADJ = Object.fromEntries(ROAST_KEYS.map(k => [k, ROAST[k].adj]));
 function workshopBase(anchor, shots){
   const ok = s => s && s.grind != null && s.time && s.yield && s.dose;
   return ok(anchor) ? anchor : shots.find(ok) || null;
@@ -1243,7 +1302,7 @@ function targetPoint(base, T, model, res){
 }
 function goalOptions(goal, base, T, model, res){
   const tp = targetPoint(base, T, model, res);
-  return (GOALS[goal] || []).map(o => {
+  const opts = (GOALS[goal] || []).map(o => {
     const dose = Math.round((T.dose + (o.dose || 0)) * 2) / 2;
     const ratio = Math.round((T.ratio + (o.ratio || 0)) * 20) / 20;
     const yld = Math.round(dose * ratio * 2) / 2;
@@ -1263,6 +1322,14 @@ function goalOptions(goal, base, T, model, res){
     }
     return { ...o, plan, sim, rel };
   });
+  const rl = roastClass(base);
+  const ti = opts.findIndex(o => o.temp && !o.ratio);
+  const gi = Object.keys(GOALS).indexOf(goal);   // 0 weniger sauer, 1 weniger bitter, 2 mehr Süße, 5 weniger trocken
+  if(ti > 0 && ((LIGHTISH(rl) && (gi === 0 || gi === 2)) || (DARKISH(rl) && (gi === 1 || gi === 5)))){
+    const [o] = opts.splice(ti, 1);
+    opts.unshift({ ...o, d: o.d + ` For a ${ROAST[rl].adj} roast, the most effective lever.` });
+  }
+  return opts;
 }
 function calibrationRows(base, model, res, T){
   const b = model.scope !== 'none' ? model.b : heuristicB(res, model.sign);
@@ -1747,6 +1814,104 @@ function analysisHTML(s, T, shots, scale){
   </section>`;
 }
 
+
+/* ---------- KI-Analyse ----------
+   Schickt ein kompaktes Datenpaket an die Edge Function "ai-analyse" (Claude API, nur mit Konto).
+   Ohne Konto: Datenpaket mit Anleitung kopieren und selbst in Claude einfügen. */
+const AI = { busy:false, err:null };
+const AI_LANG = () => (document.documentElement.lang || 'de').slice(0, 2) === 'en' ? 'en' : 'de';
+const AI_PROMPT = 'You are an experienced barista. Evaluate the following data from my espresso app as a whole: patterns across several shots, roast level, bean age, channeling, taste. Give a concrete next shot (grind in the grinder’s units, dose, yield, time, temperature) and say whether you agree with the app’s recommendation. Do not invent data. Answer concisely, structured as: Summary, What the data shows, Next shot, After that, Data quality.';
+function aiPayload(anchor, shots, T, model, rec){
+  const res = grinderRes(), scale = ratingScale();
+  const strip = t => String(t ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const r1 = v => v == null || !isFinite(v) ? null : Math.round(v * 10) / 10, r2 = v => v == null || !isFinite(v) ? null : Math.round(v * 100) / 100;
+  const rl = roastClass(anchor);
+  const b = anchor.beanId ? DATA?.beans?.[anchor.beanId] : null;
+  const list = shots.filter(s => s.time || s.yield).slice(0, 20).map(s => {
+    const ch = channelingCheck(s, shots, T), fl = FLOWS[s.id], an = fl ? analyzeFlow(fl, s) : null, st = an ? detectStop(fl, an) : null, c = UI.compass[s.id];
+    return {
+      date: s.date ? s.date.toISOString().slice(0, 16) : null, isBaseShot: s.id === anchor.id || undefined,
+      grind: s.grindRaw || null, dose: s.dose || null, yield: s.yield || null, ratio: r2(ratio(s)), time: s.time || null,
+      firstDrip: s.firstDrip || null, temp: s.temp || null, rating: s.rating ? `${s.rating}/${scale}` : null,
+      taste: TASTES.filter(x => shotTags(s)[x.k]).map(x => x.label), notes: s.notes || undefined,
+      compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
+      beanAgeDays: beanAge(s),
+      channeling: ch ? { index: ch.score, signals: ch.sig.map(x => x.title), basis: ch.curve ? 'curve' : 'data' } : undefined,
+      curve: an ? { mainFlow: r2(an.mMain), peakFlow: r2(an.peak), peakAt: r1(an.tPeak), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
+    };
+  });
+  const groups = {};
+  allShots().filter(s => s.grinder === UI.grinder && s.bean !== UI.bean && s.grind != null && s.time).forEach(s => (groups[s.bean] ||= []).push(s));
+  const others = Object.entries(groups).slice(0, 5).map(([bean, g]) => { const ts = g.map(x => x.time).sort((a, b) => a - b); const gs = g.map(x => x.grind); return { bean, shots: g.length, grindRange: [fmtG(Math.min(...gs), res), fmtG(Math.max(...gs), res)], medianTime: ts[Math.floor(ts.length / 2)], roastLevel: (() => { const k = roastClass(g[0]); return k ? ROAST[k].label : null; })() }; });
+  const over = learnOvershoot(shots), recipe = UI.recipes[ctxKey()];
+  return {
+    app: 'Dial-in Kompass', language: AI_LANG(), today: new Date().toISOString().slice(0, 10),
+    bean: { name: anchor.bean, roaster: b?.roaster || null, roastLevel: rl ? ROAST[rl].label : null, roastLevelSource: roastLevel(anchor) ? 'set by user' : rl ? 'estimated' : 'unknown', ageDays: beanAge(anchor), decaf: b?.decaf || undefined, flavorNotes: b?.flavor || undefined },
+    grinder: { name: anchor.grinder, step: res, higherNumberIsCoarser: UI.coarserHigher[UI.grinder] !== false },
+    targets: { dose: T.dose, ratio: T.ratio, timeWindowSec: [T.tMin, T.tMax], machineTemp: T.temp || null },
+    flowModel: model.scope === 'none' ? { scope: 'none, app uses rule of thumb' } : { scope: model.scope, flowChangePerGrindUnit: r2(model.b), r2: r2(model.r2), n: model.n },
+    postStopDrip: over ? { avgGrams: r1(over.g), n: over.n } : null,
+    savedRecipe: recipe ? { grind: recipe.grindRaw, dose: recipe.dose, yield: recipe.yield, time: recipe.time, temp: recipe.temp || null } : null,
+    appRecommendation: { grind: rec.newGrind != null ? fmtG(rec.newGrind, res) : null, grindChange: rec.dir, dose: rec.dose, yield: rec.yld, ratio: rec.R, temp: rec.temp, expectedTimeSec: Math.round(rec.tPred), confidence: rec.conf, reasons: rec.why.map(strip), hints: rec.hints.map(strip) },
+    shots: list,
+    otherBeansSameGrinder: others,
+  };
+}
+function mdToHTML(md){
+  let html = '', list = null, para = [];
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*(?!\s)([^*]+?)\*(?!\w)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  const flushP = () => { if(para.length){ html += `<p>${inline(para.join(' '))}</p>`; para = []; } };
+  const flushL = () => { if(list){ html += `</${list}>`; list = null; } };
+  for(const raw of String(md || '').split(/\r?\n/)){
+    const l = raw.trim(); let m;
+    if(!l){ flushP(); flushL(); continue; }
+    if((m = l.match(/^#{1,4}\s+(.*)$/))){ flushP(); flushL(); html += `<h4>${inline(m[1])}</h4>`; continue; }
+    if((m = l.match(/^[-*•]\s+(.*)$/))){ flushP(); if(list !== 'ul'){ flushL(); html += '<ul>'; list = 'ul'; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if((m = l.match(/^\d+[.)]\s+(.*)$/))){ flushP(); if(list !== 'ol'){ flushL(); html += '<ol>'; list = 'ol'; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if(/^(-{3,}|\*{3,}|_{3,})$/.test(l)){ flushP(); flushL(); continue; }
+    if(/^\|.*\|$/.test(l)){ flushP(); flushL(); if(/^\|[\s:|-]+\|$/.test(l)) continue; html += `<p class="mdrow">${l.slice(1, -1).split('|').map(c => inline(c.trim())).join(' · ')}</p>`; continue; }
+    flushL(); para.push(l);
+  }
+  flushP(); flushL();
+  return html;
+}
+function aiCardHTML(anchor){
+  const r = (UI.ai || {})[ctxKey()];
+  const stale = r && r.anchorId !== anchor.id;
+  return `
+  <section class="card aicard" aria-labelledby="hAi">
+    <div class="card-head"><h2 id="hAi">AI analysis</h2><span class="muted" style="font-size:13px">evaluates all shots of this bean together: grinder, roast level, curves, channeling and taste</span></div>
+    ${r ? `<div class="aitext">${mdToHTML(r.text)}</div>
+      <span class="muted" style="font-size:12.5px">Created ${fmtDate(new Date(r.at))}${stale ? ' · <b>there is a newer base shot since then</b>' : ''}${r.left != null ? ` · ${r.left} ${r.left === 1 ? 'analysis' : 'analyses'} left today` : ''}. AI assessments can be wrong, compare with the recommendation above.</span>`
+    : `<p class="muted" style="margin:0;font-size:14px">An AI reads your shots, scale curves, roast level and taste notes together and writes an assessment with a concrete suggestion for the next shot. It also sees the app’s recommendation and says whether it agrees.</p>`}
+    ${AI.err ? `<div class="acctmsg err">${AI.err}</div>` : ''}
+    <div class="row">
+      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled' : ''}>${AI.busy ? 'Analysing …' : !SESSION ? 'Sign in for AI analysis' : r ? 'Analyse again' : 'Create analysis'}</button>
+      <button class="btn" type="button" id="aiCopy" title="Data package and instructions to the clipboard, for pasting into Claude">Copy data for Claude</button>
+      ${r ? '<button class="btn" type="button" id="aiDel">Remove analysis</button>' : ''}
+    </div>
+    ${!SESSION ? '<span class="muted" style="font-size:12.5px">The in-app AI analysis needs an account. Without one you can copy the data and paste it into Claude yourself.</span>' : ''}
+  </section>`;
+}
+async function runAI(payload){
+  if(!SESSION){ openAcct(); return; }
+  AI.busy = true; AI.err = null; render();
+  const key = ctxKey(), anchorId = UI.anchorId;
+  try{
+    const { data: { session } } = await SB.auth.getSession();
+    const tok = session?.access_token || SESSION.access_token;
+    const r = await fetch(SB_URL + '/functions/v1/ai-analyse', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + tok, apikey:SB_KEY }, body: JSON.stringify({ lang: AI_LANG(), data: payload }) });
+    const j = await r.json().catch(() => ({}));
+    if(r.ok && j.text){ (UI.ai ||= {})[key] = { text: j.text, at: Date.now(), model: j.model, anchorId, left: j.left }; saveUI(); }
+    else if(j.error === 'no_key') AI.err = 'The AI is not set up yet: the server is missing its API key. Until then, “Copy data for Claude” works.';
+    else if(j.error === 'limit') AI.err = `Daily limit reached (${j.limit} analyses in 24 hours). Try again tomorrow.`;
+    else if(r.status === 401 || j.error === 'auth') AI.err = 'Your session has expired. Please sign in again.';
+    else if(j.error === 'upstream') AI.err = 'The AI did not respond' + (j.detail ? `: ${esc(j.detail)}` : '.') ;
+    else AI.err = 'The analysis failed' + (j.detail ? `: ${esc(j.detail)}` : ` (Status ${r.status}).`);
+  }catch(e){ AI.err = 'No connection to the server. Please try again later.'; }
+  AI.busy = false; render();
+}
+
 /* ---------- Rendern ---------- */
 function ensureCtx(){
   const shots = allShots();
@@ -1991,6 +2156,11 @@ function render(){
         </div>
         ${anchor.notes ? `<div class="note">“${esc(anchor.notes)}”</div>` : ''}
         ${ageA == null ? `<div class="roast"><label for="roastIn">Roast date of <b>${esc(anchor.bean)}</b> is missing:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Apply</button></div>` : (UI.roast[beanKey(anchor)] ? `<div class="muted" style="font-size:13px">Bean age from your roast date · <button class="btn small" type="button" id="roastClear">Change roast date</button></div>` : '')}
+        ${(() => { const rl = roastClass(anchor), set = !!roastLevel(anchor), R = rl ? ROAST[rl] : null; return `<div class="roastlvl">
+          <div class="rl-head"><span class="k">Roast level</span><span class="muted">${set ? 'for ' + esc(anchor.bean) : rl ? 'estimated from the bean data, tap to set' : 'tap to set'}</span></div>
+          <div class="rl-scale" role="radiogroup" aria-label="Roast level">${ROAST_KEYS.map(k => `<button type="button" role="radio" class="rl ${set ? '' : 'est'}" data-rl="${k}" aria-checked="${k === rl}" style="--rc:${ROAST[k].col}"><i></i><span>${ROAST[k].label}</span></button>`).join('')}</div>
+          ${R ? `<span class="rl-tip">${R.tip} Typical: ${R.temp[0]}–${R.temp[1]} °C, Ratio 1:${fmt(R.ratio[0],1)}–1:${fmt(R.ratio[1],1)}.</span>` : ''}
+        </div>`; })()}
         <div class="tastebox">
           <div class="field"><label>How did it taste?</label>
           <div id="tasteChips">${tasteChipsHTML(tags)}</div>
@@ -2051,6 +2221,8 @@ function render(){
         <div class="card-head"><h2 id="hGrind">Grind and shot time</h2><span class="muted" style="font-size:13px">Line: expected time at ${fmt(rec.yld,0)} g</span></div>
         ${grindSVG(shots, anchor, rec, model, T, true)}
       </section>` : ''}
+
+  ${aiCardHTML(anchor)}
 
   ${analysisHTML(detail, T, shots, scale)}
 
@@ -2115,6 +2287,14 @@ function render(){
   };
   const rcd = $('#recipeDel'); if(rcd) rcd.onclick = () => { if(rcd.dataset.c){ delete UI.recipes[ctxKey()]; saveUI(); render(); } else { rcd.dataset.c = 1; rcd.textContent = 'Really remove?'; } };
   const rsv = $('#recipeSave'); if(rsv) rsv.onclick = () => { const d = detail; UI.recipes[ctxKey()] = { shotId:d.id, grindRaw:d.grindRaw, grind:d.grind, dose:d.dose, yield:d.yield, time:d.time, temp:d.temp, rating:d.rating, date:d.date?.getTime(), age:beanAge(d) }; delete UI.targets[ctxKey()]; saveUI(); render(); };
+  document.querySelectorAll('.rl[data-rl]').forEach(b => b.onclick = () => { const k = beanKey(anchor); UI.roastLvl ||= {}; if(UI.roastLvl[k] === b.dataset.rl) delete UI.roastLvl[k]; else UI.roastLvl[k] = b.dataset.rl; formDirty = false; saveUI(); render(); });
+  const air = $('#aiRun'); if(air) air.onclick = () => runAI(aiPayload(anchor, shots, T, model, rec));
+  const aic = $('#aiCopy'); if(aic) aic.onclick = () => {
+    const txt = AI_PROMPT + '\n\n```json\n' + JSON.stringify(aiPayload(anchor, shots, T, model, rec), null, 1) + '\n```';
+    const done = () => { aic.textContent = 'Copied. Now paste it into Claude.'; };
+    try{ navigator.clipboard.writeText(txt).then(done, () => { prompt('Copy:', txt); }); }catch(e){ prompt('Copy:', txt); }
+  };
+  const aid = $('#aiDel'); if(aid) aid.onclick = () => { delete (UI.ai || {})[ctxKey()]; AI.err = null; saveUI(); render(); };
   const gw = $('#goWs'); if(gw) gw.onclick = () => { $('#tabWs').click(); window.scrollTo({ top:0, behavior:'smooth' }); };
   const cs = $('#cmpSel'); if(cs) cs.onchange = e => { UI.cmpId = e.target.value || null; render(); };
   const mb = $('#mBack'); if(mb) mb.onclick = () => { UI.maint.backflush = Date.now(); saveUI(); render(); };
@@ -2319,7 +2499,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Account' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){

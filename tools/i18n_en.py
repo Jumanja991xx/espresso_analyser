@@ -740,3 +740,52 @@ EXACT.update({' Shots</span></div>': ' shots</span></div>'})
 EXACT.update({' bei ': ' at '})
 EXACT.update({' · Ausreißer': ' · outlier'})
 PHRASES += [('<span class="chcap">letzte ', '<span class="chcap">last ')]
+
+# Röstgrad
+EXACT.update({
+  ' Röstung: ': ' roast: ', ' °C liegt unter dem üblichen Bereich von ': ' °C is below the usual range of ', ' °C, deshalb wärmer.': ' °C, so brew hotter.',
+  ' °C liegt über dem üblichen Bereich von ': ' °C is above the usual range of ', ' °C, deshalb kühler.': ' °C, so brew cooler.',
+  'Helle Röstungen lösen sich schwer. Die Temperatur ist hier der wirksamste Hebel, deshalb 1 °C wärmer.': 'Light roasts are hard to extract. Temperature is the most effective lever here, so 1 °C hotter.',
+  'Dunkle Röstungen extrahieren leicht. Kühler brühen nimmt Bitterkeit am schnellsten heraus, deshalb 1 °C kühler.': 'Dark roasts extract easily. Brewing cooler removes bitterness fastest, so 1 °C cooler.',
+  'Helle Röstung: eine längere Ratio (üblich 1:': 'Light roast: a longer ratio (typically 1:', ') bringt mehr Süße als nur mehr Zeit.': ') brings more sweetness than just more time.',
+  'Dunkle Röstung: eine kürzere Ratio (üblich 1:': 'Dark roast: a shorter ratio (typically 1:', ') nimmt die bitteren letzten Gramm weg.': ') cuts the bitter last grams.',
+  'Für eine ': 'For a ', ' Röstung sind Ratios von 1:': ' roast, ratios from 1:', ' bis 1:': ' to 1:', ' üblich. Dein Ziel 1:': ' are typical. Your target 1:',
+  ' liegt ': ' is ', 'darunter': 'below', 'darüber': 'above', '. Das kann gewollt sein, ist aber ein möglicher Hebel.': '. That may be intended, but it is a possible lever.',
+  'Sauer bei einer dunklen Röstung ist ungewöhnlich. Oft ist das Wasser zu kühl, der Shot läuft ungleichmäßig, oder die Bohne ist heller als gedacht.': 'Sour with a dark roast is unusual. Often the water is too cool, the shot runs unevenly, or the bean is lighter than assumed.',
+  'Bitter bei einer hellen Röstung kommt meist von zu feinem Mahlgut (Feinanteil) oder Channeling, seltener von zu viel Extraktion.': 'Bitter with a light roast usually comes from too many fines or channeling, less often from too much extraction.',
+  'hell': 'light', 'mittel-hell': 'medium-light', 'mittelhelle': 'medium-light', 'mittel-dunkel': 'medium-dark', 'mitteldunkle': 'medium-dark', 'dunkel': 'dark',
+  'Löst sich schwer. Heiß brühen, längere Ratio, eher feiner und länger. Säure ist hier normal, Ziel ist sie süß einzubinden.': 'Hard to extract. Brew hot, longer ratio, finer and longer. Acidity is normal here, the goal is to make it sweet.',
+  'Extrahiert leicht und wird schnell bitter. Kühler brühen, kürzere Ratio, eher gröber. Körper und Schokolade statt Säure.': 'Extracts easily and turns bitter quickly. Brew cooler, shorter ratio, coarser. Body and chocolate rather than acidity.',
+  'Etwas wärmer und eine etwas längere Ratio holen Süße und Frucht heraus.': 'A bit hotter and a slightly longer ratio bring out sweetness and fruit.',
+  'Klassischer Bereich. Kleine Schritte bei Temperatur und Ratio reichen meist.': 'Classic range. Small steps in temperature and ratio are usually enough.',
+  'Eher kühler und kürzer. Bitterkeit kommt schnell, wenn der Shot zu lange läuft.': 'Rather cooler and shorter. Bitterness comes quickly if the shot runs too long.',
+  ' Bei einer ': ' For a ', ' Röstung der wirksamste Hebel.': ' roast, the most effective lever.',
+  'für ': 'for ', 'geschätzt aus den Bohnendaten, antippen zum Festlegen': 'estimated from the bean data, tap to set', 'antippen zum Festlegen': 'tap to set',
+  ' Üblich: ': ' Typical: ',
+})
+PHRASES += [('<span class="k">Röstgrad</span>', '<span class="k">Roast level</span>'), ('aria-label="Röstgrad"', 'aria-label="Roast level"')]
+
+# KI-Analyse
+EXACT.update({
+  'Du bist ein erfahrener Barista. Werte die folgenden Daten aus meiner Espresso-App gemeinsam aus: Muster über mehrere Shots, Röstgrad, Bohnenalter, Channeling, Geschmack. Gib einen konkreten nächsten Shot an (Mahlgrad in den Einheiten der Mühle, Dosis, Ausbeute, Zeit, Temperatur) und sag, ob du der Empfehlung der App zustimmst. Erfinde keine Daten. Antworte knapp, gegliedert in: Kurzfazit, Was die Daten zeigen, Nächster Shot, Danach, Datenlage.':
+    'You are an experienced barista. Evaluate the following data from my espresso app as a whole: patterns across several shots, roast level, bean age, channeling, taste. Give a concrete next shot (grind in the grinder’s units, dose, yield, time, temperature) and say whether you agree with the app’s recommendation. Do not invent data. Answer concisely, structured as: Summary, What the data shows, Next shot, After that, Data quality.',
+  ' · <b>seitdem gibt es einen neueren Ausgangs-Shot</b>': ' · <b>there is a newer base shot since then</b>',
+  ' · heute noch ': ' · ', 'Analyse': 'analysis', 'Analysen': 'analyses', ' frei': ' left today',
+  '. KI-Einschätzungen können danebenliegen, vergleiche mit der Empfehlung oben.</span>': '. AI assessments can be wrong, compare with the recommendation above.</span>',
+  '<p class="muted" style="margin:0;font-size:14px">Eine KI liest deine Shots, die Waagenkurven, den Röstgrad und deine Geschmacksangaben gemeinsam und schreibt eine Einschätzung mit konkretem Vorschlag für den nächsten Shot. Sie sieht auch die Empfehlung der App und sagt, ob sie zustimmt.</p>':
+    '<p class="muted" style="margin:0;font-size:14px">An AI reads your shots, scale curves, roast level and taste notes together and writes an assessment with a concrete suggestion for the next shot. It also sees the app’s recommendation and says whether it agrees.</p>',
+  'Analysiere …': 'Analysing …', 'Anmelden für KI-Analyse': 'Sign in for AI analysis', 'Neu analysieren': 'Analyse again', 'Analyse erstellen': 'Create analysis',
+  '<button class="btn" type="button" id="aiDel">Analyse entfernen</button>': '<button class="btn" type="button" id="aiDel">Remove analysis</button>',
+  '<span class="muted" style="font-size:12.5px">Die KI-Analyse in der App braucht ein Konto. Ohne Konto kannst du die Daten kopieren und selbst in Claude einfügen.</span>': '<span class="muted" style="font-size:12.5px">The in-app AI analysis needs an account. Without one you can copy the data and paste it into Claude yourself.</span>',
+  'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für Claude kopieren“.': 'The AI is not set up yet: the server is missing its API key. Until then, “Copy data for Claude” works.',
+  'Tageslimit erreicht (': 'Daily limit reached (', ' Analysen in 24 Stunden). Morgen geht es weiter.': ' analyses in 24 hours). Try again tomorrow.',
+  'Die Anmeldung ist abgelaufen. Bitte neu anmelden.': 'Your session has expired. Please sign in again.',
+  'Die KI hat nicht geantwortet': 'The AI did not respond', 'Die Analyse ist fehlgeschlagen': 'The analysis failed',
+  'Keine Verbindung zum Server. Bitte später noch einmal versuchen.': 'No connection to the server. Please try again later.',
+  'Kopiert. Jetzt in Claude einfügen.': 'Copied. Now paste it into Claude.', 'Kopieren:': 'Copy:',
+})
+PHRASES += [
+  ('<h2 id="hAi">KI-Analyse</h2><span class="muted" style="font-size:13px">wertet alle Shots dieser Bohne zusammen aus: Mühle, Röstgrad, Kurven, Channeling und Geschmack</span>', '<h2 id="hAi">AI analysis</h2><span class="muted" style="font-size:13px">evaluates all shots of this bean together: grinder, roast level, curves, channeling and taste</span>'),
+  ('<span class="muted" style="font-size:12.5px">Erstellt am ', '<span class="muted" style="font-size:12.5px">Created '),
+  ('title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude">Daten für Claude kopieren</button>', 'title="Data package and instructions to the clipboard, for pasting into Claude">Copy data for Claude</button>'),
+]

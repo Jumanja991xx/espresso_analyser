@@ -1,7 +1,7 @@
 /* Dial-in Kompass – Service Worker
    Seiten: zuerst Netzwerk (damit Updates sofort ankommen), offline aus dem Cache.
    Bibliotheken, Schriften, Icons: aus dem Cache, im Hintergrund aktualisiert. */
-const CACHE = 'dial-in-v3';
+const CACHE = 'dial-in-v4';
 const CORE = ['/', '/en/', '/manifest.webmanifest', '/en/manifest.webmanifest', '/icons/icon-180.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', e => {

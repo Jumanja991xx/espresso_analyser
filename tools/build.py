@@ -78,3 +78,10 @@ if left:
     for s in left: print('  ', repr(s[:160]))
 else:
     print('Alle Textstellen übersetzt.')
+
+# Syntaxprüfung der eingebetteten Skripte (falls Node vorhanden)
+import shutil, subprocess
+if shutil.which('node'):
+    chk = "const fs=require('fs');let bad=0;for(const f of ['index.html','en/index.html','dist/claude-artifact.html']){const h=fs.readFileSync(f,'utf8');for(const m of h.matchAll(/<script>([\\s\\S]*?)<\\/script>/g)){try{new Function(m[1])}catch(e){bad=1;console.log('SYNTAXFEHLER',f,e.message)}}}process.exit(bad)"
+    r = subprocess.run(['node', '-e', chk])
+    if r.returncode: sys.exit('Build enthält Syntaxfehler')
