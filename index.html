@@ -1619,8 +1619,20 @@ function channelingCheck(s, shots, T){
         }
         return null;
       };
+      // 3) Durchbruch direkt am Anfang
+      if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m ) {
+        const k = evKey('early', an.tPeak);
+        let mnE = Infinity; for(let j = 0; j < ft.length; j++) if(ft[j] > an.tPeak && ft[j] - an.tPeak <= 0.8) mnE = Math.min(mnE, f[j]);
+        const why = an.peak > 6 || an.peak > 3 * m ? 'extrem hoher Ausschlag' : (mnE !== Infinity && mnE <= m * 1.25 ? 'sofort wieder abgefallen' : null);
+        const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
+        if(!ign) add('early', an.peak > 2 * m ? 18 : 12, 'Kurve', `Früher Flow-Ausschlag (${fmt(an.peak,1)} g/s bei ${fmt(an.tPeak,0)} s)`, 'Kurz nach dem ersten Tropfen schießt der Flow weit über den späteren Durchschnitt. Das Wasser findet sofort einen bequemen Weg durch den Puck.');
+        events.push({ key: k, t: an.tPeak, f: an.peak, kind: 'Früher Ausschlag', txt: `${fmt(an.peak,1)} g/s`, ignored: ign, why, auto: !!why });
+      }
+      // Sprünge direkt nach einem manuellen Ausreißer sind dessen Nachwirkung; Sprünge am frühen Ausschlag sind derselbe Effekt
+      const manualAt = events.filter(e => e.ignored && e.auto).map(e => e.t);
       spikes.forEach(x => {
-        const k = evKey('spike', x.t), why = manualReason(x);
+        if(events.some(e => e.kind === 'Früher Ausschlag' && Math.abs(e.t - x.t) < 1)) return;
+        const k = evKey('spike', x.t), why = manualReason(x) || (manualAt.some(t => x.t >= t - 1 && x.t <= t + 3) ? 'Nachwirkung eines Ausreißers' : null);
         const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
         events.push({ key: k, t: x.t, f: x.f, kind: 'Flow-Sprung', txt: `+${fmt(x.d,1)} g/s in 1 s`, ignored: ign, why, auto: !!why, d: x.d });
       });
@@ -1640,13 +1652,6 @@ function channelingCheck(s, shots, T){
         const res = fit ? vals.map((v, i) => v - (fit.a + fit.b * xs[i])) : vals.map(v => v - mu);
         const cv = Math.sqrt(res.reduce((a, r) => a + r * r, 0) / res.length) / mu;
         if(cv > 0.12) add('cv', cv > 0.25 ? 22 : cv > 0.18 ? 14 : 7, 'Kurve', `Unruhiger Flow (Schwankung ${fmt(cv * 100,0)} %)`, 'Der Durchfluss zittert in der Hauptphase stärker als üblich. Ein gleichmäßig durchströmter Puck liefert eine ruhige Kurve.');
-      }
-      // 3) Durchbruch direkt am Anfang
-      if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m && !events.some(e => Math.abs(e.t - an.tPeak) < 1)) {
-        const k = evKey('early', an.tPeak), why = an.peak > 6 || an.peak > 3 * m ? 'extrem hoher Ausschlag' : null;
-        const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
-        if(!ign) add('early', an.peak > 2 * m ? 18 : 12, 'Kurve', `Früher Flow-Ausschlag (${fmt(an.peak,1)} g/s bei ${fmt(an.tPeak,0)} s)`, 'Kurz nach dem ersten Tropfen schießt der Flow weit über den späteren Durchschnitt. Das Wasser findet sofort einen bequemen Weg durch den Puck.');
-        events.push({ key: k, t: an.tPeak, f: an.peak, kind: 'Früher Ausschlag', txt: `${fmt(an.peak,1)} g/s`, ignored: ign, why, auto: !!why });
       }
       // 4) Puck baut zum Ende ab
       if(an.endRatio != null && an.endRatio > 1.3) add('late', an.endRatio > 1.6 ? 14 : 8, 'Kurve', `Flow steigt zum Ende (+${fmt((an.endRatio - 1) * 100,0)} %)`, 'Der Puck verliert gegen Ende Widerstand. Das ist oft Erosion oder ein Kanal, der sich langsam weitet.');
@@ -1883,7 +1888,7 @@ function aiPayload(anchor, shots, T, model, rec){
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
       beanAgeDays: beanAge(s),
       channeling: ch ? { index: ch.score, signals: ch.sig.map(x => x.title), basis: ch.curve ? 'curve' : 'data' } : undefined,
-      curve: an ? { mainFlow: r2(an.mMain), peakFlow: r2(an.peak), peakAt: r1(an.tPeak), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
+      curve: an ? { mainFlow: r2(an.mMain), ...(ch && ch.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5) ? { ignoredOutlier: `${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s, probably manual (scale/cup touched), not counted` } : { peakFlow: r2(an.peak), peakAt: r1(an.tPeak) }), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
     };
   });
   const groups = {};

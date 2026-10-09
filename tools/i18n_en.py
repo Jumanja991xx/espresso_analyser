@@ -827,3 +827,4 @@ PHRASES += [
   ('<b id="tqTitle">Wie stellst du die Brühtemperatur ', '<b id="tqTitle">How do you set the brew temperature '),
   (' ein?</b>\n          <span class="muted" style="font-size:12.5px">Damit die Empfehlung nur Temperaturen vorschlägt, die du auch einstellen kannst.</span>', '?</b>\n          <span class="muted" style="font-size:12.5px">So the recommendation only suggests temperatures you can actually set.</span>'),
 ]
+EXACT.update({'Nachwirkung eines Ausreißers': 'after-effect of an outlier'})
