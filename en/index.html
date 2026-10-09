@@ -672,28 +672,54 @@ function intensityOf(s){
   if(/etwas|leicht|eventuell|evtl|bisschen|minimal|a bit|slightly|a little|maybe|\?/.test(n)) return 'light';
   return 'medium';
 }
-/* Nachlauf lernen: wie viel landet nach dem Stoppen noch in der Tasse? */
+/* Pumpe aus erkennen: der Durchfluss bricht am Ende innerhalb von 1–3 s zusammen.
+   Der Knick (letzter Punkt nahe am Plateau vor dem Abfall) markiert das Ausschalten,
+   alles, was danach noch in die Tasse läuft, ist Nachlauf. */
+function detectStop(fl, an){
+  if(!fl?.t?.length || !fl.w?.length || !an?.mMain) return null;
+  const raw = fl.f?.length ? { ft: fl.ft, f: fl.f } : { ft: an.ft, f: an.f };
+  // leicht zentriert glätten (±0,3 s), damit der Knick nicht verschoben wird
+  const ft = raw.ft, f = raw.f.map((v, i) => { let s = 0, n = 0; for(let j = i; j >= 0 && ft[i] - ft[j] <= 0.3; j--){ s += raw.f[j]; n++; } for(let j = i + 1; j < ft.length && ft[j] - ft[i] <= 0.3; j++){ s += raw.f[j]; n++; } return s / n; });
+  let iOn = -1;
+  for(let i = 0; i < ft.length; i++) if(f[i] >= 0.5 * an.mMain && (an.fd == null || ft[i] > an.fd + 2)) iOn = i;
+  if(iOn < 0) return null;
+  let mx = 0; for(let j = iOn; j >= 0 && ft[iOn] - ft[j] <= 3; j--) mx = Math.max(mx, f[j]);
+  let iK = iOn; for(let j = iOn; j >= 0 && ft[iOn] - ft[j] <= 3; j--){ if(f[j] >= 0.9 * mx){ iK = j; break; } }
+  const tStop = ft[iK];
+  let tLow = null; for(let j = iK; j < ft.length; j++) if(f[j] < 0.25 * mx){ tLow = ft[j]; break; }
+  if(tLow == null || tLow - tStop > 4) return null;        // kein sauberes Ende in der Kurve
+  const wAt = x => { for(let i = 0; i < fl.t.length; i++) if(fl.t[i] >= x){ if(i === 0) return fl.w[0]; const a = fl.t[i - 1], b = fl.t[i]; return fl.w[i - 1] + (fl.w[i] - fl.w[i - 1]) * (b > a ? (x - a) / (b - a) : 1); } return fl.w[fl.w.length - 1]; };
+  const wStop = wAt(tStop);
+  const drip = an.final - wStop;
+  if(!(drip >= 0 && drip < 8)) return null;
+  let tSettle = null; for(let i = 0; i < fl.t.length; i++) if(fl.t[i] > tStop && fl.w[i] >= an.final - 0.2){ tSettle = fl.t[i]; break; }
+  return { tStop, wStop, drip, flowStop: mx, dur: tSettle != null ? tSettle - tStop : null, ratio: an.mMain ? drip / an.mMain : null };
+}
+/* Nachlauf lernen: wie viel landet nach dem Ausschalten noch in der Tasse?
+   Primär aus Waagenkurven aller Shots (hängt vor allem an der Maschine), sonst aus Plan- vs. Ist-Ausbeute. */
 function learnOvershoot(shots){
-  const vals = [];
-  for(const s of shots.slice(0, 12)){
+  const curve = [], plan = [];
+  for(const s of allShots()){
     const fl = FLOWS[s.id];
-    if(fl?.t?.length && fl.w?.length){
-      const an = analyzeFlow(fl, s);
-      if(!an?.mMain) continue;
-      let iStop = -1;
-      for(let i = 0; i < an.ft.length; i++) if(an.f[i] >= 0.45 * an.mMain && (an.fd == null || an.ft[i] > an.fd)) iStop = i;
-      if(iStop < 0) continue;
-      const tStop = an.ft[iStop];
-      let wStop = null; for(let i = 0; i < fl.t.length; i++){ if(fl.t[i] >= tStop){ wStop = fl.w[i]; break; } }
-      if(wStop != null){ const d = an.final - wStop; if(d >= 0 && d < 6) vals.push({ d, src:'curve' }); }
-    } else if(s.planYield && s.yield){
-      const d = s.yield - s.planYield; if(Math.abs(d) < 6) vals.push({ d, src:'plan' });
+    if(fl?.t?.length && curve.length < 12){
+      const an = analyzeFlow(fl, s), st = an ? detectStop(fl, an) : null;
+      if(st) curve.push({ ...st, id: s.id, date: s.date });
     }
-    if(vals.length >= 6) break;
   }
-  if(vals.length < 2) return null;
-  const v = vals.map(x => x.d).sort((a, b) => a - b);
-  return { g: v[Math.floor(v.length / 2)], n: v.length, src: vals[0].src };
+  for(const s of shots.slice(0, 12)) if(s.planYield && s.yield){ const d = s.yield - s.planYield; if(Math.abs(d) < 6) plan.push(d); }
+  const med = a => { const v = a.slice().sort((x, y) => x - y); return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : null; };
+  if(curve.length >= 1){
+    const d = curve.map(x => x.drip);
+    return { g: med(d), min: Math.min(...d), max: Math.max(...d), k: med(curve.map(x => x.ratio).filter(v => v != null)), dur: med(curve.map(x => x.dur).filter(v => v != null)), n: curve.length, src:'curve', list: curve };
+  }
+  if(plan.length >= 2) return { g: med(plan), n: plan.length, src:'plan' };
+  return null;
+}
+/* Nachlauf für einen geplanten Shot: skaliert mit dem erwarteten Durchfluss */
+function predictDrip(over, yld, tPred, fdTyp){
+  if(!over) return null;
+  if(over.k && tPred && tPred > fdTyp + 5){ const mf = yld / (tPred - fdTyp); return clamp(over.k * mf, 0, 8); }
+  return over.g;
 }
 
 function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
@@ -1103,7 +1129,7 @@ function phaseSVG(s, T, fdIn){
   g += `<text x="${X(T.tMax)}" y="74" font-size="10.5" text-anchor="end" fill="var(--accent)">Time window ${T.tMin}–${T.tMax} s</text>`;
   return g + '</svg>';
 }
-function flowSVG(fl, an, ref, refAn){
+function flowSVG(fl, an, ref, refAn, st){
   const W = 560, H = 300, L = 40, R = 40, Tp = 14, B = 34;
   const tEnd = Math.max(an.end || 0, refAn?.end || 0) + 1;
   const wMax = Math.max(10, Math.ceil(Math.max(an.final || 0, refAn?.final || 0) * 1.08 / 5) * 5);
@@ -1125,10 +1151,11 @@ function flowSVG(fl, an, ref, refAn){
   if(fl.p?.length) g += `<path d="${path(fl.pt, fl.p, X, YP)}" fill="none" stroke="var(--sour)" stroke-width="1.6" stroke-dasharray="2 3"/>`;
   if(fl.t?.length) g += `<path d="${path(fl.t, fl.w, X, YW)}" fill="none" stroke="var(--ink)" stroke-width="2.2"/>`;
   if(an.fd){ g += `<line x1="${X(an.fd)}" x2="${X(an.fd)}" y1="${Tp}" y2="${H - B}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${X(an.fd) + 4}" y="${Tp + 11}" font-size="10.5" fill="var(--ink)">First drip</text>`; }
+  if(st){ const x = X(st.tStop); g += `<line x1="${x}" x2="${x}" y1="${Tp}" y2="${H - B}" stroke="var(--mixed)" stroke-dasharray="4 3"/><circle cx="${x}" cy="${YW(st.wStop)}" r="4.5" fill="var(--mixed)"><title>Pump off</title></circle><text x="${x - 5}" y="${Tp + 11}" font-size="10.5" text-anchor="end" fill="var(--mixed)">${'pump off'}</text><text x="${x - 5}" y="${Tp + 24}" font-size="10.5" text-anchor="end" fill="var(--mixed)">+${fmt(st.drip,1)} g ${'Post-stop drip'}</text>`; }
   if(an.tJump && an.jump > 0.8) g += `<circle cx="${X(an.tJump)}" cy="${YF(an.f[an.ft.indexOf(an.tJump)] ?? 0)}" r="6" fill="none" stroke="var(--mixed)" stroke-width="2"><title>Flow jump</title></circle>`;
   return g + '</svg>';
 }
-function findings(s, T, an, shots){
+function findings(s, T, an, shots, st){
   const out = [], filter = isFilter(shots);
   const add = (lvl, title, text) => out.push({lvl, title, text});
   if(!s.dose) add('bad', 'Dose missing', 'The shot has 0 g of coffee recorded, so ratio and yield comparisons are meaningless.');
@@ -1168,6 +1195,7 @@ function findings(s, T, an, shots){
     if(an.jump > 0.8) add('bad', `Flow jump at ${fmt(an.tJump,0)} s`, `Flow rises within one second by ${fmt(an.jump,1)} g/s. Typical of channeling.`);
     if(an.endRatio != null && an.endRatio > 1.4) add('warn', 'Flow rises sharply towards the end', `In the last quarter ${fmt((an.endRatio - 1) * 100,0)} % faster than in the middle. The puck is breaking down; the last grams often taste thin or bitter.`);
     if(an.peak > 3.2) add('warn', `Peak flow ${fmt(an.peak,1)} g/s`, 'Very high for espresso.');
+    if(st) add('info', `Pump off at about ${fmt(st.tStop,1)} s and ${fmt(st.wStop,1)} g`, `Another ${fmt(st.drip,1)} g ran into the cup afterwards; it ended at ${fmt(an.final,1)} g.`);
     if(an.pMax != null && an.pMax > 10) add('warn', `Pressure peak ${fmt(an.pMax,1)} bar`, 'Above 10 bar. Check the machine’s OPV setting.');
   }
   const order = {bad:0, warn:1, info:2, ok:3};
@@ -1176,6 +1204,7 @@ function findings(s, T, an, shots){
 function analysisHTML(s, T, shots, scale){
   const fl = FLOWS[s.id] || null;
   const an = fl ? analyzeFlow(fl, s) : null;
+  const st = an ? detectStop(fl, an) : null;
   const sameCtx = shots.slice().sort((a, b) => a.date - b.date);
   const idx = sameCtx.findIndex(x => x.id === s.id);
   const prev = idx > 0 ? sameCtx[idx - 1] : null;
@@ -1204,8 +1233,9 @@ function analysisHTML(s, T, shots, scale){
     metrics.push(m('1 g/s reached', an.t1 != null ? fmt(an.t1,1) + ' s' : '–'));
     metrics.push(m('Flow variation', an.cv != null ? fmt(an.cv * 100,0) + ' %' : '–', 'main phase'));
     if(an.hasPressure) metrics.push(m('Pressure', `${fmt(an.pMain,1)} bar`, `peak ${fmt(an.pMax,1)} bar`));
+    if(st){ metrics.push(m('Pump off (estimated)', `${fmt(st.tStop,1)} s`, `at ${fmt(st.wStop,1)} g`)); metrics.push(m('Post-stop drip', `${fmt(st.drip,1)} g`, st.dur != null ? `in ${fmt(st.dur,1)} s` : '')); }
   }
-  const F = findings(s, T, an, shots);
+  const F = findings(s, T, an, shots, st);
   const cmpRows = [
     ['Grind', x => esc(x.grindRaw) || '–', x => x.grind],
     ['First drip', x => x.firstDrip ? fmt(x.firstDrip,0) + ' s' : '–', x => x.firstDrip],
@@ -1237,7 +1267,7 @@ function analysisHTML(s, T, shots, scale){
     <div class="ana-grid">
       <div>
         ${phaseSVG(s, T, an?.fd)}
-        ${an ? `${flowSVG(fl, an, refFl && ref.id !== s.id ? refFl : null, refAn && ref.id !== s.id ? refAn : null)}
+        ${an ? `${flowSVG(fl, an, refFl && ref.id !== s.id ? refFl : null, refAn && ref.id !== s.id ? refAn : null, st)}
           <div class="legend"><span><i style="background:var(--ink)"></i>Weight (g)</span><span><i style="background:var(--accent)"></i>Flow (g/s)${an.derived ? ', calculated from weight' : ''}</span>${fl.p?.length ? '<span><i style="background:var(--sour)"></i>Pressure (0–12 bar)</span>' : ''}${refFl && ref.id !== s.id ? `<span><i style="background:var(--muted)"></i>${chosen ? 'Comparison' : 'Reference'} ${fmtDate(ref.date)}</span>` : ''}</div>
           ${reassign}`
         : `<div class="flowhint">No scale curve for this shot. In Beanconqueror you can download the flow profile of a brew as JSON or Excel from its detail view (or the Visualizer file). Drop the file here and it is matched to the right shot automatically.${s.deviceFlow ? ' According to the backup, a curve for this shot exists on your phone.' : ''}</div>`}
@@ -1343,6 +1373,13 @@ function insightsHTML(shots, anchor, model, T, rec){
   const since = ts => ts ? all.filter(s => s.date && s.date.getTime() > ts).length : null;
   const nb = since(UI.maint.backflush), ndc = since(UI.maint.descale);
   out.push(`<div class="ins${nb != null && nb >= 60 ? ' warn' : ''}"><span class="eyebrow">Maintenance</span><span class="big">${nb != null ? nb + ' shots since backflush' : 'Backflush not recorded'}</span><p>${ndc != null ? ndc + ' shots since descaling. ' : ''}Counts all recorded shots since the last click.</p><div class="row"><button class="btn small" type="button" id="mBack">Backflushed today</button><button class="btn small" type="button" id="mDesc">Descaled today</button></div></div>`);
+  const ov = learnOvershoot(shots);
+  if(ov && ov.src === 'curve'){
+    const tgt = Math.round(T.ratio * T.dose);
+    const fdT = (() => { const v = shots.map(s => s.firstDrip).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 7; })();
+    const dT = predictDrip(ov, tgt, (T.tMin + T.tMax) / 2, fdT);
+    out.push(`<div class="ins"><span class="eyebrow">Your machine’s post-stop drip</span><span class="big">Ø ${fmt(ov.g,1)} g${ov.dur ? ` · ${fmt(ov.dur,1)} s` : ''}</span><p>From ${ov.n} ${ov.n === 1 ? 'scale curve' : 'scale curves'}${ov.n > 1 ? `, Spanne ${fmt(ov.min,1)}–${fmt(ov.max,1)} g` : ''}. For ${tgt} g in the cup, switch off at about ${fmt(tgt - dT,1)} g. The faster the shot runs, the more drips through afterwards.</p></div>`);
+  }
   const issues = [];
   const nd = shots.filter(s => !s.dose).length, nt = shots.filter(s => s.tempRaw != null && s.temp == null).length, nr = shots.filter(s => !s.rating).length, nti = shots.filter(s => !s.time).length;
   if(nd) issues.push(`${nd}× dose 0 g`);
@@ -1429,7 +1466,9 @@ function render(){
   const inten = intensityOf(anchor);
   const rec = recommend(anchor, T, model, tags, shots, inten);
   const over = learnOvershoot(shots);
-  const stopAt = over && over.g >= 0.3 ? Math.round((rec.yld - over.g) * 2) / 2 : null;
+  const fdTyp = (() => { const v = shots.map(s => s.firstDrip).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 7; })();
+  const dripNext = predictDrip(over, rec.yld, rec.tPred, fdTyp);
+  const stopAt = dripNext != null && dripNext >= 0.3 ? Math.round((rec.yld - dripNext) * 10) / 10 : null;
   const recipe = UI.recipes[ctxKey()];
   const negTaste = tags.sour || tags.bitter || tags.sharp || tags.thin;
   const res = rec.res;
@@ -1468,7 +1507,7 @@ function render(){
         <div class="tiles">
           <div class="tile main"><span class="k">Grind</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span><span class="d">${anchor.grind != null ? dirTxt : 'Grind is not numeric'}</span></div>
           <div class="tile"><span class="k">Dose</span><span class="v">${fmt(rec.dose,1)}</span><span class="d">g</span></div>
-          <div class="tile"><span class="k">Yield</span><span class="v">${fmt(rec.yld,0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>stop the scale at ${fmt(stopAt, stopAt % 1 ? 1 : 0)} g` : ''}</span></div>
+          <div class="tile"><span class="k">Yield</span><span class="v">${fmt(rec.yld,0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>switch off at ${fmt(stopAt,1)} g` : ''}</span></div>
           <div class="tile"><span class="k">Time</span><span class="v">${tLo}–${tHi}</span><span class="d">s expected</span></div>
           <div class="tile"><span class="k">Temp</span><span class="v">${rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) : '–'}</span><span class="d">°C${rec.dT ? (rec.dT > 0 ? ' · +' : ' · ') + rec.dT : ''}</span></div>
         </div>
@@ -1477,7 +1516,7 @@ function render(){
         <ul class="why">${rec.why.map(w => `<li>${w}</li>`).join('')}
           <li>${rec.method === 'model' ? `The grind is calculated from your own shots (flow in g/s per grind step; newer shots count more).` : `The grind follows a rule of thumb (${res < 1 ? '0.1 unit ≈ 1.5 s' : '1 click ≈ 3 s'}) because the data do not show a clear relationship yet.`}</li>
         </ul>
-        ${over ? `<span class="muted" style="font-size:12.5px">Post-stop drip learned from ${over.n} ${over.src === 'curve' ? 'scale curves' : 'logged shots'}: after stopping, on average another ${fmt(over.g,1)} g ends up in the cup.</span>` : ''}
+        ${over && stopAt ? `<div class="flowhint" style="color:var(--ink)"><b>Switch off at ${fmt(stopAt,1)} g on the scale.</b> After switching off, on average another ${fmt(over.g,1)} g drips through${over.min != null && over.n > 1 ? ` (Spanne ${fmt(over.min,1)}–${fmt(over.max,1)} g` + (over.dur ? `, about ${fmt(over.dur,1)} s` : '') + ')' : ''}${over.k ? `; at the planned flow about ${fmt(dripNext,1)} g` : ''}. <span class="muted">Learned from ${over.n} ${over.src === 'curve' ? (over.n === 1 ? 'scale curve' : 'scale curves') : 'logged shots'}.</span></div>` : ''}
         ${rec.hints.map(h => `<div class="hint">${h}</div>`).join('')}
       </section>
     </div>

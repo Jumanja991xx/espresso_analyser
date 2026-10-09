@@ -496,3 +496,31 @@ PHRASES = [
     ('>Löschen</button>', '>Delete</button>'), ('>Abbrechen</button>', '>Cancel</button>'),
     ('>Export hier ablegen<', '>Drop export here<'),
 ]
+
+EXACT.update({
+    ' s und ': ' s and ',
+    'Danach liefen noch ': 'Another ',
+    ' g nach, die Tasse endete bei ': ' g ran into the cup afterwards; it ended at ',
+    'Pumpe aus (geschätzt)': 'Pump off (estimated)',
+    'Pumpe aus': 'pump off',
+    'Nachlauf': 'Post-stop drip',
+    'Pumpe aus bei ca. ': 'Pump off at about ',
+    'in ': 'in ',
+    '. Für ': '. For ',
+    ' g in der Tasse bei ca. ': ' g in the cup, switch off at about ',
+    ' g ausschalten. Je schneller der Shot läuft, desto mehr läuft nach.</p></div>': ' g. The faster the shot runs, the more drips through afterwards.</p></div>',
+    ', beim geplanten Durchfluss etwa ': '; at the planned flow about ',
+    'Waagenkurve': 'scale curve',
+    'Spanne ': 'range ',
+    ', ca. ': ', about ',
+})
+PHRASES += [
+    ('<br>ausschalten bei ', '<br>switch off at '),
+    ('<b>Ausschalten bei ', '<b>Switch off at '),
+    (' g auf der Waage.</b> Nach dem Ausschalten laufen bei dir im Schnitt noch ', ' g on the scale.</b> After switching off, on average another '),
+    (' g nach', ' g drips through'),
+    ('<span class="eyebrow">Nachlauf deiner Maschine</span>', '<span class="eyebrow">Your machine’s post-stop drip</span>'),
+    ('<p>Aus ', '<p>From '),
+    ('<span class="muted">Gelernt aus ', '<span class="muted">Learned from '),
+    ('<title>Pumpe aus</title>', '<title>Pump off</title>'),
+]
