@@ -828,3 +828,21 @@ PHRASES += [
   (' ein?</b>\n          <span class="muted" style="font-size:12.5px">Damit die Empfehlung nur Temperaturen vorschlägt, die du auch einstellen kannst.</span>', '?</b>\n          <span class="muted" style="font-size:12.5px">So the recommendation only suggests temperatures you can actually set.</span>'),
 ]
 EXACT.update({'Nachwirkung eines Ausreißers': 'after-effect of an outlier'})
+
+# Packung geöffnet
+EXACT.update({
+  'Die offene Packung läuft bei dir pro Tag etwa ': 'Your opened bag runs about ', ' g/s schneller (gelernt aus ': ' g/s faster per day (learned from ',
+  ' Shots). Seit dem Ausgangs-Shot ': ' shots). Since the base shot ', 'ist rund ein Tag': 'about one day has', 'sind rund ': 'about ',
+  ' vergangen, das ist eingerechnet.': ' passed, this is factored in.',
+  'Die Packung ist seit ': 'The bag has been open for ', 'Tag': 'day', 'Tagen': 'days', ' offen, der Ausgangs-Shot ist ': ', the base shot is ',
+  ' alt. Offene Bohnen verlieren CO₂ und laufen meist etwas schneller. Läuft der nächste Shot zu schnell, 0,1 feiner. Nach ein paar Shots lernt die App den Effekt selbst.': ' old. Opened beans lose CO₂ and usually run a little faster. If the next shot runs too fast, go 0.1 finer. After a few shots the app learns the effect itself.',
+  'Packung noch zu': 'bag still sealed', 'Packung ': 'bag open ', ' T. offen': ' d', 'Packung offen': 'Bag open', 'zu': 'sealed',
+  '<div class="openrow">Packung geöffnet am <b>': '<div class="openrow">Bag opened on <b>',
+  'Ausgangs-Shot noch aus der verschlossenen Packung': 'base shot still from the sealed bag', 'beim Ausgangs-Shot ': 'at the base shot ', ' offen': ' open', ', heute ': ', today ',
+  ' · <button class="linkbtn" type="button" id="openEdit">ändern</button></div>': ' · <button class="linkbtn" type="button" id="openEdit">change</button></div>',
+  '<div class="openrow"><label for="openIn">Packung geöffnet am</label><input type="date" id="openIn" max="': '<div class="openrow"><label for="openIn">Bag opened on</label><input type="date" id="openIn" max="',
+  '<button class="btn small" type="button" id="openDel">Entfernen</button>': '<button class="btn small" type="button" id="openDel">Remove</button>',
+  '<span class="muted" style="font-size:12px">Ab dem Öffnen gast die Bohne schneller aus.</span></div>': '<span class="muted" style="font-size:12px">Once opened, the beans degas faster.</span></div>',
+})
+PHRASES += [('id="openToday">Heute</button>', 'id="openToday">Today</button>')]
+EXACT.update({'Tage': 'days'})

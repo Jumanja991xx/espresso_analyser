@@ -296,6 +296,10 @@ td.tastecell .tgl{padding-top:0}
 .rl[aria-checked="true"]{border-color:var(--ink);color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 1px var(--ink)}
 .rl.est[aria-checked="true"]{border-style:dashed;box-shadow:none}
 .rl-tip{font-size:12.5px;color:var(--muted)}
+.openrow{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px;color:var(--muted)}
+.openrow b{color:var(--ink);font-weight:600}
+.openrow:has(> b){display:block}
+.openrow input{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-family:var(--f-data)}
 .aitext{display:flex;flex-direction:column;gap:6px;font-size:14.5px;line-height:1.55}
 .aitext h4{font-family:var(--f-display);font-size:15px;margin:10px 0 0}
 .aitext h4:first-child{margin-top:0}
@@ -323,7 +327,7 @@ td.tastecell .tgl{padding-top:0}
 .basecmp svg{max-width:440px;margin:0 auto}
 .basecmp .cmpinfo{text-align:center;align-items:center}
 .basecmp .cmpinfo .btn{align-self:center!important}
-@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.baseleft{display:contents}.basecard > *{grid-column:1!important;grid-row:auto!important}.statgrid{order:1}.baseleft > .note{order:2}.baseleft > .roast,.baseleft > .muted,.baseleft > .roastlvl{order:3}.basecard > .basecmp{order:4}.tastebox{order:5}}
+@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.baseleft{display:contents}.basecard > *{grid-column:1!important;grid-row:auto!important}.statgrid{order:1}.baseleft > .note{order:2}.baseleft > .roast,.baseleft > .muted,.baseleft > .roastlvl,.baseleft > .openrow{order:3}.basecard > .basecmp{order:4}.tastebox{order:5}}
 @media (max-width:560px){.stat{padding:8px 10px}.stat .v{font-size:17px}}
 .targetline{font-size:13px;color:var(--muted);margin-top:-4px}
 .targetline b{color:var(--ink);font-weight:600}
@@ -559,7 +563,7 @@ function parseSheets(sheets, label){
 function validDate(v){ if(!v) return null; const d = new Date(v); return isNaN(d) ? null : d; }
 function parseBackup(J, label){
   const beans = {}, mills = {}, preps = {};
-  (J.BEANS || []).forEach(b => { const id = b.config?.uuid; if(id) beans[id] = { name:b.name, roaster:b.roaster, roastDate:validDate(b.roastingDate), decaf:!!b.decaffeinated, flavor:b.aromatics, roast:b.roast && b.roast !== 'UNKNOWN' ? b.roast : null, roastRange:+b.roast_range || null }; });
+  (J.BEANS || []).forEach(b => { const id = b.config?.uuid; if(id) beans[id] = { name:b.name, roaster:b.roaster, roastDate:validDate(b.roastingDate), decaf:!!b.decaffeinated, flavor:b.aromatics, openDate:validDate(b.openDate) || null, roast:b.roast && b.roast !== 'UNKNOWN' ? b.roast : null, roastRange:+b.roast_range || null }; });
   (J.MILL || []).forEach(m => { if(m.config?.uuid) mills[m.config.uuid] = m.name; });
   (J.PREPARATION || []).forEach(p => { if(p.config?.uuid) preps[p.config.uuid] = p.name; });
   const sec = (s, ms) => { const v = (+s || 0) + (+ms || 0) / 1000; return v > 0 ? v : null; };
@@ -710,19 +714,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -737,6 +741,25 @@ function beanAge(s){
   const r = roastDateFor(s);
   if(r && s.date) return Math.max(0, Math.floor(daysBetween(s.date, r)));
   return s.beanAge != null && s.beanAge >= 0 ? s.beanAge : null;
+}
+/* Packung geöffnet: ab dann gast die Bohne schneller aus und läuft meist etwas schneller */
+function openedDate(s){
+  const v = (UI.opened || {})[beanKey(s)];
+  if(v) return new Date(v + 'T00:00');
+  const b = s.beanId ? DATA?.beans?.[s.beanId] : null;
+  return b?.openDate && !isNaN(new Date(b.openDate)) ? new Date(b.openDate) : null;
+}
+function daysOpen(s, at){ const o = openedDate(s), d = at || s.date; if(!o || !d) return null; return (d - o) / 864e5; }
+const fmtDay = d => d ? d.toLocaleDateString(LOCALE, { day:'2-digit', month:'2-digit' }) : '–';
+/* Lernt aus deinen Shots, wie viel schneller die offene Packung pro Tag läuft (Fluss bereinigt um den Mahlgrad) */
+function openDrift(shots, model){
+  if(!model || model.scope === 'none') return null;
+  const pts = shots.filter(s => flow(s) && s.grind != null && daysOpen(s) != null && daysOpen(s) >= 0);
+  if(pts.length < 3 || new Set(pts.map(s => Math.floor(daysOpen(s)))).size < 2) return null;
+  const gm = pts.reduce((a, s) => a + s.grind, 0) / pts.length;
+  const fit = wlr(pts.map(s => ({ x: daysOpen(s), y: flow(s) - model.b * (s.grind - gm), w: 1 })));
+  if(!fit || fit.b <= 0 || fit.r2 < 0.3) return null;
+  return { perDay: fit.b, n: pts.length, r2: fit.r2 };
 }
 const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip + 2 ? s.yield / (s.time - s.firstDrip) : null;
 
@@ -1085,7 +1108,18 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const temp = T.temp && T.tempMode !== 'levels' ? T.temp + dT : null;
 
   let dG = 0, tPred = tGoal, conf = 'low', method = 'rule';
-  const fL = flow(anchor);
+  let fL = flow(anchor);
+  // Offene Packung: seit dem Ausgangs-Shot vergangene Zeit einrechnen
+  if(fL && !filter && openedDate(anchor) && anchor.date){
+    const elapsed = Math.min(5, (Date.now() - anchor.date) / 864e5), dOpen = daysOpen(anchor);
+    const drift = openDrift(shots, model);
+    if(drift && elapsed >= 0.5 && dOpen != null && dOpen >= -0.5){
+      const add = Math.min(drift.perDay * elapsed, 0.15 * fL);
+      if(add >= 0.02){ fL += add; why.push(`Die offene Packung läuft bei dir pro Tag etwa ${fmt(drift.perDay,2)} g/s schneller (gelernt aus ${drift.n} Shots). Seit dem Ausgangs-Shot ${elapsed < 1.5 ? 'ist rund ein Tag' : 'sind rund ' + fmt(elapsed,0) + ' Tage'} vergangen, das ist eingerechnet.`); }
+    } else if(elapsed >= 1 && dOpen != null && dOpen >= -0.5 && dOpen + elapsed <= 14){
+      hints.push(`Die Packung ist seit ${Math.max(0, Math.floor(dOpen + elapsed))} ${Math.floor(dOpen + elapsed) === 1 ? 'Tag' : 'Tagen'} offen, der Ausgangs-Shot ist ${Math.floor(elapsed)} ${Math.floor(elapsed) === 1 ? 'Tag' : 'Tage'} alt. Offene Bohnen verlieren CO₂ und laufen meist etwas schneller. Läuft der nächste Shot zu schnell, 0,1 feiner. Nach ein paar Shots lernt die App den Effekt selbst.`);
+    }
+  }
   const maxStep = res < 1 ? 0.6 : 3;
   if(anchor.grind != null && fL){
     const fTarget = yld / tGoal;
@@ -1772,7 +1806,7 @@ function analysisHTML(s, T, shots, scale){
     m('Ø Flow gesamt', flow(s) ? fmt(flow(s),2) + ' g/s' : '–'),
     m('Ø Flow Hauptphase', (an?.mMain || mainFlow(s)) ? fmt(an?.mMain || mainFlow(s),2) + ' g/s' : '–', an?.mMain ? '15–90 % der Ausbeute' : 'nach 1. Tropfen'),
     m('Temperatur', s.temp ? fmt(s.temp,0) + ' °C' : '–'),
-    m('Bohnenalter', age != null ? age + ' Tage' : '–'),
+    m('Bohnenalter', age != null ? age + ' Tage' : '–', daysOpen(s) != null ? (daysOpen(s) < 0 ? 'Packung noch zu' : `Packung ${Math.max(0, Math.floor(daysOpen(s)))} T. offen`) : ''),
     m('Bewertung', s.rating ? fmt(s.rating,0) + '/' + scale : '–')
   ];
   if(an){
@@ -1792,6 +1826,7 @@ function analysisHTML(s, T, shots, scale){
     ['Ratio', x => ratio(x) ? '1:' + fmt(ratio(x),2) : '–', ratio],
     ['Ø Flow Hauptphase', x => mainFlow(x) ? fmt(mainFlow(x),2) + ' g/s' : '–', mainFlow],
     ['Bohnenalter', x => beanAge(x) != null ? beanAge(x) + ' d' : '–', beanAge],
+    ['Packung offen', x => daysOpen(x) != null ? (daysOpen(x) < 0 ? 'zu' : Math.max(0, Math.floor(daysOpen(x))) + ' d') : '–', x => daysOpen(x) != null ? Math.max(0, Math.floor(daysOpen(x))) : null],
     ['Bewertung', x => x.rating ? fmt(x.rating,0) + '/' + scale : '–', x => x.rating || null],
     ['Geschmack', x => TASTES.filter(T => shotTags(x)[T.k]).map(T => T.label).join(', ') || '–', null]
   ];
@@ -1886,7 +1921,7 @@ function aiPayload(anchor, shots, T, model, rec){
       firstDrip: s.firstDrip || null, temp: s.temp || null, rating: s.rating ? `${s.rating}/${scale}` : null,
       taste: TASTES.filter(x => shotTags(s)[x.k]).map(x => x.label), notes: s.notes || undefined,
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
-      beanAgeDays: beanAge(s),
+      beanAgeDays: beanAge(s), daysSinceBagOpened: daysOpen(s) != null ? (daysOpen(s) < 0 ? 'bag still sealed' : r1(daysOpen(s))) : undefined,
       channeling: ch ? { index: ch.score, signals: ch.sig.map(x => x.title), basis: ch.curve ? 'curve' : 'data' } : undefined,
       curve: an ? { mainFlow: r2(an.mMain), ...(ch && ch.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5) ? { ignoredOutlier: `${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s, probably manual (scale/cup touched), not counted` } : { peakFlow: r2(an.peak), peakAt: r1(an.tPeak) }), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
     };
@@ -1898,7 +1933,7 @@ function aiPayload(anchor, shots, T, model, rec){
   const clean = v => { if(Array.isArray(v)) return v.map(clean); if(v && typeof v === 'object'){ const o = {}; for(const [k, x] of Object.entries(v)){ const c = clean(x); if(c == null || (Array.isArray(c) && !c.length) || (typeof c === 'object' && !Array.isArray(c) && !Object.keys(c).length)) continue; o[k] = c; } return o; } return v; };
   return clean({
     app: 'Dial-in Kompass', language: AI_LANG(), today: new Date().toISOString().slice(0, 10),
-    bean: { name: anchor.bean, roaster: b?.roaster || null, roastLevel: rl ? ROAST[rl].label : null, roastScale: 'hell / mittel-hell / mittel / mittel-dunkel / dunkel', typicalForThisRoast: rl ? { tempC: ROAST[rl].temp, ratio: ROAST[rl].ratio, advice: ROAST[rl].tip } : null, roastLevelSource: roastLevel(anchor) ? 'set by user' : rl ? 'estimated' : 'unknown', ageDays: beanAge(anchor), decaf: b?.decaf || undefined, flavorNotes: b?.flavor || undefined },
+    bean: { name: anchor.bean, roaster: b?.roaster || null, roastLevel: rl ? ROAST[rl].label : null, roastScale: 'hell / mittel-hell / mittel / mittel-dunkel / dunkel', typicalForThisRoast: rl ? { tempC: ROAST[rl].temp, ratio: ROAST[rl].ratio, advice: ROAST[rl].tip } : null, roastLevelSource: roastLevel(anchor) ? 'set by user' : rl ? 'estimated' : 'unknown', ageDays: beanAge(anchor), bagOpened: openedDate(anchor) ? { daysAgo: r1(daysOpen(anchor, new Date())), learnedFlowIncreasePerDay: (() => { const d = openDrift(shots, model); return d ? r2(d.perDay) + ' g/s per day' : 'not enough data yet'; })(), note: 'opened bags lose CO2 and usually run faster over the following days' } : undefined, decaf: b?.decaf || undefined, flavorNotes: b?.flavor || undefined },
     grinder: { name: anchor.grinder, step: res, higherNumberIsCoarser: UI.coarserHigher[UI.grinder] !== false },
     machine: { name: anchor.method || undefined, temperatureControl: { half:'adjustable in 0.5 °C steps', one:'adjustable in 1 °C steps', levels:'only coarse levels (e.g. low/medium/high), no exact °C', none:'not adjustable, no display' }[T.tempMode] || 'unknown', note: T.tempMode === 'none' || T.tempMode === 'levels' ? 'Only suggest temperature changes the machine can do.' : undefined },
     targets: { dose: T.dose, ratio: T.ratio, timeWindowSec: [T.tMin, T.tMax], machineTemp: T.temp || null },
@@ -2253,6 +2288,9 @@ function render(){
         </div>
         ${anchor.notes ? `<div class="note">„${esc(anchor.notes)}“</div>` : ''}
         ${ageA == null ? `<div class="roast"><label for="roastIn">Röstdatum von <b>${esc(anchor.bean)}</b> fehlt:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Übernehmen</button></div>` : (UI.roast[beanKey(anchor)] ? `<div class="muted" style="font-size:13px">Bohnenalter aus deinem Röstdatum · <button class="btn small" type="button" id="roastClear">Röstdatum ändern</button></div>` : '')}
+        ${(() => { const od = openedDate(anchor), today = new Date().toISOString().slice(0, 10);
+          if(od && !UI.openEdit){ const dA = daysOpen(anchor), dN = daysOpen(anchor, new Date()); return `<div class="openrow">Packung geöffnet am <b>${fmtDay(od)}</b> · ${dA != null && dA < 0 ? 'Ausgangs-Shot noch aus der verschlossenen Packung' : `beim Ausgangs-Shot ${Math.max(0, Math.floor(dA))} ${Math.floor(dA) === 1 ? 'Tag' : 'Tage'} offen`}, heute ${Math.max(0, Math.floor(dN))} · <button class="linkbtn" type="button" id="openEdit">ändern</button></div>`; }
+          return `<div class="openrow"><label for="openIn">Packung geöffnet am</label><input type="date" id="openIn" max="${today}" value="${od ? od.toISOString().slice(0, 10) : ''}"><button class="btn small" type="button" id="openSave">Übernehmen</button><button class="btn small" type="button" id="openToday">Heute</button>${od ? '<button class="btn small" type="button" id="openDel">Entfernen</button>' : ''}<span class="muted" style="font-size:12px">Ab dem Öffnen gast die Bohne schneller aus.</span></div>`; })()}
         ${(() => { const rl = roastClass(anchor), set = !!roastLevel(anchor), R = rl ? ROAST[rl] : null; return `<div class="roastlvl">
           <div class="rl-head"><span class="k">Röstgrad</span><span class="muted">${set ? 'für ' + esc(anchor.bean) : rl ? 'geschätzt aus den Bohnendaten, antippen zum Festlegen' : 'antippen zum Festlegen'}</span></div>
           <div class="rl-scale" role="radiogroup" aria-label="Röstgrad">${ROAST_KEYS.map(k => `<button type="button" role="radio" class="rl ${set ? '' : 'est'}" data-rl="${k}" aria-checked="${k === rl}" style="--rc:${ROAST[k].col}"><i></i><span>${ROAST[k].label}</span></button>`).join('')}</div>
@@ -2459,6 +2497,11 @@ function render(){
   const fdl = $('#flowDel'); if(fdl) fdl.onclick = () => { if(fdl.dataset.c){ delete FLOWS[detail.id]; saveFlows(); render(); } else { fdl.dataset.c = 1; fdl.textContent = 'Wirklich entfernen?'; } };
   const rs = $('#roastSave'); if(rs) rs.onclick = () => { const v = $('#roastIn').value; if(!v) return; UI.roast[beanKey(anchor)] = v; saveUI(); render(); };
   const rc = $('#roastClear'); if(rc) rc.onclick = () => { delete UI.roast[beanKey(anchor)]; saveUI(); render(); };
+  const setOpen = v => { (UI.opened ||= {}); if(v) UI.opened[beanKey(anchor)] = v; else delete UI.opened[beanKey(anchor)]; UI.openEdit = false; formDirty = false; saveUI(); render(); };
+  const os = $('#openSave'); if(os) os.onclick = () => { const v = $('#openIn').value; if(v) setOpen(v); };
+  const ot = $('#openToday'); if(ot) ot.onclick = () => setOpen(new Date().toISOString().slice(0, 10));
+  const odl = $('#openDel'); if(odl) odl.onclick = () => setOpen(null);
+  const oe = $('#openEdit'); if(oe) oe.onclick = () => { UI.openEdit = true; render(); };
 
   // Formular vorbelegen
   const setv = (id, v) => { const el = $(id); if(el) el.value = v ?? ''; };
@@ -2622,7 +2665,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Konto' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){
