@@ -86,7 +86,7 @@ button,select,input,textarea{font:inherit;color:inherit}
 .combo[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
 /* Hauptraster */
-.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:var(--gap)}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:var(--gap);align-items:start}
 @media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
 .col{display:flex;flex-direction:column;gap:var(--gap);min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
@@ -242,6 +242,13 @@ td.tastecell .tgl{padding-top:0}
 .acctmsg{border-radius:8px;padding:8px 12px;font-size:13.5px}
 .acctmsg.ok{background:var(--accent-soft)}
 .acctmsg.err{background:color-mix(in srgb,var(--mixed) 14%,transparent)}
+.basecard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,460px);column-gap:28px;row-gap:12px;align-items:start}
+.basecard > *{grid-column:1}
+.basecard > .card-head{grid-column:1 / -1}
+.basecard > .cmpwrap{grid-column:2;grid-row:2 / span 8;grid-template-columns:minmax(0,250px) minmax(0,1fr)}
+@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr)}.basecard > .cmpwrap{grid-column:1;grid-row:auto}}
+.targetline{font-size:13px;color:var(--muted);margin-top:-4px}
+.targetline b{color:var(--ink);font-weight:600}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
 .linkbtn:hover{color:var(--mixed)}
 .confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
@@ -878,7 +885,8 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       // Ausgangspunkt ist die letzte Zeit, aber ins Zielfenster geholt; die Extraktion verschiebt nur innerhalb des Fensters
       const base = t ? clamp(t, T.tMin, T.tMax) : center;
       const desired = base + eNeed * 4 * fs;
-      tGoal = clamp(desired, T.tMin, T.tMax);
+      const mg = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
+      tGoal = clamp(desired, T.tMin + mg, T.tMax - mg);
       const overflow = desired - tGoal;                       // was das Fenster nicht mehr hergibt
       if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
       else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
@@ -930,6 +938,9 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const fa = FLOWS[anchor.id] ? analyzeFlow(FLOWS[anchor.id], anchor) : null;
   if(fa && fa.jump > 0.8) hints.push(`Die Waagenkurve zeigt bei ${fmt(fa.tJump,0)} s einen Flow-Sprung um ${fmt(fa.jump,1)} g/s, ein typisches Zeichen für Channeling.`);
 
+  // Ziel ist immer das Zeitfenster: Zielzeit mit etwas Abstand zum Rand
+  const margin = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
+  tGoal = clamp(tGoal, T.tMin + margin, T.tMax - margin);
   const R = Math.round(clamp(T.ratio + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
   const dose = Math.round((T.dose + dDose) * 10) / 10;
   const yld = Math.round(dose * R);
@@ -953,7 +964,14 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     }
     const clamped = Math.abs(dG) > maxStep;
     dG = clamp(dG, -maxStep, maxStep);
-    dG = Math.round(dG / res) * res;
+    if(method === 'model'){
+      // beide Nachbarstufen prüfen: bevorzugt die, deren erwartete Zeit im Fenster liegt, sonst die nächste an der Zielzeit
+      const tFor = g => { const f = fL + model.b * g; return f > 0.05 ? yld / f : Infinity; };
+      const cands = [Math.floor(dG / res) * res, Math.ceil(dG / res) * res].filter(g => Math.abs(g) <= maxStep + 1e-9);
+      const inWin = g => { const x = tFor(g); return x >= T.tMin && x <= T.tMax; };
+      cands.sort((a, b) => (inWin(b) - inWin(a)) || (Math.abs(tFor(a) - tGoal) - Math.abs(tFor(b) - tGoal)));
+      dG = cands.length ? cands[0] : Math.round(dG / res) * res;
+    } else dG = Math.round(dG / res) * res;
     if(clamped) hints.push('Die Daten verlangen eine größere Änderung. Die Empfehlung geht bewusst nur einen Teil des Weges, danach neu bewerten.');
     if(method === 'model'){ const f = fL + model.b * dG; tPred = f > 0.05 ? yld / f : tGoal; }
     else tPred = tGoal;
@@ -1004,10 +1022,10 @@ function compassSVG(shots, anchor, rec, T){
   }
   return s + '</svg>';
 }
-function grindSVG(shots, anchor, rec, model, T){
+function grindSVG(shots, anchor, rec, model, T, wide){
   const pts = shots.filter(s => s.grind != null && s.time);
   if(pts.length < 2) return '';
-  const W = 560, H = 280, L = 44, Rr = 16, Tp = 14, B = 42;
+  const W = wide ? 1100 : 560, H = wide ? 300 : 280, L = 44, Rr = 16, Tp = 14, B = 42;
   const gs = pts.map(s => s.grind).concat(rec?.newGrind != null ? [rec.newGrind] : []);
   const ts = pts.map(s => s.time).concat([T.tMin, T.tMax]);
   const res = grinderRes();
@@ -1145,16 +1163,34 @@ const GOALS = {
   'intensiver':      [ {t:'Kürzere Ratio', d:'Mehr gelöste Stoffe pro Gramm.', ratio:-0.25},
                        {t:'Mehr Dosis', d:'Mehr Kaffee, gleiche Ratio.', dose:+1} ],
 };
+/* Optionen starten vom Ziel (Dosis, Ratio, Mitte des Zeitfensters), nicht vom letzten Shot.
+   So bleibt jede Option im Zielfenster, und "feiner/gröber" bezieht sich auf die Ziel-Einstellung. */
+function targetPoint(base, T, model, res){
+  const center = Math.round((T.tMin + T.tMax) / 2);
+  const plan = { dose: T.dose, yield: Math.round(T.dose * T.ratio * 2) / 2, time: center, temp: base.temp || T.temp };
+  return { plan, sim: simulate(base, model, res, plan) };
+}
 function goalOptions(goal, base, T, model, res){
-  const r0 = base.yield / base.dose;
+  const tp = targetPoint(base, T, model, res);
   return (GOALS[goal] || []).map(o => {
-    const dose = Math.round((base.dose + (o.dose || 0)) * 2) / 2;
-    const ratio = Math.round((r0 + (o.ratio || 0)) * 20) / 20;
+    const dose = Math.round((T.dose + (o.dose || 0)) * 2) / 2;
+    const ratio = Math.round((T.ratio + (o.ratio || 0)) * 20) / 20;
     const yld = Math.round(dose * ratio * 2) / 2;
-    const time = clamp(Math.round(base.time + (o.time || 0)), 15, 45);
-    const temp = (base.temp || T.temp) != null ? (base.temp || T.temp) + (o.temp || 0) : null;
+    const time = clamp(Math.round(tp.plan.time + (o.time || 0)), T.tMin, T.tMax);
+    const temp = tp.plan.temp != null ? tp.plan.temp + (o.temp || 0) : null;
     const plan = { dose, yield: yld, time, temp };
-    return { ...o, plan, sim: simulate(base, model, res, plan) };
+    let sim = simulate(base, model, res, plan);
+    let rel = { dG: sim.grind - tp.sim.grind, steps: Math.round((sim.grind - tp.sim.grind) / res) };
+    if(o.time && !o.ratio && !o.dose){
+      // Mahlgrad-Option: genau eine Stufe gegenüber der Ziel-Einstellung, Zeit aus dem Modell
+      const bEff = model.scope !== 'none' ? model.b : heuristicB(res, model.sign);
+      const dg = (o.time > 0 ? -1 : 1) * Math.sign(bEff) * res;
+      const g = Math.round((tp.sim.grind + dg) / res) * res;
+      const scale = base.dose / plan.dose, f = (base.yield / base.time) * scale + bEff * scale * (g - base.grind);
+      sim = { ...sim, grind: g, tPred: f > 0.1 ? plan.yield / f : null };
+      rel = { dG: dg, steps: Math.round(dg / res) };
+    }
+    return { ...o, plan, sim, rel };
   });
 }
 function calibrationRows(base, model, res, T){
@@ -1201,12 +1237,13 @@ function workshopHTML(anchor, T, model, shots, scale){
     <div class="ana-grid">
       <div>
         <h3>Geschmack gezielt verändern</h3>
+        ${(() => { const tp = targetPoint(base, T, model, res); return `<span class="muted" style="font-size:13px">Ausgehend von deinem Ziel: Mahlgrad ${fmtG(tp.sim.grind, res)} · ${fmt(tp.plan.dose,1)} g → ${fmt(tp.plan.yield,1)} g in ~${fmt(tp.sim.tPred || tp.plan.time,0)} s. Alle Optionen bleiben im Zeitfenster ${T.tMin}–${T.tMax} s.</span>`; })()}
         <div class="chips" id="goalChips">${Object.keys(GOALS).map(g => `<button type="button" class="chip" data-g="${g}" aria-pressed="${g === goal}">${g}</button>`).join('')}</div>
         <div class="opts">${opts.map((o, i) => `
           <div class="opt">
             <div class="opt-head"><b>${i + 1}. ${o.t}</b><button class="btn small" type="button" data-opt="${i}">In Rechner</button></div>
             <span class="num opt-plan">Mahlgrad ${fmtG(o.sim.grind, res)} · ${fmt(o.plan.dose,1)} g → ${fmt(o.plan.yield,1)} g · ~${o.sim.tPred ? fmt(o.sim.tPred,0) : '–'} s${o.plan.temp ? ' · ' + fmt(o.plan.temp, o.plan.temp % 1 ? 1 : 0) + ' °C' : ''}</span>
-            <span class="muted" style="font-size:13px">${o.d} ${stepTxt(o.sim, res)}.</span>
+            <span class="muted" style="font-size:13px">${o.d} ${o.rel.steps ? stepTxt(o.rel, res) + ' als die Ziel-Einstellung' : 'Mahlgrad wie bei der Ziel-Einstellung'}.</span>
           </div>`).join('')}
         </div>
         <span class="muted" style="font-size:12.5px">Immer nur einen Hebel pro Shot ändern, dann bewerten. Die Reihenfolge entspricht der Wirksamkeit für dieses Ziel.${tr ? ` Für deine ${ROAST_ADJ[rc]} Röstung ist ${tr[0]}–${tr[1]} °C ein guter Bereich.` : ''}</span>
@@ -1669,7 +1706,7 @@ function render(){
   const negTaste = anyNeg(tags);
   const res = rec.res;
   const dirTxt = rec.dir === 'halten' ? 'halten' : `${fmtG(Math.abs(rec.dG), res)} ${rec.dir}`;
-  const tLo = Math.round(rec.tPred - (rec.filter ? 10 : 1.5)), tHi = Math.round(rec.tPred + (rec.filter ? 10 : 1.5));
+  const tLo = Math.round(rec.tPred - (rec.filter ? 10 : 1)), tHi = Math.round(rec.tPred + (rec.filter ? 10 : 1));
 
   const rows = (UI.onlyCtx ? shots : allShots());
   let detail = shots.find(s => s.id === UI.detailId) || anchor;
@@ -1677,9 +1714,7 @@ function render(){
   const ageA = beanAge(anchor);
   const anchorRatio = ratio(anchor);
   $('#app').innerHTML = `
-  <div class="grid">
-    <div class="col">
-      <section class="card" aria-labelledby="hLast">
+  <section class="card basecard" aria-labelledby="hLast">
         <div class="card-head"><h2 id="hLast">Ausgangs-Shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · neu erfasst' : ''}</span></div>
         <div class="shotline">
           <div class="kv"><span class="k">Mahlgrad</span><span class="v">${esc(anchor.grindRaw) || '–'}</span></div>
@@ -1709,8 +1744,10 @@ function render(){
         ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Aus Notiz übernehmen</button>' : '<span class="muted" style="font-size:12.5px">Vorauswahl aus deiner Notiz und Bewertung. Antippen, um zu korrigieren.</span>'}
       </section>
 
+  <div class="grid">
       <section class="card rec" aria-labelledby="hRec">
         <div class="card-head"><h2 id="hRec">Nächster Shot</h2><span class="conf ${rec.conf}">Sicherheit ${CONF_LABEL[rec.conf]}</span></div>
+        <div class="targetline">Dein Ziel: <b>${fmt(T.dose,1)} g → ${fmt(T.dose * T.ratio,0)} g (1:${fmt(T.ratio,2)}) in ${T.tMin}–${T.tMax} s</b>${Math.abs(rec.R - T.ratio) >= 0.04 ? ` · für diesen Shot 1:${fmt(rec.R,2)} wegen des Geschmacks` : ''}</div>
         <div class="tiles">
           ${(() => {
             const pill = (on, txt) => `<span class="delta ${on ? 'on' : 'off'}">${on ? txt : 'wie zuletzt'}</span>`;
@@ -1736,20 +1773,16 @@ function render(){
         ${over && stopAt ? `<div class="flowhint" style="color:var(--ink)"><b>Ausschalten bei ${fmt(stopAt,1)} g auf der Waage.</b> Nach dem Ausschalten laufen bei dir im Schnitt noch ${fmt(over.g,1)} g nach${over.min != null && over.n > 1 ? ` (Spanne ${fmt(over.min,1)}–${fmt(over.max,1)} g` + (over.dur ? `, ca. ${fmt(over.dur,1)} s` : '') + ')' : ''}${over.k ? `, beim geplanten Durchfluss etwa ${fmt(dripNext,1)} g` : ''}. <span class="muted">Gelernt aus ${over.n} ${over.src === 'Kurve' ? (over.n === 1 ? 'Waagenkurve' : 'Waagenkurven') : 'eingetragenen Shots'}.</span></div>` : ''}
         ${rec.hints.map(h => `<div class="hint">${h}</div>`).join('')}
       </section>
-    </div>
-
-    <div class="col">
       <section class="card chart" aria-labelledby="hMap">
         <div class="card-head"><h2 id="hMap">Extraktionskarte</h2><span class="muted" style="font-size:13px">${esc(UI.bean)} · ${esc(UI.grinder)}</span></div>
         ${compassSVG(shots, anchor, rec, T)}
         <div class="legend"><span><i style="background:var(--sour)"></i>sauer/spitz</span><span><i style="background:var(--bitter)"></i>bitter</span><span><i style="background:var(--good)"></i>gut</span><span><i style="background:var(--mixed)"></i>gemischt/dünn</span><span><i style="background:var(--none)"></i>ohne Angabe</span><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 6L6 12L0 6Z" fill="var(--accent)"/></svg>nächster Shot</span></div>
       </section>
+  </div>
       ${grindSVG(shots, anchor, rec, model, T) ? `<section class="card chart" aria-labelledby="hGrind">
         <div class="card-head"><h2 id="hGrind">Mahlgrad und Laufzeit</h2><span class="muted" style="font-size:13px">Linie: erwartete Zeit bei ${fmt(rec.yld,0)} g</span></div>
-        ${grindSVG(shots, anchor, rec, model, T)}
+        ${grindSVG(shots, anchor, rec, model, T, true)}
       </section>` : ''}
-    </div>
-  </div>
 
   ${workshopHTML(anchor, T, model, shots, scale)}
 
