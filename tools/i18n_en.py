@@ -725,3 +725,18 @@ EXACT.update({
 })
 EXACT.update({'Details und Gegenmaßnahmen im Channeling-Check unten.': 'Details and fixes in the channeling check below.', ' (Index ': ' (index '})
 PHRASES += [('C = Channeling-Hinweis', 'C = channeling sign')]
+EXACT.update({
+  ' (nicht gewertet)': ' (not counted)', 'extrem großer Sprung': 'extremely large jump', 'Gewicht springt zurück': 'weight jumps back',
+  'Druck fällt um mehr als 3,5 bar, eher Profil oder Hebel': 'pressure drops by more than 3.5 bar, more likely a profile or lever',
+  ' · <span class="muted">nicht gewertet': ' · <span class="muted">not counted',
+  'Waagenkurve, Shot-Daten und Geschmack': 'scale curve, shot data and taste',
+  'nur Shot-Daten und Geschmack, mit Waagenkurve deutlich sicherer': 'shot data and taste only, much more reliable with a scale curve',
+  'Die markierten Ausreißer sind nicht gewertet.': 'The marked outliers are not counted.',
+  '<span class="eyebrow">Markierungen in der Kurve</span>': '<span class="eyebrow">Marks in the curve</span>',
+  'sofort wieder abgefallen': 'dropped straight back', 'Gewichtssprung': 'weight jump', 'extrem hoher Ausschlag': 'extremely high surge',
+  ', vermutlich manuell': ', probably manual', 'doch werten': 'count it', 'ignorieren': 'ignore', 'letzte ': 'last ',
+})
+EXACT.update({' Shots</span></div>': ' shots</span></div>'})
+EXACT.update({' bei ': ' at '})
+EXACT.update({' · Ausreißer': ' · outlier'})
+PHRASES += [('<span class="chcap">letzte ', '<span class="chcap">last ')]

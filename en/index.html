@@ -201,10 +201,8 @@ textarea.copy{width:100%;min-height:120px;font-family:var(--f-data);font-size:12
 .findings li i{width:10px;height:10px;border-radius:50%;margin-top:6px;display:block}
 .findings .ok i{background:var(--good)} .findings .warn i{background:var(--sour)} .findings .bad i{background:var(--mixed)} .findings .info i{background:var(--none)}
 .findings b{font-weight:600}
-.chan{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
+.chan{display:flex;flex-direction:column;gap:12px}
 .chan-head{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
-.chan-grid{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:24px;align-items:start}
-@media (max-width:760px){.chan-grid{grid-template-columns:minmax(0,1fr)}}
 .chan-score{display:flex;flex-direction:column;gap:6px}
 .chmeter{position:relative;height:14px}
 .chzones{display:grid;grid-template-columns:20fr 25fr 55fr;gap:2px;height:100%;border-radius:99px;overflow:hidden}
@@ -217,12 +215,19 @@ textarea.copy{width:100%;min-height:120px;font-family:var(--f-data);font-size:12
 .chscale span:nth-child(1){left:0;transform:none}.chscale span:nth-child(2){left:20%}.chscale span:nth-child(3){left:45%}.chscale span:nth-child(4){right:0;transform:none}
 .chverdict{display:flex;align-items:baseline;gap:10px}
 .chverdict > b{font-family:var(--f-data);font-size:34px;line-height:1}
-.chhist{display:flex;gap:4px;align-items:flex-end;height:74px}
+.chrow{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:flex-end;justify-content:space-between}
+.chhistwrap{display:flex;flex-direction:column;gap:3px;flex:1;max-width:260px;min-width:140px}
+.chcap{font-size:10.5px;color:var(--muted);text-align:right}
+.chhist{display:flex;gap:4px;align-items:flex-end;height:48px}
 .chh{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;background:none;border:0;padding:0;cursor:pointer;font:inherit}
 .chh i{display:block;width:100%;max-width:22px;border-radius:3px 3px 0 0;opacity:.75}
-.chh span{font-size:9.5px;color:var(--muted);white-space:nowrap}
 .chh.cur i{opacity:1;outline:2px solid var(--ink);outline-offset:1px}
 .chh:hover i{opacity:1}
+.chevs{display:flex;flex-direction:column;gap:6px}
+.chev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px}
+.chev > b{color:var(--mixed);font-family:var(--f-data)}
+.chev.ign > b{color:var(--none);text-decoration:line-through}
+.chev.ign{background:var(--sunk)}
 .chsrc{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 7px;margin-left:4px;white-space:nowrap}
 .cmp{min-width:520px}
 .cmp td.n{text-align:right}
@@ -674,19 +679,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -1417,7 +1422,8 @@ function flowSVG(fl, an, ref, refAn, st, evs){
   (evs || []).forEach((e, i) => {
     const cy = e.p != null ? YP(e.p) : YF(e.f != null ? e.f : (an.f[an.ft.findIndex(x => x >= e.t)] ?? 0));
     const below = e.p != null;   // Druck-Marker beschriften wir unterhalb, damit sie nicht mit Flow-Markern kollidieren
-    g += `<circle cx="${X(e.t)}" cy="${cy}" r="7" fill="var(--mixed)" fill-opacity="0.15" stroke="var(--mixed)" stroke-width="2"${e.p != null ? ' stroke-dasharray="3 2"' : ''}><title>${e.kind} ${fmt(e.t,1)} s · ${e.txt}</title></circle><text x="${X(e.t)}" y="${below ? cy + 20 : cy - 11}" font-size="10" font-weight="700" text-anchor="middle" fill="var(--mixed)">C${i + 1}</text>`;
+    const c = e.ignored ? 'var(--none)' : 'var(--mixed)';
+    g += `<circle cx="${X(e.t)}" cy="${cy}" r="7" fill="${c}" fill-opacity="0.15" stroke="${c}" stroke-width="2"${e.p != null || e.ignored ? ' stroke-dasharray="3 2"' : ''}><title>${e.kind} ${fmt(e.t,1)} s · ${e.txt}${e.ignored ? ' (not counted)' : ''}</title></circle><text x="${X(e.t)}" y="${below ? cy + 20 : cy - 11}" font-size="10" font-weight="700" text-anchor="middle" fill="${c}"${e.ignored ? ' text-decoration="line-through"' : ''}>C${i + 1}</text>`;
   });
   return g + '</svg>';
 }
@@ -1461,7 +1467,7 @@ function findings(s, T, an, shots, st){
     if(chF && chF.level !== 'low') add(chF.level === 'high' ? 'bad' : 'warn', `Channeling ${CH_LABEL[chF.level]} (index ${chF.score}/100)`, 'Details and fixes in the channeling check below.');
     if(an.cv != null && !(chF && chF.level !== 'low' && an.cv <= 0.25)) an.cv > 0.25 ? add('warn', `Unsteady flow (variation ${fmt(an.cv * 100,0)} %)`, 'Flow varies a lot during the main phase, often a sign of uneven distribution.') : add('ok', `Steady flow (variation ${fmt(an.cv * 100,0)} %)`, 'The puck holds evenly.');
     if(an.endRatio != null && an.endRatio > 1.4) add('warn', 'Flow rises sharply towards the end', `In the last quarter ${fmt((an.endRatio - 1) * 100,0)} % faster than in the middle. The puck is breaking down; the last grams often taste thin or bitter.`);
-    if(an.peak > 3.2) add('warn', `Peak flow ${fmt(an.peak,1)} g/s`, 'Very high for espresso.');
+    if(an.peak > 3.2 && !(chF && chF.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5))) add('warn', `Peak flow ${fmt(an.peak,1)} g/s`, 'Very high for espresso.');
     if(st) add('info', `Pump off at about ${fmt(st.tStop,1)} s and ${fmt(st.wStop,1)} g`, `Another ${fmt(st.drip,1)} g ran into the cup afterwards; it ended at ${fmt(an.final,1)} g.`);
     if(an.pMax != null && an.pMax > 10) add('warn', `Pressure peak ${fmt(an.pMax,1)} bar`, 'Above 10 bar. Check the machine’s OPV setting.');
   }
@@ -1475,7 +1481,9 @@ const CH_CACHE = new Map();
 function channelingCheck(s, shots, T){
   if(!s || isFilter(shots)) return null;
   const fl = FLOWS[s.id] || null;
-  const key = s.id + '|' + (fl ? 1 : 0) + '|' + JSON.stringify(shotTags(s)) + '|' + (s.firstDrip || '') + '|' + (T ? T.tMin + '-' + T.tMax : '');
+  const ov = (UI.chOv || {})[s.id] || {};
+  const evKey = (kind, t) => kind + '@' + Math.round(t * 2) / 2;
+  const key = s.id + '|' + (fl ? 1 : 0) + '|' + JSON.stringify(shotTags(s)) + '|' + (s.firstDrip || '') + '|' + (T ? T.tMin + '-' + T.tMax : '') + '|' + JSON.stringify(ov);
   if(CH_CACHE.has(key)) return CH_CACHE.get(key);
   const an = fl ? analyzeFlow(fl, s) : null;
   const st = an ? detectStop(fl, an) : null;
@@ -1502,26 +1510,49 @@ function channelingCheck(s, shots, T){
       const spikes = [];
       cand.forEach(c => { if(spikes.every(x => Math.abs(x.t - c.t) >= 2)) spikes.push(c); });
       spikes.sort((a, b) => a.t - b.t);
-      spikes.forEach(x => events.push({ t: x.t, f: x.f, kind: 'Flow spike', txt: `+${fmt(x.d,1)} g/s in 1 s` }));
-      if(spikes.length){
-        const big = Math.max(...spikes.map(x => x.d));
-        add('spike', Math.min(40, 14 * spikes.length + (big > 1.2 ? 10 : big > 0.8 ? 5 : 0)), 'curve', spikes.length === 1 ? `Flow jump at ${fmt(spikes[0].t,0)} s` : `${spikes.length} flow spikes (${spikes.map(x => fmt(x.t,0)).join(', ')} s)`,
+      // Ausreißer erkennen, die eher von Hand kommen (Waage/Tasse berührt) als aus dem Puck
+      const manualReason = x => {
+        if(x.d > Math.max(2, 0.9 * m)) return 'extremely large jump';
+        let mn = Infinity; for(let j = 0; j < ft.length; j++) if(ft[j] > x.t && ft[j] - x.t <= 0.8) mn = Math.min(mn, f[j]);
+        if(mn !== Infinity && mn <= x.f - x.d * 0.75) return 'dropped straight back';
+        if(fl.t?.length){
+          for(let j = 1; j < fl.t.length; j++){
+            if(Math.abs(fl.t[j] - x.t) > 1.5) continue;
+            const dw = fl.w[j] - fl.w[j - 1];
+            if(dw < -0.8) return 'weight jumps back';
+            if(dw > 2.5 && fl.t[j] - fl.t[j - 1] <= 0.3) return 'weight jump';
+          }
+        }
+        return null;
+      };
+      spikes.forEach(x => {
+        const k = evKey('spike', x.t), why = manualReason(x);
+        const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
+        events.push({ key: k, t: x.t, f: x.f, kind: 'Flow spike', txt: `+${fmt(x.d,1)} g/s in 1 s`, ignored: ign, why, auto: !!why, d: x.d });
+      });
+      const sp = events.filter(e => e.kind === 'Flow spike' && !e.ignored);
+      if(sp.length){
+        const big = Math.max(...sp.map(x => x.d));
+        add('spike', Math.min(40, 16 * sp.length + (big > 1.2 ? 10 : big > 0.8 ? 5 : 0)), 'curve', sp.length === 1 ? `Flow jump at ${fmt(sp[0].t,0)} s` : `${sp.length} flow spikes (${sp.map(x => fmt(x.t,0)).join(', ')} s)`,
           `Flow suddenly rises by up to ${fmt(big,1)} g/s within one second. This is what it looks like when a channel opens in the puck.`);
       }
-      // 2) Unruhe in der Hauptphase
-      let vals = []; for(let i = 0; i < ft.length; i++) if(ft[i] >= tA && ft[i] <= tB) vals.push(f[i]);
+      const skip = t => events.some(e => e.ignored && Math.abs(e.t - t) <= 1.5);
+      // 2) Unruhe in der Hauptphase (ohne die ignorierten Ausreißer)
+      let vals = [], xs = []; for(let i = 0; i < ft.length; i++) if(ft[i] >= tA && ft[i] <= tB && !skip(ft[i])){ vals.push(f[i]); xs.push(ft[i]); }
       if(vals.length > 5){
         const mu = vals.reduce((a, b) => a + b, 0) / vals.length;
         // Schwankung um den Trend (lineare Drift herausrechnen), damit ein langsam steigender Flow nicht als Unruhe zählt
-        const xs = ft.filter(t => t >= tA && t <= tB); const fit = wlr(xs.map((x, i) => ({ x, y: vals[i], w: 1 })));
+        const fit = wlr(xs.map((x, i) => ({ x, y: vals[i], w: 1 })));
         const res = fit ? vals.map((v, i) => v - (fit.a + fit.b * xs[i])) : vals.map(v => v - mu);
         const cv = Math.sqrt(res.reduce((a, r) => a + r * r, 0) / res.length) / mu;
         if(cv > 0.12) add('cv', cv > 0.25 ? 22 : cv > 0.18 ? 14 : 7, 'curve', `Unsteady flow (variation ${fmt(cv * 100,0)} %)`, 'Flow wobbles more than usual in the main phase. An evenly saturated puck gives a calm curve.');
       }
       // 3) Durchbruch direkt am Anfang
-      if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m) {
-        add('early', an.peak > 2 * m ? 18 : 12, 'curve', `Early flow surge (${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s)`, 'Right after the first drip, flow shoots far above its later average. The water immediately finds an easy path through the puck.');
-        events.push({ t: an.tPeak, f: an.peak, kind: 'Early surge', txt: `${fmt(an.peak,1)} g/s` });
+      if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m && !events.some(e => Math.abs(e.t - an.tPeak) < 1)) {
+        const k = evKey('early', an.tPeak), why = an.peak > Math.max(4.5, 3 * m) ? 'extremely high surge' : null;
+        const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
+        if(!ign) add('early', an.peak > 2 * m ? 18 : 12, 'curve', `Early flow surge (${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s)`, 'Right after the first drip, flow shoots far above its later average. The water immediately finds an easy path through the puck.');
+        events.push({ key: k, t: an.tPeak, f: an.peak, kind: 'Early surge', txt: `${fmt(an.peak,1)} g/s`, ignored: ign, why, auto: !!why });
       }
       // 4) Puck baut zum Ende ab
       if(an.endRatio != null && an.endRatio > 1.3) add('late', an.endRatio > 1.6 ? 14 : 8, 'curve', `Flow rises towards the end (+${fmt((an.endRatio - 1) * 100,0)} %)`, 'The puck loses resistance towards the end. Often erosion or a channel that slowly widens.');
@@ -1537,7 +1568,12 @@ function channelingCheck(s, shots, T){
             if(fNow - fThen > 0.2 && (!worst || dp > worst.dp)) worst = { t, dp, p: fl.p[i] };
           }
         }
-        if(worst){ add('pdrop', 30, 'curve', `Pressure drop at ${fmt(worst.t,0)} s (−${fmt(worst.dp,1)} bar)`, 'Pressure drops while flow rises: puck resistance collapses. This is the clearest sign of a channel.'); events.push({ t: worst.t, p: worst.p, kind: 'Pressure drop', txt: `−${fmt(worst.dp,1)} bar` }); }
+        if(worst){
+          const k = evKey('pdrop', worst.t), why = worst.dp > 3.5 ? 'pressure drops by more than 3.5 bar, more likely a profile or lever' : null;
+          const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
+          if(!ign) add('pdrop', 30, 'curve', `Pressure drop at ${fmt(worst.t,0)} s (−${fmt(worst.dp,1)} bar)`, 'Pressure drops while flow rises: puck resistance collapses. This is the clearest sign of a channel.');
+          events.push({ key: k, t: worst.t, p: worst.p, kind: 'Pressure drop', txt: `−${fmt(worst.dp,1)} bar`, ignored: ign, why, auto: !!why });
+        }
       }
     }
   }
@@ -1590,32 +1626,28 @@ const CH_LABEL = { low:'unlikely', mid:'possible', high:'likely' };
 function channelingHTML(s, shots, T){
   const ch = channelingCheck(s, shots, T);
   if(!ch) return '';
-  const col = { low:'var(--good)', mid:'var(--sour)', high:'var(--mixed)' }[ch.level];
+  const LC = { low:'var(--good)', mid:'var(--sour)', high:'var(--mixed)' };
+  const col = LC[ch.level];
   // Verlauf der letzten Shots dieser Kombination
   const hist = shots.filter(x => x.time && x.date && s.date && x.date <= s.date).slice(0, 10).reverse().map(x => ({ x, c: channelingCheck(x, shots, T) })).filter(h => h.c);
-  const bars = hist.length > 1 ? `<div class="chhist" role="img" aria-label="Channeling index of recent shots">${hist.map(h => `<button type="button" class="chh ${h.x.id === s.id ? 'cur' : ''}" data-ana="${esc(h.x.id)}" title="${fmtDate(h.x.date)} · index ${h.c.score}${h.c.curve ? ' · with curve' : ''}"><i style="height:${Math.max(4, h.c.score)}%;background:${{ low:'var(--good)', mid:'var(--sour)', high:'var(--mixed)' }[h.c.level]}"></i><span>${fmtDate(h.x.date).split(' ')[0]}</span></button>`).join('')}</div>` : '';
+  const bars = hist.length > 1 ? `<div class="chhistwrap"><div class="chhist" role="img" aria-label="Channeling index of recent shots">${hist.map(h => `<button type="button" class="chh ${h.x.id === s.id ? 'cur' : ''}" data-ana="${esc(h.x.id)}" title="${fmtDate(h.x.date)} · index ${h.c.score}${h.c.curve ? ' · with curve' : ''}"><i style="height:${Math.max(4, h.c.score)}%;background:${LC[h.c.level]}"></i></button>`).join('')}</div><span class="chcap">last ${hist.length} shots</span></div>` : '';
+  const evs = ch.events.map((e, i) => ({ ...e, n: i + 1 }));
+  const evList = evs.length ? `<div class="chevs">${evs.map(e => `<div class="chev ${e.ignored ? 'ign' : ''}"><b>C${e.n}</b><span>${e.kind} at ${fmt(e.t,1)} s · ${e.txt}${e.ignored ? ` · <span class="muted">not counted${e.why ? ': ' + e.why + ', probably manual' : ''}</span>` : ''}</span><button type="button" class="btn small" data-chov="${esc(e.key)}" data-to="${e.ignored ? 'count' : 'ignore'}">${e.ignored ? 'count it' : 'ignore'}</button></div>`).join('')}</div>` : '';
   return `
-    <div class="chan">
-      <div class="chan-head">
-        <h3>Channeling-Check</h3>
-        <span class="muted" style="font-size:12.5px">${ch.curve ? 'Based on: scale curve, shot data and taste' : 'Based on shot data and taste only. With a scale curve the result is much more reliable.'}</span>
-      </div>
-      <div class="chan-grid">
+      <div class="chan">
+        <div class="chan-head"><h3>Channeling-Check</h3><span class="muted" style="font-size:12.5px">${ch.curve ? 'scale curve, shot data and taste' : 'shot data and taste only, much more reliable with a scale curve'}</span></div>
         <div class="chan-score">
           <div class="chmeter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${ch.score}" aria-label="Channeling index">
             <div class="chzones"><i></i><i></i><i></i></div>
             <span class="chmark" style="left:${ch.score}%;border-color:${col}"></span>
           </div>
           <div class="chscale num"><span>0</span><span>20</span><span>45</span><span>100</span></div>
-          <div class="chverdict"><b class="num" style="color:${col}">${ch.score}</b><span>Channeling <b>${CH_LABEL[ch.level]}</b></span></div>
-          ${bars ? `<span class="eyebrow" style="margin-top:6px">Recent shots</span>${bars}` : ''}
+          <div class="chrow"><div class="chverdict"><b class="num" style="color:${col}">${ch.score}</b><span>Channeling <b>${CH_LABEL[ch.level]}</b></span></div>${bars}</div>
         </div>
-        <div>
-          ${ch.sig.length ? `<ul class="findings">${ch.sig.map(x => `<li class="${x.pts >= 15 ? 'bad' : x.pts >= 8 ? 'warn' : 'info'}"><i aria-hidden="true"></i><span><b>${x.title}.</b> ${x.text} <span class="chsrc">${x.src} · ${x.pts} pts</span></span></li>`).join('')}</ul>` : `<p class="muted" style="margin:0;font-size:14px">No signs of channeling. ${ch.curve ? 'The curve is calm with no spikes.' : 'Add the scale curve to check it more precisely.'}</p>`}
-          ${ch.tips.length ? `<h3 style="margin-top:14px">What helps</h3><ul class="why">${ch.tips.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
-        </div>
-      </div>
-    </div>`;
+        ${ch.sig.length ? `<ul class="findings">${ch.sig.map(x => `<li class="${x.pts >= 15 ? 'bad' : x.pts >= 8 ? 'warn' : 'info'}"><i aria-hidden="true"></i><span><b>${x.title}.</b> ${x.text} <span class="chsrc">${x.src} · ${x.pts} pts</span></span></li>`).join('')}</ul>` : `<p class="muted" style="margin:0;font-size:14px">No signs of channeling. ${ch.curve ? (evs.some(e => e.ignored) ? 'The marked outliers are not counted.' : 'The curve is calm with no spikes.') : 'Add the scale curve to check it more precisely.'}</p>`}
+        ${evList ? `<span class="eyebrow">Marks in the curve</span>${evList}` : ''}
+        ${ch.tips.length ? `<h3>Was hilft</h3><ul class="why">${ch.tips.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
+      </div>`;
 }
 function analysisHTML(s, T, shots, scale){
   const fl = FLOWS[s.id] || null;
@@ -1645,7 +1677,8 @@ function analysisHTML(s, T, shots, scale){
     m('Rating', s.rating ? fmt(s.rating,0) + '/' + scale : '–')
   ];
   if(an){
-    metrics.push(m('Peak flow', fmt(an.peak,2) + ' g/s', an.tPeak != null ? `at ${fmt(an.tPeak,0)} s` : ''));
+    const pkIgn = channelingCheck(s, shots, T)?.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5);
+    metrics.push(m('Peak flow', fmt(an.peak,2) + ' g/s', an.tPeak != null ? `at ${fmt(an.tPeak,0)} s${pkIgn ? ' · outlier' : ''}` : ''));
     metrics.push(m('1 g/s reached', an.t1 != null ? fmt(an.t1,1) + ' s' : '–'));
     metrics.push(m('Flow variation', an.cv != null ? fmt(an.cv * 100,0) + ' %' : '–', 'main phase'));
     if(an.hasPressure) metrics.push(m('Pressure', `${fmt(an.pMain,1)} bar`, `peak ${fmt(an.pMax,1)} bar`));
@@ -1700,14 +1733,14 @@ function analysisHTML(s, T, shots, scale){
           <div class="legend"><span><i style="background:var(--ink)"></i>Weight (g)</span><span><i style="background:var(--accent)"></i>Flow (g/s)${an.derived ? ', calculated from weight' : ''}</span>${fl.p?.length ? '<span><i style="background:var(--sour)"></i>Pressure (0–12 bar)</span>' : ''}${channelingCheck(s, shots, T)?.events.length ? '<span><i style="background:var(--mixed)"></i>C = channeling sign</span>' : ''}${refFl && ref.id !== s.id ? `<span><i style="background:var(--muted)"></i>${chosen ? 'Comparison' : 'Reference'} ${fmtDate(ref.date)}</span>` : ''}</div>
           ${reassign}`
         : `<div class="flowhint">No scale curve for this shot. In Beanconqueror you can download the flow profile of a brew as JSON or Excel from its detail view (or the Visualizer file). Drop the file here and it is matched to the right shot automatically.${s.deviceFlow ? ' According to the backup, a curve for this shot exists on your phone.' : ''}</div>`}
-        <div class="metrics">${metrics.join('')}</div>
       </div>
       <div>
         <h3>Findings</h3>
         <ul class="findings">${F.map(f => `<li class="${f.lvl}"><i aria-hidden="true"></i><span><b>${f.title}.</b> ${f.text}</span></li>`).join('')}</ul>
       </div>
+      <div><div class="metrics">${metrics.join('')}</div></div>
+      <div>${channelingHTML(s, shots, T)}</div>
     </div>
-    ${channelingHTML(s, shots, T)}
     ${cols.length > 1 ? `<h3>Comparison</h3><div class="tablewrap"><table class="cmp"><thead><tr><th></th>${cols.map(c => `<th>${c[0]}<br><span class="muted num" style="text-transform:none;letter-spacing:0">${fmtDate(c[1].date)}</span></th>`).join('')}</tr></thead>
       <tbody>${cmpRows.map(([lab, f, fn]) => { const j = judge(lab, s, prev); return `<tr><td>${lab}</td>${cols.map((c, i) => `<td class="n ${i === 0 && j ? 'cmp-' + j : ''}"${i === 0 && j ? ` title="${j === 'better' ? 'better than the previous shot' : 'worse than the previous shot'}"` : ''}>${f(c[1])}${i > 0 ? delta(fn, s, c[1]) : ''}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
       <span class="muted" style="font-size:12.5px">In brackets: difference of this shot to that column.${prev ? ' <span class="cmpkey better">green</span> closer to target than the previous shot, <span class="cmpkey worse">red</span> further away.' : ''}</span>` : ''}
@@ -2115,6 +2148,7 @@ function render(){
   document.querySelectorAll('.chart circle[data-id]').forEach(c => c.addEventListener('click', () => goDetail(c.dataset.id)));
   $('#anaSel').onchange = e => goDetail(e.target.value);
   document.querySelectorAll('.chh[data-ana]').forEach(b => b.onclick = () => goDetail(b.dataset.ana));
+  document.querySelectorAll('[data-chov]').forEach(b => b.onclick = () => { const id = UI.detailId; const o = ((UI.chOv ||= {})[id] ||= {}); o[b.dataset.chov] = b.dataset.to; saveUI(); const y = b.getBoundingClientRect().top; render(); const nb = document.querySelector(`[data-chov="${CSS.escape(b.dataset.chov)}"]`); if(nb) window.scrollBy(0, nb.getBoundingClientRect().top - y); });
   const ordered = shots.slice().sort((a, b) => a.date - b.date), di = ordered.findIndex(x => x.id === detail.id);
   $('#anaPrev').onclick = () => { if(di > 0) goDetail(ordered[di - 1].id); };
   $('#anaNext').onclick = () => { if(di < ordered.length - 1) goDetail(ordered[di + 1].id); };
