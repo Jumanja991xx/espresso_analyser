@@ -945,5 +945,19 @@ PHRASES += [
   ('aria-label="Mahlgrad-Feedback"', 'aria-label="Grind feedback"'), ('aria-label="Durchfluss-Kurve"', 'aria-label="Flow curve"'),
   ('fill="var(--bitter)">zu fein</text>', 'fill="var(--bitter)">too fine</text>'), ('fill="var(--good)">perfekt</text>', 'fill="var(--good)">perfect</text>'), ('fill="var(--sour)">zu grob</text>', 'fill="var(--sour)">too coarse</text>'),
   ('>Einfach</button>', '>Simple</button>'),
+  ('Danach oben bei „Dein letzter Shot“ angeben, wie er geschmeckt hat. Die App sagt dir dann, was du als Nächstes änderst.', 'Then tell it under “Your last shot” above how it tasted. The app will then tell you what to change next.'),
+  ('<label>Wie hat er geschmeckt? <span class="muted" style="font-weight:400">Mehrere möglich</span>', '<label>How did it taste? <span class="muted" style="font-weight:400">Pick several if needed</span>'),
+  ('<span class="was">vorher ', '<span class="was">was '),
+  ('Rot umrandet = ', 'Red outline = '), ('<summary>Genauer beschreiben</summary>', '<summary>Describe in more detail</summary>'), (', alles andere bleibt wie beim letzten Shot.', ', everything else stays as in the last shot.'),
+  ('<p class="slegend">Alles bleibt wie beim letzten Shot.</p>', '<p class="slegend">Everything stays as in the last shot.</p>'),
 ]
+EXACT.update({'Dünn und sauer zusammen ist typisch für Unterextraktion. Der Schritt gegen die Säure gibt auch mehr Körper, deshalb bleiben Dosis und Ratio.': 'Thin and sour together is typical of under-extraction. The step against the sourness also adds body, so dose and ratio stay.', 'Dünn bei zu kurzer Laufzeit ist typisch für Unterextraktion. Der Schritt zu mehr Extraktion gibt auch mehr Körper, deshalb bleiben Dosis und Ratio.': 'Thin with too short a run time is typical of under-extraction. The step towards more extraction also adds body, so dose and ratio stay.', 'diesen Wert ändern': 'change this value', 'diese Werte ändern': 'change these values'})
 EXACT.update({'1:1,5 · 20–25 s': '1:1.5 · 20–25 s', '1:2,5 · 28–35 s': '1:2.5 · 28–35 s'})
+EXACT.update({'Alle Geschmacksangaben': 'All taste notes', ' Dazu deine Korrektur von ': ' Plus your correction of ', ' Für ': ' For ',
+  ' g ausschalten. Je schneller der Shot läuft, desto mehr läuft nach.</p>': ' g. The faster the shot runs, the more drips through afterwards.</p>',
+  'Nach dem Ausschalten laufen bei dir im Schnitt noch ': 'After switching off, on average another ',
+  'Mit deiner Korrektur rechnet die App beim geplanten Durchfluss mit ': 'With your correction the app expects at the planned flow ',
+  '</b><button class="btn small" type="button" data-dripadj="0.5" aria-label="0,5 g mehr Nachlauf">+</button></span>': '</b><button class="btn small" type="button" data-dripadj="0.5" aria-label="0.5 g more post-stop drip">+</button></span>',
+  '<span class="dripadj">Kommt bei dir mehr oder weniger nach? <button class="btn small" type="button" data-dripadj="-0.5" aria-label="0,5 g weniger Nachlauf">−</button><b class="num">': '<span class="dripadj">More or less drips through for you? <button class="btn small" type="button" data-dripadj="-0.5" aria-label="0.5 g less post-stop drip">−</button><b class="num">'})
+PHRASES += [(' g Nachlauf. ', ' g post-stop drip. ')]
+PHRASES += [(' g auf der Waage.</b> ', ' g on the scale.</b> ')]

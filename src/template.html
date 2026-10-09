@@ -310,6 +310,14 @@ td.tastecell .tgl{padding-top:0}
 .sbig > div.chg{background:color-mix(in srgb,var(--signal) 12%,var(--surface));box-shadow:inset 0 0 0 2px var(--signal)}
 .sbig > div.chg .v{color:var(--signal)}
 .sbig > div.off .v{color:var(--mixed)}
+.dripadj{display:inline-flex;align-items:center;gap:6px;margin-left:2px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.dripadj .btn{min-width:28px;padding:2px 8px}
+.dripadj b{color:var(--ink);min-width:44px;text-align:center}
+.tastemore summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--accent);margin:4px 0}
+.tastemore[open] summary{margin-bottom:8px}
+.sbig .was{font-size:12px;color:var(--signal);font-weight:600}
+.slegend{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:13px;color:var(--muted)}
+.slegend i{flex:none;width:14px;height:14px;border-radius:4px;box-shadow:inset 0 0 0 2px var(--signal);background:color-mix(in srgb,var(--signal) 12%,var(--surface))}
 .simple svg{width:100%;height:auto;display:block;max-width:680px;margin:0 auto}
 .sverdict{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
 .sverdict b{font-family:var(--f-display);font-size:24px}
@@ -739,19 +747,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened, aiAcc:UI.aiAcc});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened, aiAcc:UI.aiAcc, dripAdj:UI.dripAdj});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -898,6 +906,7 @@ function intensityOf(s){
 /* Pumpe aus erkennen: der Durchfluss bricht am Ende innerhalb von 1–3 s zusammen.
    Der Knick (letzter Punkt nahe am Plateau vor dem Abfall) markiert das Ausschalten,
    alles, was danach noch in die Tasse läuft, ist Nachlauf. */
+const SCALE_LAG = 0.5;   // s, typische Anzeigeverzögerung der Waage
 function detectStop(fl, an){
   if(!fl?.t?.length || !fl.w?.length || !an?.mMain) return null;
   const raw = fl.f?.length ? { ft: fl.ft, f: fl.f } : { ft: an.ft, f: an.f };
@@ -908,9 +917,11 @@ function detectStop(fl, an){
   if(iOn < 0) return null;
   let mx = 0; for(let j = iOn; j >= 0 && ft[iOn] - ft[j] <= 3; j--) mx = Math.max(mx, f[j]);
   let iK = iOn; for(let j = iOn; j >= 0 && ft[iOn] - ft[j] <= 3; j--){ if(f[j] >= 0.9 * mx){ iK = j; break; } }
-  const tStop = ft[iK];
+  // Die Waage zeigt das Gewicht verzögert (Flug in die Tasse, Filter der Waage). Der Knick in der Kurve liegt deshalb
+  // etwas nach dem echten Ausschalten. Gezählt wird ab dem Wert, den die Waage beim Druck auf den Schalter zeigte.
+  const tStop = Math.max(ft[0], ft[iK] - SCALE_LAG);
   let tLow = null; for(let j = iK; j < ft.length; j++) if(f[j] < 0.25 * mx){ tLow = ft[j]; break; }
-  if(tLow == null || tLow - tStop > 4) return null;        // kein sauberes Ende in der Kurve
+  if(tLow == null || tLow - ft[iK] > 4) return null;        // kein sauberes Ende in der Kurve
   const wAt = x => { for(let i = 0; i < fl.t.length; i++) if(fl.t[i] >= x){ if(i === 0) return fl.w[0]; const a = fl.t[i - 1], b = fl.t[i]; return fl.w[i - 1] + (fl.w[i] - fl.w[i - 1]) * (b > a ? (x - a) / (b - a) : 1); } return fl.w[fl.w.length - 1]; };
   const wStop = wAt(tStop);
   const drip = an.final - wStop;
@@ -939,11 +950,14 @@ function learnOvershoot(shots){
   return null;
 }
 /* Nachlauf für einen geplanten Shot: skaliert mit dem erwarteten Durchfluss */
-function predictDrip(over, yld, tPred, fdTyp){
-  if(!over) return null;
-  if(over.k && tPred && tPred > fdTyp + 5){ const mf = yld / (tPred - fdTyp); return clamp(over.k * mf, 0, 8); }
-  return over.g;
+function predictDrip(over, yld, tPred, fdTyp, adj = 0){
+  if(!over) return adj > 0 ? adj : null;
+  const base = over.k && tPred && tPred > fdTyp + 5 ? clamp(over.k * yld / (tPred - fdTyp), 0, 8) : over.g;
+  return Math.max(0, base + adj);
 }
+/* Eigene Korrektur je Maschine: was die Waage beim Ausschalten noch nicht zeigt (Tropfen aus dem Puck, später nachlaufend) */
+const dripAdj = s => +((UI.dripAdj || {})[machineKey(s)] || 0);
+const dripAdjHTML = s => { const a = dripAdj(s); return `<span class="dripadj">Kommt bei dir mehr oder weniger nach? <button class="btn small" type="button" data-dripadj="-0.5" aria-label="0,5 g weniger Nachlauf">−</button><b class="num">${a ? (a > 0 ? '+' : '') + fmt(a,1) + ' g' : '±0 g'}</b><button class="btn small" type="button" data-dripadj="0.5" aria-label="0,5 g mehr Nachlauf">+</button></span>`; };
 
 /* ---------- Dial-in-Kompass ----------
    x: Extraktion (−1 unterextrahiert/sauer … +1 überextrahiert/bitter)
@@ -1116,7 +1130,10 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   } else {
     why.push(`Keine Geschmacksangabe. Der Shot ${sTxt}, die Empfehlung steuert auf die Mitte des Zeitfensters.`);
   }
-  if(thin && !comp){
+  if(thin && !comp && sour){
+    // Regel 3: dünn und sauer = Unterextraktion. Der Hebel gegen sauer hilft beidem, Ratio nicht kürzen, kein zweiter Hebel.
+    why.push(tags.sour || tags.salty ? 'Dünn und sauer zusammen ist typisch für Unterextraktion. Der Schritt gegen die Säure gibt auch mehr Körper, deshalb bleiben Dosis und Ratio.' : 'Dünn bei zu kurzer Laufzeit ist typisch für Unterextraktion. Der Schritt zu mehr Extraktion gibt auch mehr Körper, deshalb bleiben Dosis und Ratio.');
+  } else if(thin && !comp){
     dDose = filter ? 1 : 0.5; if(dR === 0) dR = -rStep / 2;
     why.push('Dünn und wässrig: etwas mehr Kaffeemehl und eine kürzere Ratio geben mehr Körper.');
   }
@@ -2033,7 +2050,7 @@ function aiPayload(anchor, shots, T, model, rec){
       for(let k = -3; k <= 3; k++){ const g = Math.round((anchor.grind + k * res) / res) * res, f = fL + model.b * (g - anchor.grind); if(f > 0.3) out[fmtG(g, res)] = Math.round(yl / f); }
       return { yieldGrams: yl, secondsByGrind: out, note: 'model estimate from the base shot; real shots scatter by a few seconds' };
     })(),
-    postStopDrip: over ? { avgGrams: r1(over.g), n: over.n } : null,
+    postStopDrip: over || dripAdj(anchor) ? { avgGramsMeasured: over ? r1(over.g) : undefined, n: over ? over.n : undefined, userCorrectionGrams: dripAdj(anchor) || undefined, note: 'Measured from the scale curve, counted from the reading at pump-off (scale lag corrected). The user correction adds what the scale misses.' } : null,
     savedRecipe: recipe ? { grind: recipe.grindRaw, dose: recipe.dose, yield: recipe.yield, time: recipe.time, temp: recipe.temp || null } : null,
     appRecommendation: { grind: rec.newGrind != null ? fmtG(rec.newGrind, res) : null, grindChange: rec.dir, dose: rec.dose, yield: rec.yld, ratio: rec.R, temp: rec.temp, expectedTimeSec: Math.round(rec.tPred), confidence: rec.conf, reasons: rec.why.map(strip), hints: rec.hints.map(strip) },
     shots: list,
@@ -2252,16 +2269,28 @@ const SIMPLE_TASTE = [
   ['thin',   '💧', 'Zu dünn',    { thin:true }],
   ['strong', '💪', 'Zu stark',   { strong:true }],
 ];
-function simpleTasteOf(s){
-  const c = UI.compass[s.id];
-  if(c){ if(c.x < -0.05) return 'sour'; if(c.x > 0.05) return 'bitter'; if(c.y < -0.05) return 'thin'; if(c.y > 0.05) return 'strong'; return 'good'; }
-  const t = shotTags(s);
-  if(t.sour || t.salty) return 'sour';
-  if(t.bitter || t.burnt || t.astr) return 'bitter';
-  if(t.thin) return 'thin';
-  if(t.strong) return 'strong';
-  if(t.good || t.sweet || t.body) return 'good';
-  return null;
+// Mehrfachauswahl: sauer und dünn zugleich ist möglich. „Lecker“ schließt die Fehler aus, dünn und stark schließen sich aus.
+const SIMPLE_GROUPS = { sour:['sour','salty'], bitter:['bitter','burnt','astr'], thin:['thin'], strong:['strong'], good:['good','sweet','body'] };
+function simpleTastesOf(s){
+  const c = UI.compass[s.id], out = new Set();
+  if(c){ if(c.x < -0.05) out.add('sour'); if(c.x > 0.05) out.add('bitter'); if(c.y < -0.05) out.add('thin'); if(c.y > 0.05) out.add('strong'); if(!out.size) out.add('good'); return out; }
+  const t = shotTags(s) || {};
+  ['sour','bitter','thin','strong'].forEach(k => { if(SIMPLE_GROUPS[k].some(x => t[x])) out.add(k); });
+  if(!out.size && SIMPLE_GROUPS.good.some(x => t[x])) out.add('good');
+  return out;
+}
+function simpleToggleTaste(s, k){
+  const cur = simpleTastesOf(s), on = !cur.has(k);
+  const t = UI.compass[s.id] ? {} : { ...(shotTags(s) || {}) };
+  if(UI.compass[s.id]) cur.forEach(x => { t[x] = true; });
+  const clear = g => SIMPLE_GROUPS[g].forEach(x => delete t[x]);
+  if(!on){ clear(k); return t; }
+  if(k === 'good'){ ['sour','bitter','thin','strong'].forEach(clear); t.good = true; return t; }
+  delete t.good;
+  if(k === 'thin') clear('strong');
+  if(k === 'strong') clear('thin');
+  t[k] = true;
+  return t;
 }
 function gaugeSVG(pos){
   // pos in Stufen: negativ = zu fein (links), positiv = zu grob (rechts)
@@ -2287,8 +2316,11 @@ function simpleHTML(o){
   const verdict = n === 0 ? 'Der Mahlgrad passt.' : pos > 0 ? (n >= 4 ? 'Deutlich zu grob.' : n >= 2 ? 'Ein gutes Stück zu grob.' : 'Etwas zu grob.') : (n >= 4 ? 'Deutlich zu fein.' : n >= 2 ? 'Ein gutes Stück zu fein.' : 'Etwas zu fein.');
   const instr = n === 0 ? 'Lass die Mühle so, wie sie ist.' : `Stell die Mühle ${amount} ${coarserSteps < 0 ? 'feiner' : 'gröber'}: <b class="num">${fmtG(anchor.grind, res)} → ${fmtG(rec.newGrind, res)}</b>`;
   const prof = Object.entries(SIMPLE_PROFILES).find(([, p]) => Math.abs(p.ratio - T.ratio) < 0.05 && p.tMin === T.tMin && p.tMax === T.tMax)?.[0] || 'own';
-  const st = simpleTasteOf(anchor);
   const tBase = anchor.temp || T.temp, dTemp = rec.temp && tBase ? rec.temp - tBase : 0;
+  const chDose = !!anchor.dose && Math.abs(rec.dose - anchor.dose) >= 0.1;
+  const chYld = !!anchor.yield && Math.abs(rec.yld - anchor.yield) >= 1;
+  const chTemp = rec.tempMode === 'levels' ? !!rec.dT : rec.tempMode !== 'none' && Math.abs(dTemp) >= 0.5;
+  const nChg = (n ? 1 : 0) + chDose + chYld + chTemp;
   // Übers Ziel hinaus? Letzte Änderung zeigt in die Gegenrichtung der neuen Empfehlung
   const prev = shots.filter(x => x.date && anchor.date && x.date < anchor.date && x.grind != null)[0];
   const lastMove = prev && anchor.grind != null ? anchor.grind - prev.grind : 0;
@@ -2307,18 +2339,7 @@ function simpleHTML(o){
     <div class="sprof">${Object.entries(SIMPLE_PROFILES).map(([k, p]) => `<button type="button" class="sbtn" data-prof="${k}" aria-pressed="${prof === k}"><b>${p.label}</b><span>${p.sub}</span></button>`).join('')}${prof === 'own' ? '<span class="sbtn own" aria-pressed="true"><b>Eigenes Rezept</b><span>aus der Rezept-Werkstatt</span></span>' : ''}</div>
   </section>
 
-  <section class="card simple" aria-labelledby="hSLast">
-    <div class="card-head"><h2 id="hSLast">Dein letzter Shot</h2><span class="muted num">${fmtDate(anchor.date)}</span></div>
-    <div class="sbig">
-      <div><span class="k">Mühle</span><span class="v">${anchor.grind != null ? fmtG(anchor.grind, rec.res) : esc(anchor.grindRaw) || '–'}</span></div>
-      <div><span class="k">Rein</span><span class="v">${anchor.dose ? fmt(anchor.dose,1) : '–'}<small> g</small></span></div>
-      <div><span class="k">Raus</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) : '–'}<small> g</small></span></div>
-      <div class="${anchor.time && (anchor.time < T.tMin || anchor.time > T.tMax) ? 'off' : 'on'}"><span class="k">Zeit</span><span class="v">${anchor.time ? fmt(anchor.time,0) : '–'}<small> s</small></span></div>
-    </div>
-    <div class="field"><label>Wie hat er geschmeckt?</label>
-      <div class="staste">${SIMPLE_TASTE.map(([k, ic, lab]) => `<button type="button" class="sbtn" data-staste="${k}" aria-pressed="${st === k}"><span class="ico" aria-hidden="true">${ic}</span><b>${lab}</b></button>`).join('')}</div>
-    </div>
-  </section>
+  ${o.base || ''}
 
   <section class="card simple" aria-labelledby="hSGrind">
     <div class="card-head"><h2 id="hSGrind">Mahlgrad</h2><span class="muted" style="font-size:13px">${anchor.time ? `${fmt(anchor.time,0)} s bei ${fmt(anchor.yield || 0,0)} g, Ziel ${T.tMin}–${T.tMax} s` : ''}</span></div>
@@ -2334,17 +2355,21 @@ function simpleHTML(o){
   <section class="card simple snext" aria-labelledby="hSNext">
     <div class="card-head"><h2 id="hSNext">So machst du den nächsten</h2><span class="conf ${rec.conf}">Sicherheit ${CONF_LABEL[rec.conf]}</span></div>
     <div class="sbig">
-      <div class="${n ? 'chg' : ''}"><span class="k">Mühle</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span></div>
-      <div class="${Math.abs(rec.dose - (anchor.dose || rec.dose)) >= 0.1 ? 'chg' : ''}"><span class="k">Rein</span><span class="v">${fmt(rec.dose,1)}<small> g</small></span></div>
-      <div class="${anchor.yield && Math.abs(rec.yld - anchor.yield) >= 0.5 ? 'chg' : ''}"><span class="k">Raus</span><span class="v">${fmt(rec.yld,0)}<small> g</small></span>${stopAt ? `<span class="d">bei ${fmt(stopAt,1)} g ausschalten</span>` : ''}</div>
-      <div class="${rec.tempMode === 'levels' ? (rec.dT ? 'chg' : '') : Math.abs(dTemp) >= 0.5 ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.tempMode === 'none' ? '–' : rec.tempMode === 'levels' ? (rec.dT > 0 ? '▲' : rec.dT < 0 ? '▼' : '=') : rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) + '<small> °C</small>' : '–'}</span>${rec.tempMode === 'levels' && rec.dT ? `<span class="d">${rec.dT > 0 ? 'eine Stufe wärmer' : 'eine Stufe kühler'}</span>` : ''}</div>
+      <div class="${n ? 'chg' : ''}"><span class="k">Mühle</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span>${n ? `<span class="was">vorher ${fmtG(anchor.grind, res)}</span>` : ''}</div>
+      <div class="${chDose ? 'chg' : ''}"><span class="k">Rein</span><span class="v">${fmt(rec.dose,1)}<small> g</small></span>${chDose ? `<span class="was">vorher ${fmt(anchor.dose,1)} g</span>` : ''}</div>
+      <div class="${chYld ? 'chg' : ''}"><span class="k">Raus</span><span class="v">${fmt(rec.yld,0)}<small> g</small></span>${chYld ? `<span class="was">vorher ${fmt(anchor.yield,1)} g</span>` : ''}${stopAt ? `<span class="d">bei ${fmt(stopAt,1)} g ausschalten</span>` : ''}</div>
+      <div class="${chTemp ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.tempMode === 'none' ? '–' : rec.tempMode === 'levels' ? (rec.dT > 0 ? '▲' : rec.dT < 0 ? '▼' : '=') : rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) + '<small> °C</small>' : '–'}</span>${rec.tempMode === 'levels' && rec.dT ? `<span class="d">${rec.dT > 0 ? 'eine Stufe wärmer' : 'eine Stufe kühler'}</span>` : chTemp && tBase ? `<span class="was">vorher ${fmt(tBase, tBase % 1 ? 1 : 0)} °C</span>` : ''}</div>
     </div>
+    ${nChg ? `<p class="slegend"><i aria-hidden="true"></i>Rot umrandet = ${nChg === 1 ? 'diesen Wert ändern' : 'diese Werte ändern'}, alles andere bleibt wie beim letzten Shot.</p>` : '<p class="slegend">Alles bleibt wie beim letzten Shot.</p>'}
     <p class="swhy">${rec.why[0] || ''}</p>
     ${ai}
     <ul class="stips">${tips.slice(0, 3).map(t => `<li>${t}</li>`).join('')}</ul>
   </section>
+`;
+}
 
-  <section class="card simple" aria-labelledby="hSLog">
+function simpleLogHTML(anchor, rec){
+  return `  <section class="card simple" aria-labelledby="hSLog">
     <div class="card-head"><h2 id="hSLog">Shot gezogen? Kurz eintragen</h2></div>
     <form class="slog" id="sLog">
       <div class="field"><label for="sGrind">Mühle</label><input id="sGrind" inputmode="decimal" value="${rec.newGrind != null ? String(+rec.newGrind.toFixed(2)) : esc(anchor.grindRaw)}"></div>
@@ -2353,10 +2378,11 @@ function simpleHTML(o){
       <div class="field"><label for="sTime">Zeit s</label><input id="sTime" type="number" step="1" required placeholder="z. B. 27"></div>
       <button class="btn primary" type="submit">Speichern</button>
     </form>
-    <span class="muted" style="font-size:12.5px">Danach oben angeben, wie er geschmeckt hat. Die App sagt dir dann, was du als Nächstes änderst.</span>
+    <span class="muted" style="font-size:12.5px">Danach oben bei „Dein letzter Shot“ angeben, wie er geschmeckt hat. Die App sagt dir dann, was du als Nächstes änderst.</span>
   </section>`;
 }
 
+let tasteMoreOpen = false;
 /* ---------- Rendern ---------- */
 function ensureCtx(){
   const shots = allShots();
@@ -2449,8 +2475,8 @@ function insightsHTML(shots, anchor, model, T, rec){
   if(ov && ov.src === 'Kurve'){
     const tgt = Math.round(T.ratio * T.dose);
     const fdT = (() => { const v = shots.map(s => s.firstDrip).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 7; })();
-    const dT = predictDrip(ov, tgt, (T.tMin + T.tMax) / 2, fdT);
-    out.push(`<div class="ins"><span class="eyebrow">Nachlauf deiner Maschine</span><span class="big">Ø ${fmt(ov.g,1)} g${ov.dur ? ` · ${fmt(ov.dur,1)} s` : ''}</span><p>Aus ${ov.n} ${ov.n === 1 ? 'Waagenkurve' : 'Waagenkurven'}${ov.n > 1 ? `, Spanne ${fmt(ov.min,1)}–${fmt(ov.max,1)} g` : ''}. Für ${tgt} g in der Tasse bei ca. ${fmt(tgt - dT,1)} g ausschalten. Je schneller der Shot läuft, desto mehr läuft nach.</p></div>`);
+    const dT = predictDrip(ov, tgt, (T.tMin + T.tMax) / 2, fdT, dripAdj(anchor));
+    out.push(`<div class="ins"><span class="eyebrow">Nachlauf deiner Maschine</span><span class="big">Ø ${fmt(ov.g,1)} g${ov.dur ? ` · ${fmt(ov.dur,1)} s` : ''}</span><p>Aus ${ov.n} ${ov.n === 1 ? 'Waagenkurve' : 'Waagenkurven'}${ov.n > 1 ? `, Spanne ${fmt(ov.min,1)}–${fmt(ov.max,1)} g` : ''}. ${dripAdj(anchor) ? ` Dazu deine Korrektur von ${dripAdj(anchor) > 0 ? '+' : ''}${fmt(dripAdj(anchor),1)} g.` : ''} Für ${tgt} g in der Tasse bei ca. ${fmt(tgt - dT,1)} g ausschalten. Je schneller der Shot läuft, desto mehr läuft nach.</p>${dripAdjHTML(anchor)}</div>`);
   }
   // Geschmack nach Laufzeit: wo kippt es von sauer nach bitter?
   const grp = { under:[], over:[], good:[] };
@@ -2569,7 +2595,7 @@ function render(){
   { const acc = aiAccepted(anchor), rAI = (UI.ai || {})[ctxKey()]; if(acc && rAI && rAI.anchorId === anchor.id){ const { plan } = aiSplit(rAI.text); if(plan) applyAIPlan(rec, plan, anchor, T); } }
   const over = learnOvershoot(shots);
   const fdTyp = (() => { const v = shots.map(s => s.firstDrip).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 7; })();
-  const dripNext = predictDrip(over, rec.yld, rec.tPred, fdTyp);
+  const dripNext = predictDrip(over, rec.yld, rec.tPred, fdTyp, dripAdj(anchor));
   const stopAt = dripNext != null && dripNext >= 0.3 ? Math.round((rec.yld - dripNext) * 10) / 10 : null;
   const recipe = UI.recipes[ctxKey()];
   const negTaste = anyNeg(tags);
@@ -2585,12 +2611,7 @@ function render(){
   const wsView = UI.view === 'ws' && !isFilter(shots);
   const simpleView = UI.view === 'simple' && !isFilter(shots);
   const dialView = !wsView && !simpleView;
-  $('#app').innerHTML = `
-  <nav class="viewtabs" role="tablist" aria-label="Ansicht">
-    <button type="button" role="tab" id="tabDial" aria-controls="vDial" aria-selected="${dialView}">Dial-in</button>
-    ${isFilter(shots) ? '' : `<button type="button" role="tab" id="tabWs" aria-controls="vWs" aria-selected="${wsView}">Rezept-Werkstatt</button><button type="button" role="tab" id="tabSimple" aria-controls="vSimple" aria-selected="${simpleView}">Einfach</button>`}
-  </nav>
-  <div class="view" id="vDial" role="tabpanel" aria-labelledby="tabDial" ${dialView ? '' : 'hidden'}>
+  const baseCard = `
   <section class="card basecard" aria-labelledby="hLast">
         <div class="card-head"><h2 id="hLast">Ausgangs-Shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · neu erfasst' : ''}</span></div>
         <div class="baseleft">
@@ -2616,11 +2637,15 @@ function render(){
           ${R ? `<span class="rl-tip">${R.tip} Üblich: ${R.temp[0]}–${R.temp[1]} °C, Ratio 1:${fmt(R.ratio[0],1)}–1:${fmt(R.ratio[1],1)}.</span>` : ''}
         </div>`; })()}
         <div class="tastebox">
-          <div class="field"><label>Wie hat er geschmeckt?</label>
+          ${simpleView ? `<div class="field"><label>Wie hat er geschmeckt? <span class="muted" style="font-weight:400">Mehrere möglich</span></label>
+          <div class="staste">${SIMPLE_TASTE.map(([k, ic, lab]) => `<button type="button" class="sbtn" data-staste="${k}" aria-pressed="${simpleTastesOf(anchor).has(k)}"><span class="ico" aria-hidden="true">${ic}</span><b>${lab}</b></button>`).join('')}</div></div>
+          <details class="tastemore" id="tasteMore" ${tasteMoreOpen ? 'open' : ''}><summary>Genauer beschreiben</summary>` : ''}
+          <div class="field"><label>${simpleView ? 'Alle Geschmacksangaben' : 'Wie hat er geschmeckt?'}</label>
           <div id="tasteChips">${tasteChipsHTML(tags)}</div>
         </div>
         ${negTaste && !UI.compass[anchor.id] ? `<div class="row" style="font-size:13px"><span class="muted">Wie deutlich?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
         ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Aus Notiz übernehmen</button>' : '<span class="muted" style="font-size:12.5px">Vorauswahl aus deiner Notiz und Bewertung. Antippen, um zu korrigieren.</span>'}
+        ${simpleView ? '</details>' : ''}
         </div>
         </div>
         <div class="cmpwrap basecmp">
@@ -2635,6 +2660,14 @@ function render(){
           </div>
         </div>
       </section>
+`;
+  $('#app').innerHTML = `
+  <nav class="viewtabs" role="tablist" aria-label="Ansicht">
+    <button type="button" role="tab" id="tabDial" aria-controls="vDial" aria-selected="${dialView}">Dial-in</button>
+    ${isFilter(shots) ? '' : `<button type="button" role="tab" id="tabWs" aria-controls="vWs" aria-selected="${wsView}">Rezept-Werkstatt</button><button type="button" role="tab" id="tabSimple" aria-controls="vSimple" aria-selected="${simpleView}">Einfach</button>`}
+  </nav>
+  <div class="view" id="vDial" role="tabpanel" aria-labelledby="tabDial" ${dialView ? '' : 'hidden'}>
+  ${simpleView ? '' : baseCard}
 
   <div class="grid">
       <section class="card rec" aria-labelledby="hRec">
@@ -2672,7 +2705,7 @@ function render(){
         <ul class="why">${rec.why.map(w => `<li>${w}</li>`).join('')}
           <li>${rec.method === 'model' ? `Der Mahlgrad ist aus deinen eigenen Bezügen errechnet (Durchfluss in g/s je Mahlgrad-Stufe, neuere Bezüge zählen stärker).` : `Der Mahlgrad folgt einer Faustregel (${res < 1 ? '0,1 Einheit ≈ 1,5 s' : '1 Klick ≈ 3 s'}), weil die Daten noch keinen klaren Zusammenhang zeigen.`}</li>
         </ul>
-        ${over && stopAt ? `<div class="flowhint" style="color:var(--ink)"><b>Ausschalten bei ${fmt(stopAt,1)} g auf der Waage.</b> Nach dem Ausschalten laufen bei dir im Schnitt noch ${fmt(over.g,1)} g nach${over.min != null && over.n > 1 ? ` (Spanne ${fmt(over.min,1)}–${fmt(over.max,1)} g` + (over.dur ? `, ca. ${fmt(over.dur,1)} s` : '') + ')' : ''}${over.k ? `, beim geplanten Durchfluss etwa ${fmt(dripNext,1)} g` : ''}. <span class="muted">Gelernt aus ${over.n} ${over.src === 'Kurve' ? (over.n === 1 ? 'Waagenkurve' : 'Waagenkurven') : 'eingetragenen Shots'}.</span></div>` : ''}
+        ${over || stopAt ? `<div class="flowhint" style="color:var(--ink)">${stopAt ? `<b>Ausschalten bei ${fmt(stopAt,1)} g auf der Waage.</b> ` : ''}${over ? `Nach dem Ausschalten laufen bei dir im Schnitt noch ${fmt(over.g,1)} g nach${over.min != null && over.n > 1 ? ` (Spanne ${fmt(over.min,1)}–${fmt(over.max,1)} g` + (over.dur ? `, ca. ${fmt(over.dur,1)} s` : '') + ')' : ''}${over.k && !dripAdj(anchor) ? `, beim geplanten Durchfluss etwa ${fmt(dripNext,1)} g` : ''}. <span class="muted">Gelernt aus ${over.n} ${over.src === 'Kurve' ? (over.n === 1 ? 'Waagenkurve' : 'Waagenkurven') : 'eingetragenen Shots'}.</span> ` : ''}${dripAdj(anchor) && dripNext != null ? `Mit deiner Korrektur rechnet die App beim geplanten Durchfluss mit ${fmt(dripNext,1)} g Nachlauf. ` : ''}${dripAdjHTML(anchor)}</div>` : ''}
         ${rec.hints.map(h => `<div class="hint">${h}</div>`).join('')}
         ${tempMode(anchor) && !UI.askTemp ? `<div class="muted" style="font-size:12.5px">Temperatur an der Maschine: ${TEMP_MODES[tempMode(anchor)]} · <button class="linkbtn" type="button" id="tmodeEdit">ändern</button></div>` : ''}
       </section>
@@ -2733,7 +2766,7 @@ function render(){
   </details>
   </div>
   <div class="view" id="vSimple" role="tabpanel" aria-labelledby="tabSimple" ${simpleView ? '' : 'hidden'}>
-  ${simpleView ? simpleHTML({ anchor, shots, T, model, rec, scale, stopAt }) + aiCardHTML(anchor) : ''}
+  ${simpleView ? simpleHTML({ anchor, shots, T, model, rec, scale, stopAt, base: baseCard }) + aiCardHTML(anchor) + simpleLogHTML(anchor, rec) : ''}
   </div>
   <div class="view" id="vWs" role="tabpanel" aria-labelledby="tabWs" ${wsView ? '' : 'hidden'}>
   ${workshopHTML(anchor, T, model, shots, scale)}
@@ -2745,7 +2778,9 @@ function render(){
   $('#app').querySelector('.viewtabs').addEventListener('keydown', ev => { if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight' || !$('#tabWs')) return; const cur = Math.max(0, VIEWS.indexOf(UI.view)); setView(VIEWS[(cur + (ev.key === 'ArrowRight' ? 1 : 2)) % 3]); });
   // Einfach-Ansicht
   document.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { const pf = SIMPLE_PROFILES[b.dataset.prof]; UI.targets[ctxKey()] = { ...(UI.targets[ctxKey()] || {}), dose: T.dose, ratio: pf.ratio, tMin: pf.tMin, tMax: pf.tMax }; formDirty = false; saveUI(); render(); });
-  document.querySelectorAll('[data-staste]').forEach(b => b.onclick = () => { const def = SIMPLE_TASTE.find(x => x[0] === b.dataset.staste); if(!def) return; UI.taste[anchor.id] = { ...def[3] }; delete UI.compass[anchor.id]; delete UI.intensity[anchor.id]; formDirty = false; saveUI(); render(); });
+  document.querySelectorAll('[data-dripadj]').forEach(b => b.onclick = () => { const k = machineKey(anchor), m = UI.dripAdj ||= {}; const v = clamp(Math.round(((+m[k] || 0) + +b.dataset.dripadj) * 10) / 10, -2, 4); if(v) m[k] = v; else delete m[k]; formDirty = false; saveUI(); render(); });
+  const tm = $('#tasteMore'); if(tm) tm.ontoggle = () => { tasteMoreOpen = tm.open; };
+  document.querySelectorAll('[data-staste]').forEach(b => b.onclick = () => { const def = SIMPLE_TASTE.find(x => x[0] === b.dataset.staste); if(!def) return; UI.taste[anchor.id] = simpleToggleTaste(anchor, def[0]); delete UI.compass[anchor.id]; delete UI.intensity[anchor.id]; formDirty = false; saveUI(); render(); });
   const slog = $('#sLog'); if(slog) slog.onsubmit = e => {
     e.preventDefault();
     const g = $('#sGrind').value.trim().replace(',', '.');
@@ -3006,7 +3041,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Konto' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened','aiAcc'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened','aiAcc','dripAdj'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){
