@@ -592,3 +592,5 @@ EXACT.update({
     'Das Zeitfenster allein reicht nicht, um die Extraktion zu senken, deshalb zusätzlich ': 'The time window alone is not enough to lower extraction, so also ',
     ' °C kühler.': ' °C cooler.',
 })
+
+EXACT.update({'wie zuletzt': 'same as last', '<span class="d">Mahlgrad nicht numerisch</span>': '<span class="d">Grind is not numeric</span>'})
