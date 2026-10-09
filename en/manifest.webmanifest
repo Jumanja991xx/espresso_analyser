@@ -1,0 +1,17 @@
+{
+  "name": "Dial-in Kompass",
+  "short_name": "Dial-in",
+  "description": "Load your Beanconqueror export, analyse shots, work out your next espresso.",
+  "lang": "en",
+  "start_url": "/en/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#EEF0EC",
+  "theme_color": "#17675F",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

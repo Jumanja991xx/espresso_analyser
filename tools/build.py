@@ -42,15 +42,21 @@ def page(src, lang):
 <meta name="description" content="{META[lang][0]}">
 <meta name="theme-color" content="#17675F">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Dial-in">
+<link rel="manifest" href="{'/en/manifest.webmanifest' if lang == 'en' else '/manifest.webmanifest'}">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="alternate" hreflang="de" href="/">
 <link rel="alternate" hreflang="en" href="/en/">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2317675F'/%3E%3Cpath d='M16 6 L19 16 L16 26 L13 16Z' fill='white'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 {redirect}
 {head}<style>html{{color-scheme:light}}:root{{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}}body{{margin:0}}img{{max-width:100%}}@media (prefers-color-scheme: dark){{html{{color-scheme:dark}}}}</style>
 </head>
 <body>
 {body}
+<script>if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(function(){{}});</script>
 </body>
 </html>
 '''

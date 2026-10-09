@@ -31,3 +31,7 @@ python3 tools/build.py
 ```
 
 Der Build meldet Textstellen ohne englische Übersetzung; neue Texte in `tools/i18n_en.py` ergänzen. Danach `index.html` und `en/index.html` committen. Vercel deployt jeden Push auf `main` automatisch.
+
+## Als App auf iPad/iPhone
+
+In Safari die Seite öffnen → Teilen → „Zum Home-Bildschirm“. Die App startet dann im Vollbild mit eigenem Icon und funktioniert dank Service Worker (`sw.js`) auch offline. Hinweis: iOS trennt den Speicher der Home-Bildschirm-App von Safari; Daten einmal in der App laden oder den Cloud-Sync nutzen.
