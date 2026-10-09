@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   try {
     const key = Deno.env.get("ANTHROPIC_API_KEY");
     if (!key) return json({ error: "no_key" }, 503);
-    const model = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-5-5";
+    const model = Deno.env.get("ANTHROPIC_MODEL") || "claude-haiku-5-5";
     const daily = Number(Deno.env.get("AI_DAILY_LIMIT") || 20);
 
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");

@@ -1825,7 +1825,7 @@ function analysisHTML(s, T, shots, scale){
    Ohne Konto: Datenpaket mit Anleitung kopieren und selbst in Claude einfügen. */
 const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
-const AI_MODELS = { 'claude-sonnet-5-5':'Sonnet 5.5 (recommended)', 'claude-opus-5-5':'Opus 5.5 (more thorough, pricier)', 'claude-haiku-5-5':'Haiku 5.5 (fast, cheap)' };
+const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (recommended, very cheap)', 'claude-sonnet-5-5':'Sonnet 5.5 (more thorough)', 'claude-opus-5-5':'Opus 5.5 (most thorough, pricier)' };
 const aiOwn = () => { try{ const v = JSON.parse(localStorage.getItem('dk.aikey') || 'null'); return v && v.key ? v : null; }catch(e){ return null; } };
 const AI_SYSTEM = `You are an experienced barista and coffee scientist. You receive data from the "Dial-in Kompass" app as JSON: bean, roast level, bean age, grinder and its scale, targets (dose, ratio, time window), a learned model of flow per grind step, the recent shots (grind, dose, yield, time, first drip, temperature, rating, taste, notes, dial-in compass, channeling index, scale-curve metrics) and the recommendation the app computed itself.
 
@@ -1922,7 +1922,7 @@ function aiCardHTML(anchor){
         <p class="muted" style="margin:0;font-size:13px">With your own Anthropic key the request goes straight from this browser to Claude, without the server and without a daily limit. Costs go to your Anthropic account, usually a few cents per analysis. Create a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
         <div class="row" style="gap:8px">
           <input id="aiKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="${own ? 'paste a new key to replace it' : 'sk-ant-…'}" aria-label="API key">
-          <select id="aiModelIn" aria-label="Model">${Object.entries(AI_MODELS).map(([k, v]) => `<option value="${k}" ${(own?.model || 'claude-sonnet-5-5') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+          <select id="aiModelIn" aria-label="Model">${Object.entries(AI_MODELS).map(([k, v]) => `<option value="${k}" ${(own?.model || 'claude-haiku-5-5') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
           <button class="btn small" type="button" id="aiKeySave">Save</button>
           ${own ? '<button class="btn small" type="button" id="aiKeyDel">Remove key</button>' : ''}
         </div>
@@ -1936,7 +1936,7 @@ async function runAIDirect(own, payload){
   try{
     const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST',
       headers:{ 'x-api-key': own.key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model: own.model || 'claude-sonnet-5-5', max_tokens: 1800, system: AI_SYSTEM, messages: [{ role:'user', content: 'Here is my data:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
+      body: JSON.stringify({ model: own.model || 'claude-haiku-5-5', max_tokens: 1800, system: AI_SYSTEM, messages: [{ role:'user', content: 'Here is my data:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
     const j = await r.json().catch(() => ({}));
     const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
     if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true }; saveUI(); }
