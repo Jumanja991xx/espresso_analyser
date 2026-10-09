@@ -718,8 +718,10 @@ function defaultTargets(shots, anchor){
 function getTargets(shots, anchor){
   const d = defaultTargets(shots, anchor);
   const rc = UI.recipes[ctxKey()];
-  if(rc){ if(rc.dose) d.dose = rc.dose; if(rc.dose && rc.yield) d.ratio = Math.round(rc.yield / rc.dose * 20) / 20; if(rc.temp) d.temp = rc.temp; }
-  return {...d, ...(UI.targets[ctxKey()] || {})};
+  if(rc){ if(rc.dose) d.dose = rc.dose; if(rc.dose && rc.yield) d.ratio = Math.round(rc.yield / rc.dose * 20) / 20; }
+  // Temperatur ist kein Ziel, sondern die aktuelle Maschineneinstellung: letzter Shot, sonst Rezept, sonst Standard
+  const { temp: _ignored, ...tg } = UI.targets[ctxKey()] || {};
+  return { ...d, ...tg, temp: anchor?.temp || rc?.temp || d.temp };
 }
 
 /* Wie deutlich war der Fehlgeschmack? (steuert die Schrittgröße) */
@@ -1247,7 +1249,7 @@ function bindWorkshop(anchor, T, model, shots){
   document.querySelectorAll('#goalChips .chip').forEach(c => c.onclick = () => rr(() => { UI.goal = c.dataset.g; }));
   const opts = goalOptions(GOALS[UI.goal] ? UI.goal : Object.keys(GOALS)[0], base, T, model, grinderRes());
   document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => rr(() => { UI.calc[key] = { ...opts[+b.dataset.opt].plan }; }));
-  $('#cApply').onclick = () => { const c = readCalc(); UI.targets[key] = { dose:c.dose, ratio:Math.round(c.yield / c.dose * 100) / 100, tMin:Math.round(c.time - 2.5), tMax:Math.round(c.time + 2.5), temp:c.temp }; saveUI(); render(); window.scrollTo({ top:0, behavior:'smooth' }); };
+  $('#cApply').onclick = () => { const c = readCalc(); UI.targets[key] = { dose:c.dose, ratio:Math.round(c.yield / c.dose * 100) / 100, tMin:Math.round(c.time - 2.5), tMax:Math.round(c.time + 2.5) }; saveUI(); render(); window.scrollTo({ top:0, behavior:'smooth' }); };
 }
 
 /* ---------- Shot-Analyse ---------- */
@@ -1462,7 +1464,6 @@ function renderCtx(combos, T){
     <div class="field"><label for="tDose">Dosis g</label><input id="tDose" type="number" step="0.1" value="${T.dose}"></div>
     <div class="field"><label for="tRatio">Ratio 1:x</label><input id="tRatio" type="number" step="${f ? 0.5 : 0.05}" value="${T.ratio}"></div>
     <div class="field"><label for="tMin">Zeitfenster s</label><div class="pair"><input id="tMin" type="number" step="1" value="${T.tMin}"><span class="muted">–</span><input id="tMax" type="number" step="1" value="${T.tMax}"></div></div>
-    <div class="field"><label for="tTemp">Temp °C</label><input id="tTemp" type="number" step="0.5" value="${T.temp ?? ''}"></div>
     <button class="btn small" id="tReset" type="button">Ziele zurücksetzen</button>
     ${combos.length > 1 ? `<div class="combos" style="flex-basis:100%">${combos.map(c => `<button type="button" class="combo" data-b="${esc(c.bean)}" data-g="${esc(c.grinder)}" aria-pressed="${c.bean === UI.bean && c.grinder === UI.grinder}">${esc(c.bean)} · ${esc(c.grinder)} <span class="muted">${c.n}</span></button>`).join('')}</div>` : ''}`;
   $('#selBean').onchange = e => { UI.bean = e.target.value; const g = allShots().find(s => s.bean === UI.bean); UI.grinder = g.grinder; UI.anchorId = null; UI.detailId = null; formDirty = false; saveUI(); render(); };
@@ -1470,10 +1471,10 @@ function renderCtx(combos, T){
   $('#dirToggle').onchange = e => { UI.coarserHigher[UI.grinder] = e.target.checked; saveUI(); render(); };
   const upd = () => {
     const v = id => num($(id).value);
-    UI.targets[ctxKey()] = { dose:v('#tDose') || T.dose, ratio:v('#tRatio') || T.ratio, tMin:v('#tMin') || T.tMin, tMax:Math.max(v('#tMax') || T.tMax, (v('#tMin') || T.tMin) + 1), temp:v('#tTemp') };
+    UI.targets[ctxKey()] = { dose:v('#tDose') || T.dose, ratio:v('#tRatio') || T.ratio, tMin:v('#tMin') || T.tMin, tMax:Math.max(v('#tMax') || T.tMax, (v('#tMin') || T.tMin) + 1) };
     formDirty = false; saveUI(); render();
   };
-  ['#tDose','#tRatio','#tMin','#tMax','#tTemp'].forEach(id => $(id).onchange = upd);
+  ['#tDose','#tRatio','#tMin','#tMax'].forEach(id => $(id).onchange = upd);
   $('#tReset').onclick = () => { delete UI.targets[ctxKey()]; formDirty = false; saveUI(); render(); };
   document.querySelectorAll('.combo').forEach(b => b.onclick = () => { UI.bean = b.dataset.b; UI.grinder = b.dataset.g; UI.anchorId = null; UI.detailId = null; formDirty = false; saveUI(); render(); });
 }
@@ -1671,6 +1672,7 @@ function render(){
           <div class="kv"><span class="k">Ausbeute</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) + ' g' : '–'}</span></div>
           <div class="kv"><span class="k">Zeit</span><span class="v">${anchor.time ? fmt(anchor.time,0) + ' s' : '–'}</span></div>
           <div class="kv"><span class="k">Ratio</span><span class="v">${anchorRatio ? '1:' + fmt(anchorRatio,2) : '–'}</span></div>
+          <div class="kv"><span class="k">Temp</span><span class="v">${anchor.temp ? fmt(anchor.temp,0) + ' °C' : '–'}</span></div>
           <div class="kv"><span class="k">Bewertung</span><span class="v">${anchor.rating ? fmt(anchor.rating,0) + '/' + scale : '–'}</span></div>
         </div>
         ${anchor.notes ? `<div class="note">„${esc(anchor.notes)}“</div>` : ''}
