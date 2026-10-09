@@ -1020,6 +1020,14 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const comp = UI.compass[anchor.id] || null;
   const k = comp ? 1 : (INTENS[intensity] || 1);
   const rStep = (filter ? 1 : 0.2) * k;
+  // Richtung laut Geschmack; Ratio-Basis: nicht gegen den Geschmack zurück aufs Ziel ziehen (ein Hebel pro Shot)
+  const needMoreX = comp ? comp.x < -0.05 : !!sour, needLessX = comp ? comp.x > 0.05 : !!bitter;
+  const aR = ratio(anchor);
+  let rBase = T.ratio;
+  if(aR && !filter && ((needMoreX && aR > T.ratio + 0.05) || (needLessX && aR < T.ratio - 0.05))){
+    rBase = Math.round(aR * 20) / 20;
+    why.push(`Die Ausbeute bleibt bei etwa 1:${fmt(rBase,2)} statt zurück auf dein Ziel 1:${fmt(T.ratio,2)}. ${needMoreX ? 'Weniger Ausbeute würde die Extraktion senken, der Shot war aber zu sauer.' : 'Mehr Ausbeute würde die Extraktion erhöhen, der Shot war aber zu bitter.'} Immer nur einen Hebel pro Shot.`);
+  }
 
   if(comp){
     const e = comp.x, s = comp.y, mag = Math.hypot(e, s), fs = filter ? 5 : 1;
@@ -1027,8 +1035,9 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       tGoal = status === 'ok' ? t : center;
       why.push(`Im Kompass ausgewogen und der Shot ${sTxt}. Rezept halten.`);
     } else {
-      dR = clamp(Math.round(s * 0.3 * 20) / 20, -0.3, 0.3) * fs;
-      const eRatio = (dR / (0.2 * fs)) * 0.25;
+      // Stärke: zu dünn → kürzer, zu stark → länger. Extraktion: zu sauer → eher länger, zu bitter → eher kürzer. Beides zusammen gewichtet.
+      dR = clamp(Math.round((s * 0.3 - e * 0.15) * 20) / 20, -0.3, 0.3) * fs;
+      const eRatio = ((rBase + dR - (aR || rBase)) / (0.2 * fs)) * 0.25;
       const eNeed = -e - eRatio;
       // Ausgangspunkt ist die letzte Zeit, aber ins Zielfenster geholt; die Extraktion verschiebt nur innerhalb des Fensters
       const base = t ? clamp(t, T.tMin, T.tMax) : center;
@@ -1039,13 +1048,13 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
       else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
       else if(!T.temp && Math.abs(overflow) > 0.8 * fs){ dR += Math.sign(overflow) * (filter ? 1 : 0.1); why.push('Die Temperatur lässt sich an deiner Maschine nicht einstellen, deshalb übernimmt die Ratio den Rest.'); tempNote = true; }
-      if(status === 'slow' && e < -0.05) hints.push('Sauer trotz langer Laufzeit: Mehr Zeit allein hilft hier nicht. Wärmer brühen und die Puck-Vorbereitung prüfen (ungleichmäßiger Durchfluss lässt Teile des Pucks unterextrahiert).');
+      if(status === 'slow' && t > T.tMax + 2 && e < -0.05) hints.push('Sauer trotz langer Laufzeit: Mehr Zeit allein hilft hier nicht. Wärmer brühen und die Puck-Vorbereitung prüfen (ungleichmäßiger Durchfluss lässt Teile des Pucks unterextrahiert).');
       if(status === 'fast' && e > 0.05) hints.push('Bitter trotz kurzer Laufzeit deutet auf Channeling oder eine sehr dunkle Röstung. Kühler brühen und Puck-Vorbereitung prüfen.');
-      if(e < -0.05) why.push(`Kompass: ${compassText(comp)}. Mehr Extraktion nötig, Zielzeit ${fmt(tGoal,0)} s.`);
-      else if(e > 0.05) why.push(`Kompass: ${compassText(comp)}. Weniger Extraktion nötig, Zielzeit ${fmt(tGoal,0)} s.`);
+      if(e < -0.05) why.push(`Kompass: ${compassText(comp)}. Mehr Extraktion nötig.`);
+      else if(e > 0.05) why.push(`Kompass: ${compassText(comp)}. Weniger Extraktion nötig.`);
       else why.push(`Kompass: ${compassText(comp)}. Die Extraktion passt, nur die Stärke ändert sich.`);
       if(s > 0.05) why.push(e < -0.05 ? 'Eine längere Ratio macht ihn milder und extrahiert gleichzeitig mehr, das hilft doppelt.' : 'Zu stark: längere Ratio. Damit die Extraktion nicht kippt, wird die Zielzeit angepasst.');
-      if(s < -0.05) why.push(e > 0.05 ? 'Eine kürzere Ratio macht ihn kräftiger und nimmt gleichzeitig Bitterkeit weg.' : 'Zu schwach: kürzere Ratio. Damit er nicht sauer wird, läuft er dafür etwas länger.');
+      if(s < -0.05) why.push(e > 0.05 ? 'Eine kürzere Ratio macht ihn kräftiger und nimmt gleichzeitig Bitterkeit weg.' : dR < 0 ? 'Zu schwach: eine etwas kürzere Ratio macht ihn kräftiger.' : 'Etwas dünn, aber auch sauer: eine kürzere Ratio würde die Extraktion senken. Deshalb bleibt die Ratio, mehr Körper kommt mit der höheren Extraktion.');
       if(dT) why.push(dT > 0 ? `Das Zeitfenster allein reicht nicht für die nötige Extraktion, deshalb zusätzlich ${dT} °C wärmer.` : `Das Zeitfenster allein reicht nicht, um die Extraktion zu senken, deshalb zusätzlich ${-dT} °C kühler.`);
       if(s < -0.4) hints.push('Alternative zur kürzeren Ratio: 0,5–1 g mehr Kaffeemehl bei gleicher Ratio. Dann muss die Mühle etwas gröber.');
     }
@@ -1111,7 +1120,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   // Ziel ist immer das Zeitfenster: Zielzeit mit etwas Abstand zum Rand
   const margin = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
   tGoal = clamp(tGoal, T.tMin + margin, T.tMax - margin);
-  const R = Math.round(clamp(T.ratio + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
+  const R = Math.round(clamp(rBase + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
   const dose = Math.round((T.dose + dDose) * 10) / 10;
   const yld = Math.round(dose * R);
   dT = dT * k;
@@ -1158,9 +1167,15 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       cands.sort((a, b) => (inWin(b) - inWin(a)) || (Math.abs(tFor(a) - tGoal) - Math.abs(tFor(b) - tGoal)));
       dG = cands.length ? cands[0] : Math.round(dG / res) * res;
     } else dG = Math.round(dG / res) * res;
+    let guard = 0;
+    if(needMoreX && dG * sign > 1e-9){ dG = 0; guard = 1; }       // sauer → nicht gröber
+    else if(needLessX && dG * sign < -1e-9){ dG = 0; guard = -1; } // bitter → nicht feiner
     if(clamped) hints.push('Die Daten verlangen eine größere Änderung. Die Empfehlung geht bewusst nur einen Teil des Weges, danach neu bewerten.');
     if(method === 'model'){ const f = fL + model.b * dG; tPred = f > 0.05 ? yld / f : tGoal; }
-    else tPred = tGoal;
+    else tPred = guard ? yld / fL : tGoal;
+    if(guard) why.push(guard > 0
+      ? `Für dein Zeitfenster müsste die Mühle gröber, das senkt aber die Extraktion und der Shot war sauer. Der Mahlgrad bleibt, die Zeit liegt dann bei etwa ${fmt(tPred,0)} s. Geschmack geht vor.`
+      : `Für dein Zeitfenster müsste die Mühle feiner, das erhöht aber die Extraktion und der Shot war bitter. Der Mahlgrad bleibt, die Zeit liegt dann bei etwa ${fmt(tPred,0)} s. Geschmack geht vor.`);
   }
   const newGrind = anchor.grind != null ? Math.round((anchor.grind + dG) / res) * res : null;
   const dir = Math.abs(dG) < res / 2 ? 'halten' : (dG * sign > 0 ? 'gröber' : 'feiner');

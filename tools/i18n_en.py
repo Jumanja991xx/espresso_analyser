@@ -862,3 +862,16 @@ PHRASES += [('data-goto="hAi">Zur KI-Analyse</button>', 'data-goto="hAi">To AI a
 EXACT.update({'✓ KI bestätigt diese Empfehlung': '✓ AI confirms this recommendation'})
 PHRASES += [('data-goto="hAi">Zur KI-Analyse</button></span></div>', 'data-goto="hAi">To AI analysis</button></span></div>')]
 PHRASES += [('<b>✓ KI bestätigt diese Empfehlung</b>', '<b>✓ AI confirms this recommendation</b>')]
+EXACT.update({
+  'Die Ausbeute bleibt bei etwa 1:': 'The yield stays at about 1:', ' statt zurück auf dein Ziel 1:': ' instead of going back to your target 1:',
+  'Weniger Ausbeute würde die Extraktion senken, der Shot war aber zu sauer.': 'Less yield would lower extraction, but the shot was too sour.',
+  'Mehr Ausbeute würde die Extraktion erhöhen, der Shot war aber zu bitter.': 'More yield would raise extraction, but the shot was too bitter.',
+  ' Immer nur einen Hebel pro Shot.': ' Only one lever per shot.',
+  'Zu schwach: eine etwas kürzere Ratio macht ihn kräftiger.': 'Too weak: a slightly shorter ratio makes it stronger.',
+  'Etwas dünn, aber auch sauer: eine kürzere Ratio würde die Extraktion senken. Deshalb bleibt die Ratio, mehr Körper kommt mit der höheren Extraktion.': 'A bit thin, but also sour: a shorter ratio would lower extraction. So the ratio stays; more body comes with the higher extraction.',
+  'Für dein Zeitfenster müsste die Mühle gröber, das senkt aber die Extraktion und der Shot war sauer. Der Mahlgrad bleibt, die Zeit liegt dann bei etwa ': 'Your time window would need a coarser grind, but that lowers extraction and the shot was sour. The grind stays; the time will be about ',
+  'Für dein Zeitfenster müsste die Mühle feiner, das erhöht aber die Extraktion und der Shot war bitter. Der Mahlgrad bleibt, die Zeit liegt dann bei etwa ': 'Your time window would need a finer grind, but that raises extraction and the shot was bitter. The grind stays; the time will be about ',
+  ' s. Geschmack geht vor.': ' s. Taste comes first.',
+})
+
+EXACT.update({'. Mehr Extraktion nötig.': '. More extraction needed.', '. Weniger Extraktion nötig.': '. Less extraction needed.'})
