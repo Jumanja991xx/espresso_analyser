@@ -640,3 +640,7 @@ EXACT.update({' als die Ziel-Einstellung': ' than the target setting', 'Mahlgrad
 
 PHRASES += [('">Rezept-Werkstatt</button>', '">Recipe workshop</button>'), ('id="goWs">Ziel ändern</button>', 'id="goWs">Change target</button>'),
   ('aria-label="Ansicht"', 'aria-label="View"')]
+
+PHRASES += [('<span class="k">Erster Tropfen</span>', '<span class="k">First drip</span>'),
+  ('Bohnenalter aus deinem Röstdatum · ', 'Bean age from your roast date · ')]
+PHRASES += [('<span class="k">Bohnenalter</span>', '<span class="k">Bean age</span>')]

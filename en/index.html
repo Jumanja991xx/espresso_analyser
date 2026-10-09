@@ -248,14 +248,23 @@ td.tastecell .tgl{padding-top:0}
 .acctmsg{border-radius:8px;padding:8px 12px;font-size:13.5px}
 .acctmsg.ok{background:var(--accent-soft)}
 .acctmsg.err{background:color-mix(in srgb,var(--mixed) 14%,transparent)}
-.basecard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,480px);column-gap:28px;row-gap:12px;align-items:start}
-.basecard > *{grid-column:1}
+.basecard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,480px);grid-template-rows:auto 1fr;column-gap:32px;row-gap:16px;align-items:stretch}
 .basecard > .card-head{grid-column:1 / -1}
-.basecard > .cmpwrap{grid-column:2;grid-row:2 / span 8;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
-.basecard > .cmpwrap svg{max-width:440px;margin:0 auto}
-.basecard .cmpinfo{text-align:center;align-items:center}
-.basecard .cmpinfo .btn{align-self:center!important}
-@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr)}.basecard > .cmpwrap{grid-column:1;grid-row:auto}}
+.baseleft{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:16px;min-width:0}
+.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{display:flex;flex-direction:column;gap:2px;background:var(--sunk);border-radius:8px;padding:10px 14px}
+.stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat .v{font-family:var(--f-data);font-size:20px;line-height:1.25}
+.tastebox{flex:1;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.tastebox .tgroups{gap:16px}
+@media (min-width:861px){.tastebox .chip{padding:6px 14px;font-size:14px}.tastebox .chips{gap:8px}.tastebox .tgl{padding-top:9px}}
+.tastebox > :last-child{margin-top:auto}
+.basecard > .basecmp{grid-column:2;grid-row:2;grid-template-columns:minmax(0,1fr);gap:10px;align-content:center}
+.basecmp svg{max-width:440px;margin:0 auto}
+.basecmp .cmpinfo{text-align:center;align-items:center}
+.basecmp .cmpinfo .btn{align-self:center!important}
+@media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.baseleft{display:contents}.basecard > *{grid-column:1!important;grid-row:auto!important}.statgrid{order:1}.baseleft > .note{order:2}.baseleft > .roast,.baseleft > .muted{order:3}.basecard > .basecmp{order:4}.tastebox{order:5}}
+@media (max-width:560px){.stat{padding:8px 10px}.stat .v{font-size:17px}}
 .targetline{font-size:13px;color:var(--muted);margin-top:-4px}
 .targetline b{color:var(--ink);font-weight:600}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
@@ -1731,18 +1740,29 @@ function render(){
   <div class="view" id="vDial" role="tabpanel" aria-labelledby="tabDial" ${wsView ? 'hidden' : ''}>
   <section class="card basecard" aria-labelledby="hLast">
         <div class="card-head"><h2 id="hLast">Base shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · added here' : ''}</span></div>
-        <div class="shotline">
-          <div class="kv"><span class="k">Grind</span><span class="v">${esc(anchor.grindRaw) || '–'}</span></div>
-          <div class="kv"><span class="k">Dose</span><span class="v">${anchor.dose ? fmt(anchor.dose,1) + ' g' : '–'}</span></div>
-          <div class="kv"><span class="k">Yield</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) + ' g' : '–'}</span></div>
-          <div class="kv"><span class="k">Time</span><span class="v">${anchor.time ? fmt(anchor.time,0) + ' s' : '–'}</span></div>
-          <div class="kv"><span class="k">Ratio</span><span class="v">${anchorRatio ? '1:' + fmt(anchorRatio,2) : '–'}</span></div>
-          <div class="kv"><span class="k">Temp</span><span class="v">${anchor.temp ? fmt(anchor.temp,0) + ' °C' : '–'}</span></div>
-          <div class="kv"><span class="k">Rating</span><span class="v">${anchor.rating ? fmt(anchor.rating,0) + '/' + scale : '–'}</span></div>
+        <div class="baseleft">
+        <div class="statgrid">
+          <div class="stat"><span class="k">Grind</span><span class="v">${esc(anchor.grindRaw) || '–'}</span></div>
+          <div class="stat"><span class="k">Dose</span><span class="v">${anchor.dose ? fmt(anchor.dose,1) + ' g' : '–'}</span></div>
+          <div class="stat"><span class="k">Yield</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) + ' g' : '–'}</span></div>
+          <div class="stat"><span class="k">Time</span><span class="v">${anchor.time ? fmt(anchor.time,0) + ' s' : '–'}</span></div>
+          <div class="stat"><span class="k">Ratio</span><span class="v">${anchorRatio ? '1:' + fmt(anchorRatio,2) : '–'}</span></div>
+          <div class="stat"><span class="k">Temp</span><span class="v">${anchor.temp ? fmt(anchor.temp,0) + ' °C' : '–'}</span></div>
+          <div class="stat"><span class="k">Rating</span><span class="v">${anchor.rating ? fmt(anchor.rating,0) + '/' + scale : '–'}</span></div>
+          <div class="stat"><span class="k">Bean age</span><span class="v">${ageA != null ? ageA + ' days' : '–'}</span></div>
+          <div class="stat"><span class="k">First drip</span><span class="v">${anchor.firstDrip ? fmt(anchor.firstDrip,0) + ' s' : '–'}</span></div>
         </div>
         ${anchor.notes ? `<div class="note">“${esc(anchor.notes)}”</div>` : ''}
-        ${ageA == null ? `<div class="roast"><label for="roastIn">Roast date of <b>${esc(anchor.bean)}</b> is missing:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Apply</button></div>` : `<div class="muted" style="font-size:13px">Beans at this shot: ${ageA} days after roasting${UI.roast[beanKey(anchor)] ? ` · <button class="btn small" type="button" id="roastClear">Change roast date</button>` : ''}${anchor.firstDrip ? ` · first drip after ${fmt(anchor.firstDrip,0)} s` : ''}</div>`}
-        <div class="cmpwrap">
+        ${ageA == null ? `<div class="roast"><label for="roastIn">Roast date of <b>${esc(anchor.bean)}</b> is missing:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Apply</button></div>` : (UI.roast[beanKey(anchor)] ? `<div class="muted" style="font-size:13px">Bean age from your roast date · <button class="btn small" type="button" id="roastClear">Change roast date</button></div>` : '')}
+        <div class="tastebox">
+          <div class="field"><label>How did it taste?</label>
+          <div id="tasteChips">${tasteChipsHTML(tags)}</div>
+        </div>
+        ${negTaste && !UI.compass[anchor.id] ? `<div class="row" style="font-size:13px"><span class="muted">How strong?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
+        ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Take from note</button>' : '<span class="muted" style="font-size:12.5px">Pre-selected from your note and rating. Tap to correct.</span>'}
+        </div>
+        </div>
+        <div class="cmpwrap basecmp">
           ${dialSVG(anchor, shots)}
           <div class="cmpinfo">
             <span class="eyebrow">Dial-in compass</span>
@@ -1752,11 +1772,6 @@ function render(){
             ${UI.compass[anchor.id] ? '<button class="btn small" type="button" id="cmpReset" style="align-self:flex-start">Reset compass</button>' : ''}
           </div>
         </div>
-        <div class="field"><label>How did it taste?</label>
-          <div id="tasteChips">${tasteChipsHTML(tags)}</div>
-        </div>
-        ${negTaste && !UI.compass[anchor.id] ? `<div class="row" style="font-size:13px"><span class="muted">How strong?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
-        ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Take from note</button>' : '<span class="muted" style="font-size:12.5px">Pre-selected from your note and rating. Tap to correct.</span>'}
       </section>
 
   <div class="grid">
