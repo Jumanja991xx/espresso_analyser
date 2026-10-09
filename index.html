@@ -308,6 +308,20 @@ td.tastecell .tgl{padding-top:0}
 .aitext code{font-family:var(--f-data);font-size:13px;background:var(--sunk);padding:0 4px;border-radius:4px}
 .aitext .mdrow{font-family:var(--f-data);font-size:13px}
 .aicard{border-left:3px solid var(--accent)}
+.aicmp{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:8px;border:1px solid var(--line)}
+.aicmp.ok{background:color-mix(in srgb,var(--good) 10%,transparent);border-color:color-mix(in srgb,var(--good) 45%,transparent)}
+.aicmp.dev{background:var(--warn-bg);border-color:color-mix(in srgb,var(--sour) 45%,transparent)}
+.aicmp-head{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.aicmp-head span{color:var(--muted);font-size:13px}
+.aicmp-t{border-collapse:collapse;font-size:13px;width:auto!important;min-width:min(100%,340px);background:transparent}
+.aicmp-t thead th{background:transparent}
+.aicmp > .btn,.aicmp-t{align-self:flex-start}
+.aicmp-t th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:right;padding:2px 10px;font-weight:600}
+.aicmp-t th:first-child{text-align:left}
+.aicmp-t td{padding:3px 10px;border-top:1px solid var(--line)}
+.aicmp-t td.n{text-align:right;font-family:var(--f-data)}
+.aicmp-t tr.d td{font-weight:700}
+.aicmp-t tr.d td:last-child{color:var(--signal)}
 .tempask{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px dashed var(--accent);border-radius:8px;background:var(--accent-soft)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:8px}
@@ -1892,24 +1906,31 @@ const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
 const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (empfohlen, sehr günstig)', 'claude-sonnet-5-5':'Sonnet 5.5 (gründlicher)', 'claude-opus-5-5':'Opus 5.5 (am gründlichsten, teurer)' };
 const aiOwn = () => { try{ const v = JSON.parse(localStorage.getItem('dk.aikey') || 'null'); return v && v.key ? v : null; }catch(e){ return null; } };
-const AI_SYSTEM = `Du bist ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Mühle und deren Skala, Ziele (Dosis, Ratio, Zeitfenster), ein gelerntes Modell Durchfluss je Mahlgrad-Stufe, die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index, Kennzahlen der Waagenkurve) und die Empfehlung, die die App selbst berechnet hat.
+const AI_SYSTEM = `Du bist ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Öffnung der Packung, Mühle und deren Skala, Maschine, Ziele (Dosis, Ratio, Zeitfenster), das gelernte Modell der App (Durchfluss je Mahlgrad-Stufe und erwartete Zeiten je Mahlgrad), die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index mit Belegen, Kennzahlen der Waagenkurve) und die Empfehlung, die die App selbst berechnet hat.
 
-Deine Aufgabe: Werte alles gemeinsam aus und gib eine fundierte, ehrliche Einschätzung, wie der nächste Espresso besser wird.
-- Erkenne Muster über mehrere Shots (Trends, Widersprüche, Ausreißer), nicht nur den letzten Shot.
-- Beziehe Röstgrad, Bohnenalter, Channeling und Geschmack ein. Unterscheide, ob ein Problem an Extraktion, Stärke oder Puck-Vorbereitung liegt.
-- Gib einen konkreten nächsten Shot an: Mahlgrad in den Einheiten der Mühle, Dosis, Ausbeute, erwartete Zeit, Temperatur. Ändere möglichst nur einen oder zwei Hebel.
-- Sag, ob du der Empfehlung der App zustimmst. Wenn nicht, begründe kurz.
-- Erfinde keine Daten. Wenn etwas fehlt oder unsicher ist, sag es.
-- Antworte auf Deutsch, knapp und direkt, höchstens etwa 350 Wörter. Keine Tabellen, nur Überschriften, Absätze und Listen.
+Deine Rolle: Du prüfst und ergänzt die App, du ersetzt sie nicht.
+- Die Zahlen der App sind die Grundlage: erwartete Zeiten je Mahlgrad, Channeling-Index samt Belegen, Kompass. Rechne sie nicht neu und widersprich ihnen nicht ohne konkreten Datenpunkt.
+- Die Empfehlung der App ist der Ausgangspunkt. Bestätige sie, wenn die Daten nicht klar dagegen sprechen. Weiche nur ab, wenn du einen konkreten Shot oder Wert als Beleg nennen kannst, und dann höchstens um eine Mahlgrad-Stufe oder bei einem einzigen Hebel.
+- Ergänze, was die App nicht sieht: Muster über mehrere Shots, Notizen, erster Shot des Tages, Packung frisch geöffnet, Widersprüche in den Angaben.
+- Channeling nur behaupten, wenn die Kurve es belegt. Hinweise nur aus Geschmack sind schwach.
+- Schlage nur Temperaturen vor, die die Maschine einstellen kann.
+- Erfinde keine Daten. Antworte auf Deutsch, knapp und direkt, höchstens etwa 300 Wörter. Keine Tabellen, nur Überschriften, Absätze und Listen.
 
 Gliederung (Markdown):
-## Kurzfazit
+## Abgleich mit der App
+(ein bis zwei Sätze: zugestimmt oder angepasst, und warum)
 ## Was die Daten zeigen
 ## Nächster Shot
 ## Danach
-## Datenlage`;
+## Datenlage
+
+Schließe mit genau einem JSON-Codeblock für die App, ohne weiteren Text danach:
+\`\`\`json
+{"agree": true, "grind": "8,2", "dose": 18, "yield": 36, "timeSec": 23, "temp": "92 °C", "reason": "ein kurzer Satz"}
+\`\`\`
+"agree" ist true, wenn dein nächster Shot der Empfehlung der App entspricht.`;
 const AI_LANG = () => (document.documentElement.lang || 'de').slice(0, 2) === 'en' ? 'en' : 'de';
-const AI_PROMPT = 'Du bist ein erfahrener Barista. Werte die folgenden Daten aus meiner Espresso-App gemeinsam aus: Muster über mehrere Shots, Röstgrad, Bohnenalter, Channeling, Geschmack. Gib einen konkreten nächsten Shot an (Mahlgrad in den Einheiten der Mühle, Dosis, Ausbeute, Zeit, Temperatur) und sag, ob du der Empfehlung der App zustimmst. Erfinde keine Daten. Antworte knapp, gegliedert in: Kurzfazit, Was die Daten zeigen, Nächster Shot, Danach, Datenlage.';
+const AI_PROMPT = () => AI_SYSTEM;
 function aiPayload(anchor, shots, T, model, rec){
   const res = grinderRes(), scale = ratingScale();
   const strip = t => String(t ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -1956,6 +1977,34 @@ function aiPayload(anchor, shots, T, model, rec){
     otherBeansSameGrinder: others,
   });
 }
+function aiSplit(text){
+  const t = String(text || '');
+  const ms = [...t.matchAll(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/g)];
+  const m = ms[ms.length - 1];
+  if(!m) return { body: t, plan: null };
+  let plan = null; try{ plan = JSON.parse(m[1]); }catch(e){ plan = null; }
+  return { body: (t.slice(0, m.index) + t.slice(m.index + m[0].length)).trim(), plan };
+}
+/* Momentaufnahme der App-Empfehlung, damit der Abgleich auch später noch stimmt */
+function appSnap(rec){
+  const res = rec.res;
+  return { grind: rec.newGrind != null ? fmtG(rec.newGrind, res) : null, dose: rec.dose, yield: rec.yld, timeSec: Math.round(rec.tPred),
+    temp: rec.tempMode === 'none' ? null : rec.tempMode === 'levels' ? (rec.dT > 0 ? 'eine Stufe wärmer' : rec.dT < 0 ? 'eine Stufe kühler' : 'Stufe wie zuletzt') : rec.temp != null ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) + ' °C' : null };
+}
+function aiCompareHTML(r){
+  const { plan } = aiSplit(r.text);
+  if(!plan || !r.app) return '';
+  const a = r.app, nrm = v => String(v ?? '').replace(',', '.').replace(/\s*°C/, '').trim().toLowerCase();
+  const rows = [['Mahlgrad', a.grind, plan.grind], ['Dosis', a.dose != null ? fmt(a.dose,1) + ' g' : null, plan.dose != null ? fmt(+plan.dose,1) + ' g' : null], ['Ausbeute', a.yield != null ? fmt(a.yield,0) + ' g' : null, plan.yield != null ? fmt(+plan.yield,0) + ' g' : null], ['Zeit', a.timeSec != null ? '~' + a.timeSec + ' s' : null, plan.timeSec != null ? '~' + plan.timeSec + ' s' : null], ['Temp', a.temp, plan.temp]];
+  const same = (x, y) => x == null || y == null || nrm(x) === nrm(y) || (!isNaN(parseFloat(nrm(x))) && Math.abs(parseFloat(nrm(x)) - parseFloat(nrm(y))) < 0.05);
+  const diff = rows.filter(([, x, y]) => !same(x, y)).length;
+  const agree = plan.agree === true && !diff;
+  return `<div class="aicmp ${agree ? 'ok' : 'dev'}">
+    <div class="aicmp-head"><b>${agree ? '✓ KI bestätigt die Empfehlung der App' : '≠ KI schlägt eine Anpassung vor'}</b>${plan.reason ? `<span>${esc(plan.reason)}</span>` : ''}</div>
+    <table class="aicmp-t"><thead><tr><th></th><th>App</th><th>KI</th></tr></thead><tbody>${rows.filter(([, x, y]) => x != null || y != null).map(([k, x, y]) => `<tr class="${same(x, y) ? '' : 'd'}"><td>${k}</td><td class="n">${esc(x ?? '–')}</td><td class="n">${esc(y ?? '–')}</td></tr>`).join('')}</tbody></table>
+    ${!agree ? '<button class="btn small" type="button" id="aiTake">KI-Vorschlag ins Formular „Shot eintragen“</button>' : ''}
+  </div>`;
+}
 function mdToHTML(md){
   let html = '', list = null, para = [];
   const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*(?!\s)([^*]+?)\*(?!\w)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1981,7 +2030,7 @@ function aiCardHTML(anchor){
   return `
   <section class="card aicard" aria-labelledby="hAi">
     <div class="card-head"><h2 id="hAi">KI-Analyse</h2><span class="muted" style="font-size:13px">wertet alle Shots dieser Bohne zusammen aus: Mühle, Röstgrad, Kurven, Channeling und Geschmack</span></div>
-    ${r ? `<div class="aitext">${mdToHTML(r.text)}</div>
+    ${r ? `${aiCompareHTML(r)}<div class="aitext">${mdToHTML(aiSplit(r.text).body)}</div>
       <span class="muted" style="font-size:12.5px">Erstellt am ${fmtDate(new Date(r.at))}${stale ? ' · <b>seitdem gibt es einen neueren Ausgangs-Shot</b>' : ''}${r.left != null ? ` · heute noch ${r.left} ${r.left === 1 ? 'Analyse' : 'Analysen'} frei` : ''}. KI-Einschätzungen können danebenliegen, vergleiche mit der Empfehlung oben.</span>`
     : `<p class="muted" style="margin:0;font-size:14px">Eine KI liest deine Shots, die Waagenkurven, den Röstgrad und deine Geschmacksangaben gemeinsam und schreibt eine Einschätzung mit konkretem Vorschlag für den nächsten Shot. Sie sieht auch die Empfehlung der App und sagt, ob sie zustimmt.</p>`}
     ${AI.busy ? `<div class="aiwait" role="status"><span class="spin big" aria-hidden="true"></span><span>Die KI liest deine Shots und schreibt die Analyse. Das dauert meist 10–30 Sekunden.</span></div>` : ''}
@@ -2007,7 +2056,7 @@ function aiCardHTML(anchor){
     </details>
   </section>`;
 }
-async function runAIDirect(own, payload){
+async function runAIDirect(own, payload, app){
   const key = ctxKey(), anchorId = UI.anchorId;
   try{
     const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST',
@@ -2015,7 +2064,7 @@ async function runAIDirect(own, payload){
       body: JSON.stringify({ model: own.model || 'claude-haiku-5-5', max_tokens: 8000, output_config: { effort: 'low' }, system: AI_SYSTEM, messages: [{ role:'user', content: 'Hier sind meine Daten:' + '\n\n```json\n' + JSON.stringify(payload) + '\n```' }] }) });
     const j = await r.json().catch(() => ({}));
     const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
-    if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true }; saveUI(); }
+    if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true, app }; saveUI(); }
     else if(r.ok) AI.err = 'Die KI hat keinen Text geliefert' + (j.stop_reason === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
     else if(r.status === 401 || r.status === 403) AI.err = 'Anthropic lehnt den Schlüssel ab. Bitte prüfen, ob er stimmt und aktiv ist.';
     else if(r.status === 404) AI.err = 'Das gewählte Modell ist für deinen Schlüssel nicht verfügbar. Wähle ein anderes Modell.';
@@ -2024,18 +2073,18 @@ async function runAIDirect(own, payload){
     else AI.err = 'Die Analyse ist fehlgeschlagen' + (j.error?.message ? `: ${esc(String(j.error.message).slice(0, 200))}` : ` (Status ${r.status}).`);
   }catch(e){ AI.err = 'Keine Verbindung zu Anthropic. Bitte später noch einmal versuchen.'; }
 }
-async function runAI(payload){
+async function runAI(payload, app){
   const own = aiOwn();
   if(!own && !SESSION){ openAcct(); return; }
   AI.busy = true; AI.err = null; render();
-  if(own){ await runAIDirect(own, payload); AI.busy = false; render(); return; }
+  if(own){ await runAIDirect(own, payload, app); AI.busy = false; render(); return; }
   const key = ctxKey(), anchorId = UI.anchorId;
   try{
     const { data: { session } } = await SB.auth.getSession();
     const tok = session?.access_token || SESSION.access_token;
     const r = await fetch(SB_URL + '/functions/v1/ai-analyse', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + tok, apikey:SB_KEY }, body: JSON.stringify({ lang: AI_LANG(), data: payload }) });
     const j = await r.json().catch(() => ({}));
-    if(r.ok && j.text){ (UI.ai ||= {})[key] = { text: j.text, at: Date.now(), model: j.model, anchorId, left: j.left }; saveUI(); }
+    if(r.ok && j.text){ (UI.ai ||= {})[key] = { text: j.text, at: Date.now(), model: j.model, anchorId, left: j.left, app }; saveUI(); }
     else if(j.error === 'no_key') AI.err = 'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für KI-Assistenten kopieren“.';
     else if(j.error === 'limit') AI.err = `Tageslimit erreicht (${j.limit} Analysen in 24 Stunden). Morgen geht es weiter.`;
     else if(r.status === 401 || j.error === 'auth') AI.err = 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.';
@@ -2442,9 +2491,17 @@ function render(){
   const rcd = $('#recipeDel'); if(rcd) rcd.onclick = () => { if(rcd.dataset.c){ delete UI.recipes[ctxKey()]; saveUI(); render(); } else { rcd.dataset.c = 1; rcd.textContent = 'Wirklich entfernen?'; } };
   const rsv = $('#recipeSave'); if(rsv) rsv.onclick = () => { const d = detail; UI.recipes[ctxKey()] = { shotId:d.id, grindRaw:d.grindRaw, grind:d.grind, dose:d.dose, yield:d.yield, time:d.time, temp:d.temp, rating:d.rating, date:d.date?.getTime(), age:beanAge(d) }; delete UI.targets[ctxKey()]; saveUI(); render(); };
   document.querySelectorAll('.rl[data-rl]').forEach(b => b.onclick = () => { const k = beanKey(anchor); UI.roastLvl ||= {}; if(UI.roastLvl[k] === b.dataset.rl) delete UI.roastLvl[k]; else UI.roastLvl[k] = b.dataset.rl; formDirty = false; saveUI(); render(); });
-  const air = $('#aiRun'); if(air) air.onclick = () => runAI(aiPayload(anchor, shots, T, model, rec));
+  const air = $('#aiRun'); if(air) air.onclick = () => runAI(aiPayload(anchor, shots, T, model, rec), appSnap(rec));
+  const ait = $('#aiTake'); if(ait) ait.onclick = () => {
+    const pl = aiSplit((UI.ai || {})[ctxKey()]?.text).plan; if(!pl) return;
+    const sv = (id, v) => { const el = $(id); if(el && v != null && v !== '') el.value = v; };
+    sv('#fGrind', String(pl.grind ?? '').replace(',', '.')); sv('#fDose', pl.dose); sv('#fYield', pl.yield);
+    const tn = parseFloat(String(pl.temp ?? '').replace(',', '.')); if(!isNaN(tn)) sv('#fTemp', tn);
+    formDirty = true; const f = $('#addForm'); if(f) f.scrollIntoView({ behavior:'smooth', block:'center' });
+    ait.textContent = 'Übernommen. Nach dem Shot Zeit und Geschmack ergänzen.';
+  };
   const aic = $('#aiCopy'); if(aic) aic.onclick = () => {
-    const txt = AI_PROMPT + '\n\n```json\n' + JSON.stringify(aiPayload(anchor, shots, T, model, rec), null, 1) + '\n```';
+    const txt = AI_PROMPT() + '\n\n' + 'Hier sind meine Daten:' + '\n\n```json\n' + JSON.stringify(aiPayload(anchor, shots, T, model, rec), null, 1) + '\n```';
     const done = () => { aic.textContent = 'Kopiert. Jetzt im KI-Assistenten einfügen.'; };
     try{ navigator.clipboard.writeText(txt).then(done, () => { prompt('Kopieren:', txt); }); }catch(e){ prompt('Kopieren:', txt); }
   };
