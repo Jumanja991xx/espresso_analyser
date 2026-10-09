@@ -190,6 +190,13 @@ form.calc .field input{width:100%}
 @media (max-width:560px){form.calc{grid-template-columns:repeat(2,minmax(0,1fr))}}
 table.cal td.win{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--ink);font-weight:600}
 table.levers{min-width:760px}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
+.linkbtn:hover{color:var(--mixed)}
+.confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
+.btn.danger{background:var(--mixed);border-color:var(--mixed);color:#fff}
+.welcome{gap:14px}
+.welcome p{margin:0;max-width:65ch}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:70ch}
 .flowhint{font-size:13.5px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
 </style>
 
@@ -209,6 +216,8 @@ table.levers{min-width:760px}
         <input id="file" type="file" accept=".xlsx,.xls,.csv,.zip,.json" multiple hidden>
       </div>
       <div class="status" id="status"></div>
+      <button class="linkbtn" type="button" id="resetBtn" hidden>Alle Daten löschen</button>
+      <div class="confirm" id="resetConfirm" hidden><span>Alle Shots, Kurven, Rezepte und Zugangsdaten in diesem Browser löschen?</span><button class="btn small danger" type="button" id="resetYes">Löschen</button><button class="btn small" type="button" id="resetNo">Abbrechen</button></div>
     </div>
   </header>
   <div id="banner" class="banner" hidden></div>
@@ -221,8 +230,8 @@ table.levers{min-width:760px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const SAMPLE = {"Bezüge": [["Mahlgrad", "Kaffeemehl (gr)", "Brühtemperatur", "Brühmethode", "Bohnensorte", "Mühle", "Mühlengeschwindigkeit (rpm)", "Mühlen Timer", "Profil", "Brühmethoden Tools", "Temperatur Zeit", "Zeit", "Blooming-Zeit / Preinfusion", "Erster Kaffeetropfen", "Wassermenge", "Kaffeetyp", "Kaffee-Konzentration", "Bewertung", "Notizen", "Getränkmenge", "Gelöste Stoffe (TDS %)", "Extraction Yield %", "Uhrzeit (des Bezuges)", "Brührate", "Bohnenalter (Tage)", "Archiviert", "Bohnen ID", "Brühmethoden Id", "Mühlen Id"], ["7", 18, 92, "Siebträger", "Dinzler Decaf", "Lagom CASA", 0, "0", null, null, "0", "26", "0", "7", 0, null, null, 5, "Sauer", 37.6, 0, "0", "08.10.2026 15:26:50", "1 / 2.09", -1, false, "de6f1227-9113-4d5e-a183-51430596914e", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["7.6", 18, 92, "Siebträger", "Dinzler Decaf", "Lagom CASA", 0, "0", null, null, "0", "27", "0", "13", 0, null, null, 0, null, 39.9, 0, "0", "08.10.2026 15:20:45", "1 / 2.22", -1, false, "de6f1227-9113-4d5e-a183-51430596914e", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["7.9", 18, 92, "Siebträger", "Dinzler Decaf", "Lagom CASA", 0, "0", null, null, "0", "21", "0", "8", 0, null, null, 0, null, 39.3, 0, "0", "08.10.2026 15:11:56", "1 / 2.18", -1, false, "de6f1227-9113-4d5e-a183-51430596914e", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["8.2", 18, 92, "Siebträger", "Dinzler Decaf", "Lagom CASA", 0, "0", null, null, "0", "22", "0", "9", 0, null, null, 0, null, 40.7, 0, "0", "08.10.2026 14:43:07", "1 / 2.26", -1, false, "de6f1227-9113-4d5e-a183-51430596914e", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["8.2", 18, 92, "Siebträger", "Compadre", "Lagom CASA", 0, "0", null, null, "0", "22", "0", "6", 0, null, null, 0, null, 37.1, 0, "0", "08.10.2026 12:43:03", "1 / 2.06", 30, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["8.4", 18, 92, "Siebträger", "Compadre", "Lagom CASA", 0, "0", null, null, "0", "22", "0", "8", 0, null, null, 8, "Ganz gut. Etwas spitz eventuell", 37.7, 0, "0", "08.10.2026 10:24:58", "1 / 2.09", 30, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["8", 18, 93, "Siebträger", "Compadre", "Lagom CASA", 0, "0", null, null, "0", "32", "0", "10", 0, null, null, 6, "Etwas säuerlich. nicht rund. Kein besonders bitterer Nachgeschmack", 40.2, 0, "0", "07.10.2026 15:18:55", "1 / 2.23", 14, false, "2be735f2-5494-4555-8c1b-32f9c97f806c", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"], ["24", 18, 92, "Siebträger", "Compadre", "Kingrinder K6", 0, "0", null, null, "0", "28", "0", "5", 0, null, null, 9, "Sehr gut. Zeitstopp hat nicht geklappt", 38.5, 0, "0", "02.10.2026 13:47:23", "1 / 2.14", 24, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"], ["25", 0, 92, "Siebträger", "Compadre", "Kingrinder K6", 0, "0", null, null, "0", "22", "0", "6", 0, null, null, 7, "Ganz ok. Geht evtl noch etwas besser. Eventuell bitter ?!", 37.3, 0, "0", "02.10.2026 12:57:24", "1 / ?", 24, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"], ["27", 18, 3, "Siebträger", "Compadre", "Kingrinder K6", 0, "0", null, null, "0", "31", "0", "0", 0, null, null, 3, "Unausgewogen. Etwas zu bitter ", 40.1, 0, "0", "27.09.2026 16:29:12", "1 / 2.23", 19, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"], ["28", 18, 3, "Siebträger", "Compadre", "Kingrinder K6", 0, "0", null, null, "0", "30", "0", "0", 0, null, null, 3, "Etwas zu bitter?!", 39, 0, "0", "27.09.2026 11:35:26", "1 / 2.17", 19, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"], ["28", 18, 3, "Siebträger", "Compadre", "Kingrinder K6", 0, "0", null, null, "0", "28", "0", "0", 0, null, null, 3, "War heute schneller und etwas säurig. Aber ok", 33, 0, "0", "25.09.2026 17:07:59", "1 / 1.83", 17, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"], ["28", 18, 3, "Siebträger", "Compadre", "Kingrinder K6", 0, "0", null, null, "0", "32", "0", "0", 0, null, null, 4, null, 34.8, 0, "0", "24.09.2026 15:54:43", "1 / 1.93", 16, false, "9bece3c2-d9ee-4730-8214-e32edd50a0ee", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"]], "Bohnen": [["Name", "Röster", "Röstdatum", "Röstkategorie", "Röstgrad", "Rösttyp", "Eigener Röstgrad", "Mischung", "Gewicht", "Kosten", "Geschmack", "Cupping Punkte", "Entkoffeiniert", "Webseite", "EAN / Artikelnummer", "Notizen", "Bewertung", "Erstellungsdatum", "Bohnen ID", "Archiviert", "1. Herkunftsland", "1. Region", "1. Farm", "1. Farmer", "1. Anbauhöhe", "1. Varietät", "1. Aufbereitung", "1. Ernte", "1. Prozentualer Anteil", "1. Bohnenzertifikat"], ["Compadre", "Kaffeemacher:innen", "08.09.2026", "Espresso", 5, "Italian Roast", "-", "Blend", 250, 9.5, "Geröstete Nüsse, würzig, dunkle Schokolade", "83", false, "www.kaffeemacher.de", null, "Auch als 1KG Beutel erhältlich", 4, "24.09.2026 15:54:40", "9bece3c2-d9ee-4730-8214-e32edd50a0ee", false, "Brasilien", "Espírito Santo", "Sitio Bela Vista, Água Boa, São Mateus", "Família Magiero, Conilon &Família Romão, Arabica", null, "Conilon (Robusta) & Catuaí 81, Catucaí 785", "beide pulped natural - entpulpt und in der Mucilage getrocknet", null, null, null], ["Compadre", "Kaffeemacher:innen", "23.09.2026", "Espresso", 5, "Italian Roast", "-", "Blend", 1000, 40, "Geröstete Nüsse, würzig, dunkle Schokolade", "83", false, "www.kaffeemacher.de", null, "Auch als 1KG Beutel erhältlich", 4, "07.10.2026 15:18:52", "2be735f2-5494-4555-8c1b-32f9c97f806c", false, "Brasilien", "Espírito Santo", "Sitio Bela Vista, Água Boa, São Mateus", "Família Magiero, Conilon &Família Romão, Arabica", null, "Conilon (Robusta) & Catuaí 81, Catucaí 785", "beide pulped natural - entpulpt und in der Mucilage getrocknet", null, null, null], ["Dinzler Decaf", "DINZLER", "Invalid date", "Unknown", 0, "Unknown", "-", "Unknown", 0, 0, null, null, false, null, null, null, 0, "08.10.2026 14:40:53", "de6f1227-9113-4d5e-a183-51430596914e", false, null, null, null, null, null, null, null, null, null, null]], "Brühmethode": [["Brühmethodenart", "Name", "Zubereitungsart", "Brühmethoden Tools", "Notizen", "Archiviert", "Erstellungsdatum", "Brühmethoden Id"], ["PORTAFILTER", "Siebträger", "ESPRESSO", null, null, false, "24.09.2026 13:35:52", "d1c2f557-33bb-4b12-8ff9-7b9224598c8f"]], "Mühlen": [["Name", "Notizen", "Archiviert", "Erstellungsdatum", "Mühlen Id"], ["Kingrinder K6", null, false, "24.09.2026 13:36:10", "5ab00731-d3d3-4c0e-843e-8ec5b824389b"], ["Lagom CASA", null, false, "07.10.2026 15:15:52", "405c6c7a-32f3-4391-a2db-7710f3e0aca7"]]};
-const SAMPLE_LABEL = "Export vom 08.10.2026";
+const SAMPLE = {"Bezüge": [["Mahlgrad", "Kaffeemehl (gr)", "Brühtemperatur", "Brühmethode", "Bohnensorte", "Mühle", "Mühlengeschwindigkeit (rpm)", "Mühlen Timer", "Profil", "Brühmethoden Tools", "Temperatur Zeit", "Zeit", "Blooming-Zeit / Preinfusion", "Erster Kaffeetropfen", "Wassermenge", "Kaffeetyp", "Kaffee-Konzentration", "Bewertung", "Notizen", "Getränkmenge", "Gelöste Stoffe (TDS %)", "Extraction Yield %", "Uhrzeit (des Bezuges)", "Brührate", "Bohnenalter (Tage)", "Archiviert", "Bohnen ID", "Brühmethoden Id", "Mühlen Id"], ["7.9", 18, 91, "Siebträger", "Beispiel-Decaf", "Beispielmühle", 0, null, null, null, null, "28", null, "8", 0, null, null, 0, null, 36.5, 0, "0", "07.10.2026 15:20:00", null, -1, false, "bsp-decaf-0002", null, null], ["8.1", 18, 91, "Siebträger", "Beispiel-Decaf", "Beispielmühle", 0, null, null, null, null, "25", null, "7", 0, null, null, 6, "Besser, noch leicht spitz", 37.0, 0, "0", "06.10.2026 15:10:00", null, -1, false, "bsp-decaf-0002", null, null], ["8.4", 18, 91, "Siebträger", "Beispiel-Decaf", "Beispielmühle", 0, null, null, null, null, "21", null, "5", 0, null, null, 5, "Sauer", 36.5, 0, "0", "05.10.2026 15:30:00", null, -1, false, "bsp-decaf-0002", null, null], ["8.0", 18, 92, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "26", null, "8", 0, null, null, 8, "Sehr gut, nussig", 36.0, 0, "0", "05.10.2026 07:50:00", null, -1, false, "bsp-blend-0001", null, null], ["7.9", 18, 92, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "30", null, "9", 0, null, null, 7, "Etwas dünner, aber süß", 40.0, 0, "0", "04.10.2026 08:15:00", null, -1, false, "bsp-blend-0001", null, null], ["7.7", 18, 92, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "33", null, "11", 0, null, null, 5, "Bitter, trocken", 36.0, 0, "0", "03.10.2026 08:05:00", null, -1, false, "bsp-blend-0001", null, null], ["7.9", 18, 92, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "29", null, "9", 0, null, null, 8, "Rund, süß, schokoladig", 38.0, 0, "0", "02.10.2026 08:20:00", null, -1, false, "bsp-blend-0001", null, null], ["8.0", 18, 93, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "27", null, "8", 0, null, null, 7, "Ausgewogen, etwas spitz im Abgang", 37.5, 0, "0", "02.10.2026 07:55:00", null, -1, false, "bsp-blend-0001", null, null], ["8.3", 18, 93, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "23", null, "6", 0, null, null, 5, "Noch etwas sauer", 36.5, 0, "0", "01.10.2026 08:25:00", null, -1, false, "bsp-blend-0001", null, null], ["8.6", 18, 93, "Siebträger", "Beispiel-Blend", "Beispielmühle", 0, null, null, null, null, "19", null, "5", 0, null, null, 4, "Sauer, dünn", 37.0, 0, "0", "01.10.2026 08:10:00", null, -1, false, "bsp-blend-0001", null, null]], "Bohnen": [["Name", "Röster", "Röstdatum", "Röstkategorie", "Röstgrad", "Rösttyp", "Eigener Röstgrad", "Mischung", "Gewicht", "Kosten", "Geschmack", "Cupping Punkte", "Entkoffeiniert", "Webseite", "EAN / Artikelnummer", "Notizen", "Bewertung", "Erstellungsdatum", "Bohnen ID", "Archiviert", "1. Herkunftsland", "1. Region", "1. Farm", "1. Farmer", "1. Anbauhöhe", "1. Varietät", "1. Aufbereitung", "1. Ernte", "1. Prozentualer Anteil", "1. Bohnenzertifikat"], ["Beispiel-Blend", "Beispielrösterei", "20.09.2026", "Espresso", null, "Medium Roast", null, null, null, null, "Schokolade, Haselnuss", null, false, null, null, null, null, null, "bsp-blend-0001", false, null, null, null, null, null, null, null, null, null, null], ["Beispiel-Decaf", "Beispielrösterei", "15.09.2026", "Espresso", null, "Medium Roast", null, null, null, null, "Karamell, Kakao", null, true, null, null, null, null, null, "bsp-decaf-0002", false, null, null, null, null, null, null, null, null, null, null]]};
+const SAMPLE_LABEL = "Beispieldaten";
 
 /* ---------- Helfer ---------- */
 const $ = s => document.querySelector(s);
@@ -525,7 +534,17 @@ function revive(data){
 /* ---------- Zustand ---------- */
 let DATA = revive(store.get('dk.data', null));
 let IS_SAMPLE = false;
-if(!DATA){ DATA = parseSheets(SAMPLE, SAMPLE_LABEL); IS_SAMPLE = true; }
+const ensureData = () => { if(!DATA){ DATA = { shots:[], beans:{}, label:'Cloud' }; IS_SAMPLE = false; } return DATA; };
+function loadSample(){ DATA = parseSheets(SAMPLE, SAMPLE_LABEL); IS_SAMPLE = true; UI.bean = null; UI.grinder = null; UI.anchorId = null; UI.detailId = null; NOTICE = null; render(); window.scrollTo({ top:0 }); }
+const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync'];
+function resetAll(){
+  DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+  DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null });
+  SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
+  const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
+  render(); window.scrollTo({ top:0 });
+}
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
 const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {};
@@ -551,7 +570,7 @@ function beanAge(s){
 }
 const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip + 2 ? s.yield / (s.time - s.firstDrip) : null;
 
-function allShots(){ return DATA.shots.concat(APP).filter(s => !s.archived).sort((a, b) => (b.date || 0) - (a.date || 0)); }
+function allShots(){ return (DATA ? DATA.shots : []).concat(APP).filter(s => !s.archived).sort((a, b) => (b.date || 0) - (a.date || 0)); }
 function ratingScale(){ return allShots().some(s => s.rating > 5) ? 10 : 5; }
 function shotTags(s){
   if(UI.taste[s.id]) return UI.taste[s.id];
@@ -1344,7 +1363,34 @@ function tableHTML(rows, anchor, scale){
     </tr>`;}).join('')}</tbody></table></div>`;
 }
 
+function welcomeHTML(){
+  return `
+  <section class="card welcome" aria-labelledby="hWel">
+    <h2 id="hWel">Willkommen beim Dial-in Kompass</h2>
+    <p>Der Kompass liest deine Bezüge aus Beanconqueror, analysiert jeden Shot und sagt dir, wie du Mühle, Dosis, Ausbeute und Temperatur für den nächsten Espresso einstellst. Deine Daten bleiben in diesem Browser.</p>
+    <ol class="steps">
+      <li><b>Daten aus Beanconqueror holen.</b> Den Excel-Export oder das Backup (ZIP) speichern. Flowprofile einzelner Bezüge gehen auch.</li>
+      <li><b>Hier laden.</b> Über „Dateien laden“ oder die Datei einfach auf die Seite ziehen.</li>
+      <li><b>Optional: Cloud-Sync.</b> Mit Visualizer-Upload in Beanconqueror kommen neue Shots automatisch hierher.</li>
+    </ol>
+    <div class="row"><label class="btn primary" for="file">Dateien laden</label><button class="btn" type="button" id="wSample">Mit Beispieldaten ausprobieren</button><button class="btn" type="button" id="wSync">Cloud-Sync einrichten</button></div>
+  </section>`;
+}
 function render(){
+  if(!DATA || !allShots().length){
+    $('#ctx').hidden = true;
+    $('#status').textContent = 'Noch keine Daten geladen';
+    $('#resetBtn').hidden = !APP.length && !Object.keys(FLOWS).length;
+    const bn = $('#banner');
+    if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html; } else bn.hidden = true;
+    if(!$('#syncBox').dataset.init){ renderSync(); $('#syncBox').dataset.init = 1; }
+    $('#app').innerHTML = welcomeHTML();
+    $('#wSample').onclick = loadSample;
+    $('#wSync').onclick = () => { const sb = $('#syncBox'); sb.open = true; sb.scrollIntoView({ behavior:'smooth' }); };
+    return;
+  }
+  $('#ctx').hidden = false;
+  $('#resetBtn').hidden = false;
   const combos = ensureCtx();
   const shots = ctxShots();
   const scale = ratingScale();
@@ -1357,7 +1403,7 @@ function render(){
   $('#status').textContent = `${DATA.label} · ${DATA.shots.length} Bezüge${APP.length ? ` + ${APP.length} neu` : ''} · ${new Set(st.map(s => s.bean)).size} Bohnen · ${new Set(st.map(s => s.grinder)).size} Mühlen`;
   const bn = $('#banner');
   if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html + ' <button class="btn small" type="button" id="noticeX">Ausblenden</button>'; $('#noticeX').onclick = () => { NOTICE = null; render(); }; }
-  else { bn.hidden = !IS_SAMPLE; bn.className = 'banner'; bn.textContent = 'Gezeigt wird der Beispiel-Export vom 08.10.2026. Lade deinen aktuellen Export (Excel oder Backup-ZIP) und gern Flowprofile einzelner Bezüge. Alles bleibt in diesem Browser.'; }
+  else { bn.hidden = !IS_SAMPLE; bn.className = 'banner'; bn.innerHTML = 'Du siehst erfundene Beispieldaten. Lade deinen eigenen Beanconqueror-Export, um mit deinen Shots zu arbeiten. <button class="btn small" type="button" id="sampleX">Beispiel schließen</button>'; const sx = $('#sampleX'); if(sx) sx.onclick = () => { DATA = null; IS_SAMPLE = false; render(); }; }
 
   if(!anchor){ $('#app').innerHTML = '<div class="card empty">Für diese Kombination gibt es noch keine Bezüge.</div>'; return; }
 
@@ -1580,7 +1626,7 @@ function ingestVisualizer(vis){
   let isNew = false;
   if(!shot){
     const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Mühle', config:{uuid:'vis'} }] }, '');
-    shot = one.shots[0]; shot.beanId = null; DATA.shots.push(shot); isNew = true;
+    shot = one.shots[0]; shot.beanId = null; ensureData().shots.push(shot); isNew = true;
   } else if(!shot.firstDrip && b.coffee_first_drip_time){
     shot.firstDrip = (+b.coffee_first_drip_time || 0) + (+b.coffee_first_drip_time_milliseconds || 0) / 1000 || null;
   }
@@ -1633,7 +1679,7 @@ async function cloudSync(status){
       await sleep(900);
     }
     SYNC.last = Math.floor(Date.now() / 1000);
-    if(added || flows){ IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
+    if(added || flows){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
     saveSync();
     const more = ids.length > todo.length ? ` Noch ${ids.length - todo.length} weitere, nochmal synchronisieren.` : '';
     setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more}`]);
@@ -1707,7 +1753,7 @@ async function importFiles(list){
     msgs.push(`Waagenkurve ${item.name} → Shot ${fmtDate(shot.date)} (${shot.bean}${shot.time ? ', ' + fmt(shot.time,0) + ' s' : ''})${item.vis ? '' : '. Falls falsch: in der Analyse verschieben.'}`);
   }
   if(lastFlowShot){ UI.bean = lastFlowShot.bean; UI.grinder = lastFlowShot.grinder; UI.detailId = lastFlowShot.id; }
-  if(!IS_SAMPLE) store.set('dk.data', DATA);
+  if(DATA && !IS_SAMPLE) store.set('dk.data', DATA);
   saveFlows(); saveUI(); formDirty = false;
   const lines = msgs.concat(errs.map(e => 'Nicht importiert: ' + e));
   setNotice(!errs.length, lines.length > 1 ? ['Import abgeschlossen', ...lines] : lines.length ? lines : ['Nichts importiert.']);
@@ -1721,6 +1767,9 @@ addEventListener('dragleave', () => { dragN = Math.max(0, dragN - 1); if(!dragN)
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); dragN = 0; $('#drop').hidden = true; const f = [...e.dataTransfer.files]; if(f.length) importFiles(f); });
 
+$('#resetBtn').onclick = () => { $('#resetConfirm').hidden = false; $('#resetBtn').hidden = true; };
+$('#resetNo').onclick = () => { $('#resetConfirm').hidden = true; $('#resetBtn').hidden = false; };
+$('#resetYes').onclick = () => { $('#resetConfirm').hidden = true; resetAll(); };
 render();
 if(SYNC.remember && SYNC.email && SYNC.pw && location.protocol.startsWith('http') && !/claude/.test(location.hostname)) cloudSync();
 </script>

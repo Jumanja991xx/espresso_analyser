@@ -19,7 +19,7 @@ Alle Daten bleiben im Browser (localStorage). Zugangsdaten für den Cloud-Sync g
 |---|---|
 | `index.html` | Die ausgelieferte App (wird von Vercel direkt serviert) |
 | `src/template.html` | Quelltext der App |
-| `src/sample.json` | Beispieldaten, die beim ersten Öffnen geladen werden |
+| `src/sample.json` | Erfundene Beispieldaten für „Mit Beispieldaten ausprobieren“ |
 | `tools/build.py` | Baut `index.html` (und `dist/claude-artifact.html`) aus `src/` |
 
 Nach Änderungen in `src/`:

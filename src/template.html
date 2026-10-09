@@ -180,6 +180,13 @@ form.calc .field input{width:100%}
 @media (max-width:560px){form.calc{grid-template-columns:repeat(2,minmax(0,1fr))}}
 table.cal td.win{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--ink);font-weight:600}
 table.levers{min-width:760px}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
+.linkbtn:hover{color:var(--mixed)}
+.confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
+.btn.danger{background:var(--mixed);border-color:var(--mixed);color:#fff}
+.welcome{gap:14px}
+.welcome p{margin:0;max-width:65ch}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:70ch}
 .flowhint{font-size:13.5px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
 </style>
 
@@ -196,6 +203,8 @@ table.levers{min-width:760px}
         <input id="file" type="file" accept=".xlsx,.xls,.csv,.zip,.json" multiple hidden>
       </div>
       <div class="status" id="status"></div>
+      <button class="linkbtn" type="button" id="resetBtn" hidden>Alle Daten löschen</button>
+      <div class="confirm" id="resetConfirm" hidden><span>Alle Shots, Kurven, Rezepte und Zugangsdaten in diesem Browser löschen?</span><button class="btn small danger" type="button" id="resetYes">Löschen</button><button class="btn small" type="button" id="resetNo">Abbrechen</button></div>
     </div>
   </header>
   <div id="banner" class="banner" hidden></div>
@@ -209,7 +218,7 @@ table.levers{min-width:760px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const SAMPLE = __SAMPLE__;
-const SAMPLE_LABEL = "Export vom 08.10.2026";
+const SAMPLE_LABEL = "Beispieldaten";
 
 /* ---------- Helfer ---------- */
 const $ = s => document.querySelector(s);
@@ -512,7 +521,17 @@ function revive(data){
 /* ---------- Zustand ---------- */
 let DATA = revive(store.get('dk.data', null));
 let IS_SAMPLE = false;
-if(!DATA){ DATA = parseSheets(SAMPLE, SAMPLE_LABEL); IS_SAMPLE = true; }
+const ensureData = () => { if(!DATA){ DATA = { shots:[], beans:{}, label:'Cloud' }; IS_SAMPLE = false; } return DATA; };
+function loadSample(){ DATA = parseSheets(SAMPLE, SAMPLE_LABEL); IS_SAMPLE = true; UI.bean = null; UI.grinder = null; UI.anchorId = null; UI.detailId = null; NOTICE = null; render(); window.scrollTo({ top:0 }); }
+const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync'];
+function resetAll(){
+  DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+  DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null });
+  SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
+  const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
+  render(); window.scrollTo({ top:0 });
+}
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
 const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {};
@@ -538,7 +557,7 @@ function beanAge(s){
 }
 const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip + 2 ? s.yield / (s.time - s.firstDrip) : null;
 
-function allShots(){ return DATA.shots.concat(APP).filter(s => !s.archived).sort((a, b) => (b.date || 0) - (a.date || 0)); }
+function allShots(){ return (DATA ? DATA.shots : []).concat(APP).filter(s => !s.archived).sort((a, b) => (b.date || 0) - (a.date || 0)); }
 function ratingScale(){ return allShots().some(s => s.rating > 5) ? 10 : 5; }
 function shotTags(s){
   if(UI.taste[s.id]) return UI.taste[s.id];
@@ -1331,7 +1350,34 @@ function tableHTML(rows, anchor, scale){
     </tr>`;}).join('')}</tbody></table></div>`;
 }
 
+function welcomeHTML(){
+  return `
+  <section class="card welcome" aria-labelledby="hWel">
+    <h2 id="hWel">Willkommen beim Dial-in Kompass</h2>
+    <p>Der Kompass liest deine Bezüge aus Beanconqueror, analysiert jeden Shot und sagt dir, wie du Mühle, Dosis, Ausbeute und Temperatur für den nächsten Espresso einstellst. Deine Daten bleiben in diesem Browser.</p>
+    <ol class="steps">
+      <li><b>Daten aus Beanconqueror holen.</b> Den Excel-Export oder das Backup (ZIP) speichern. Flowprofile einzelner Bezüge gehen auch.</li>
+      <li><b>Hier laden.</b> Über „Dateien laden“ oder die Datei einfach auf die Seite ziehen.</li>
+      <li><b>Optional: Cloud-Sync.</b> Mit Visualizer-Upload in Beanconqueror kommen neue Shots automatisch hierher.</li>
+    </ol>
+    <div class="row"><label class="btn primary" for="file">Dateien laden</label><button class="btn" type="button" id="wSample">Mit Beispieldaten ausprobieren</button><button class="btn" type="button" id="wSync">Cloud-Sync einrichten</button></div>
+  </section>`;
+}
 function render(){
+  if(!DATA || !allShots().length){
+    $('#ctx').hidden = true;
+    $('#status').textContent = 'Noch keine Daten geladen';
+    $('#resetBtn').hidden = !APP.length && !Object.keys(FLOWS).length;
+    const bn = $('#banner');
+    if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html; } else bn.hidden = true;
+    if(!$('#syncBox').dataset.init){ renderSync(); $('#syncBox').dataset.init = 1; }
+    $('#app').innerHTML = welcomeHTML();
+    $('#wSample').onclick = loadSample;
+    $('#wSync').onclick = () => { const sb = $('#syncBox'); sb.open = true; sb.scrollIntoView({ behavior:'smooth' }); };
+    return;
+  }
+  $('#ctx').hidden = false;
+  $('#resetBtn').hidden = false;
   const combos = ensureCtx();
   const shots = ctxShots();
   const scale = ratingScale();
@@ -1344,7 +1390,7 @@ function render(){
   $('#status').textContent = `${DATA.label} · ${DATA.shots.length} Bezüge${APP.length ? ` + ${APP.length} neu` : ''} · ${new Set(st.map(s => s.bean)).size} Bohnen · ${new Set(st.map(s => s.grinder)).size} Mühlen`;
   const bn = $('#banner');
   if(NOTICE){ bn.hidden = false; bn.className = 'banner' + (NOTICE.ok ? ' ok' : ''); bn.innerHTML = NOTICE.html + ' <button class="btn small" type="button" id="noticeX">Ausblenden</button>'; $('#noticeX').onclick = () => { NOTICE = null; render(); }; }
-  else { bn.hidden = !IS_SAMPLE; bn.className = 'banner'; bn.textContent = 'Gezeigt wird der Beispiel-Export vom 08.10.2026. Lade deinen aktuellen Export (Excel oder Backup-ZIP) und gern Flowprofile einzelner Bezüge. Alles bleibt in diesem Browser.'; }
+  else { bn.hidden = !IS_SAMPLE; bn.className = 'banner'; bn.innerHTML = 'Du siehst erfundene Beispieldaten. Lade deinen eigenen Beanconqueror-Export, um mit deinen Shots zu arbeiten. <button class="btn small" type="button" id="sampleX">Beispiel schließen</button>'; const sx = $('#sampleX'); if(sx) sx.onclick = () => { DATA = null; IS_SAMPLE = false; render(); }; }
 
   if(!anchor){ $('#app').innerHTML = '<div class="card empty">Für diese Kombination gibt es noch keine Bezüge.</div>'; return; }
 
@@ -1567,7 +1613,7 @@ function ingestVisualizer(vis){
   let isNew = false;
   if(!shot){
     const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Mühle', config:{uuid:'vis'} }] }, '');
-    shot = one.shots[0]; shot.beanId = null; DATA.shots.push(shot); isNew = true;
+    shot = one.shots[0]; shot.beanId = null; ensureData().shots.push(shot); isNew = true;
   } else if(!shot.firstDrip && b.coffee_first_drip_time){
     shot.firstDrip = (+b.coffee_first_drip_time || 0) + (+b.coffee_first_drip_time_milliseconds || 0) / 1000 || null;
   }
@@ -1620,7 +1666,7 @@ async function cloudSync(status){
       await sleep(900);
     }
     SYNC.last = Math.floor(Date.now() / 1000);
-    if(added || flows){ IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
+    if(added || flows){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
     saveSync();
     const more = ids.length > todo.length ? ` Noch ${ids.length - todo.length} weitere, nochmal synchronisieren.` : '';
     setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more}`]);
@@ -1694,7 +1740,7 @@ async function importFiles(list){
     msgs.push(`Waagenkurve ${item.name} → Shot ${fmtDate(shot.date)} (${shot.bean}${shot.time ? ', ' + fmt(shot.time,0) + ' s' : ''})${item.vis ? '' : '. Falls falsch: in der Analyse verschieben.'}`);
   }
   if(lastFlowShot){ UI.bean = lastFlowShot.bean; UI.grinder = lastFlowShot.grinder; UI.detailId = lastFlowShot.id; }
-  if(!IS_SAMPLE) store.set('dk.data', DATA);
+  if(DATA && !IS_SAMPLE) store.set('dk.data', DATA);
   saveFlows(); saveUI(); formDirty = false;
   const lines = msgs.concat(errs.map(e => 'Nicht importiert: ' + e));
   setNotice(!errs.length, lines.length > 1 ? ['Import abgeschlossen', ...lines] : lines.length ? lines : ['Nichts importiert.']);
@@ -1708,6 +1754,9 @@ addEventListener('dragleave', () => { dragN = Math.max(0, dragN - 1); if(!dragN)
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); dragN = 0; $('#drop').hidden = true; const f = [...e.dataTransfer.files]; if(f.length) importFiles(f); });
 
+$('#resetBtn').onclick = () => { $('#resetConfirm').hidden = false; $('#resetBtn').hidden = true; };
+$('#resetNo').onclick = () => { $('#resetConfirm').hidden = true; $('#resetBtn').hidden = false; };
+$('#resetYes').onclick = () => { $('#resetConfirm').hidden = true; resetAll(); };
 render();
 if(SYNC.remember && SYNC.email && SYNC.pw && location.protocol.startsWith('http') && !/claude/.test(location.hostname)) cloudSync();
 </script>
