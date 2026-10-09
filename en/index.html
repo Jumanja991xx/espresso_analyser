@@ -777,6 +777,12 @@ function openDrift(shots, model){
   if(!fit || fit.b <= 0 || fit.r2 < 0.3) return null;
   return { perDay: fit.b, n: pts.length, r2: fit.r2 };
 }
+const FOD = new Map();
+function firstOfDay(s){
+  if(!s.date) return false;
+  if(!FOD.size){ const seen = {}; allShots().slice().sort((a, b) => (a.date || 0) - (b.date || 0)).forEach(o => { if(!o.date) return; const d = o.date.toDateString(); FOD.set(o.id, !seen[d]); seen[d] = 1; }); }
+  return FOD.get(s.id) ?? false;
+}
 const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip + 2 ? s.yield / (s.time - s.firstDrip) : null;
 
 /* Bewertungen lassen sich im Verlauf ändern: Überschreibung in UI.rating, Originalwert bleibt erhalten */
@@ -807,7 +813,7 @@ function wlr(pts){
 function buildModel(anchor){
   const sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
   const ref = anchor?.date || new Date();
-  const w = s => Math.max(0.15, Math.pow(0.5, Math.abs(daysBetween(ref, s.date || ref)) / 10));
+  const w = s => Math.max(0.15, Math.pow(0.5, Math.abs(daysBetween(ref, s.date || ref)) / 10)) * (firstOfDay(s) ? 0.5 : 1) * (daysOpen(s) != null && daysOpen(s) >= 0 && daysOpen(s) < 1 ? 0.5 : 1);
   const usable = allShots().filter(s => s.grinder === UI.grinder && s.grind != null && flow(s));
   const local = usable.filter(s => s.bean === UI.bean);
   const out = { sign, contradict:false };
@@ -1022,6 +1028,9 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const rStep = (filter ? 1 : 0.2) * k;
   // Richtung laut Geschmack; Ratio-Basis: nicht gegen den Geschmack zurück aufs Ziel ziehen (ein Hebel pro Shot)
   const needMoreX = comp ? comp.x < -0.05 : !!sour, needLessX = comp ? comp.x > 0.05 : !!bitter;
+  const rlc = roastClass(anchor);
+  const canT = d => T.temp && (d > 0 ? T.temp + d <= (rlc ? ROAST[rlc].temp[1] + 1 : 96) : T.temp + d >= (rlc ? ROAST[rlc].temp[0] - 1 : 87));
+  const mgn = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
   const aR = ratio(anchor);
   let rBase = T.ratio;
   if(aR && !filter && ((needMoreX && aR > T.ratio + 0.05) || (needLessX && aR < T.ratio - 0.05))){
@@ -1045,7 +1054,13 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       const mg = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
       tGoal = clamp(desired, T.tMin + mg, T.tMax - mg);
       const overflow = desired - tGoal;                       // was das Fenster nicht mehr hergibt
-      if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
+      const roastTemp = !filter && Math.abs(e) < 0.5 && ((LIGHTISH(rlc) && e < -0.05) || (DARKISH(rlc) && e > 0.05)) && canT(e < 0 ? 1 : -1);
+      if(roastTemp){
+        tGoal = t ? clamp(t, T.tMin + mgn, T.tMax - mgn) : center;
+        dT = e < 0 ? 1 : -1;
+        why.push(e < 0 ? 'With a light roast, temperature is the most effective first lever: 1 °C hotter, grind and time stay.' : 'With a dark roast, temperature is the most effective first lever: 1 °C cooler, grind and time stay.');
+      }
+      else if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
       else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
       else if(!T.temp && Math.abs(overflow) > 0.8 * fs){ dR += Math.sign(overflow) * (filter ? 1 : 0.1); why.push('Your machine has no adjustable temperature, so the ratio takes over the rest.'); tempNote = true; }
       if(status === 'slow' && t > T.tMax + 2 && e < -0.05) hints.push('Sour despite a long shot: more time alone will not help. Brew hotter and check puck prep (uneven flow leaves parts of the puck under-extracted).');
@@ -1055,7 +1070,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       else why.push(`Compass: ${compassText(comp)}. Extraction is fine; only the strength changes.`);
       if(s > 0.05) why.push(e < -0.05 ? 'A longer ratio makes it milder and extracts more at the same time, which helps twice.' : 'Too strong: longer ratio. The target time is adjusted so extraction does not tip over.');
       if(s < -0.05) why.push(e > 0.05 ? 'A shorter ratio makes it stronger and removes bitterness at the same time.' : dR < 0 ? 'Too weak: a slightly shorter ratio makes it stronger.' : 'A bit thin, but also sour: a shorter ratio would lower extraction. So the ratio stays; more body comes with the higher extraction.');
-      if(dT) why.push(dT > 0 ? `The time window alone is not enough for the extraction needed, so also ${dT} °C hotter.` : `The time window alone is not enough to lower extraction, so also ${-dT} °C cooler.`);
+      if(dT && !roastTemp) why.push(dT > 0 ? `The time window alone is not enough for the extraction needed, so also ${dT} °C hotter.` : `The time window alone is not enough to lower extraction, so also ${-dT} °C cooler.`);
       if(s < -0.4) hints.push('Alternative to a shorter ratio: 0.5–1 g more coffee at the same ratio. The grinder then needs to go a little coarser.');
     }
   } else if(mixed){
@@ -1069,13 +1084,25 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   } else if(sour || sharp){
     const label = tags.salty ? 'Salty' : tags.sour ? 'Sour' : tags.flat ? 'Flat' : 'Sharp';
     if(status === 'fast'){ why.push(`${label} and too fast: classic under-extraction. Grind finer so the shot runs longer.`); tGoal = center + (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, although the time is right: more yield (longer ratio) pulls more sweetness and body.`); if(T.temp && T.temp < 95){ dT = 1; why.push('Also brew 1 °C hotter.'); } }
-    else if(status === 'slow'){ dR = rStep; dT = T.temp && T.temp < 95 ? 1 : 0; tGoal = center; why.push(`${label} despite a long shot time points to uneven flow or water that is too cool.`); hints.push('Check puck prep (WDT, straight tamp). Raise the temperature slightly.'); }
+    else if(status === 'ok'){
+      const room = (T.tMax - mgn) - t;
+      if(LIGHTISH(rlc) && canT(1)){ dT = 1; tGoal = t; why.push(`${label} with a light roast: 1 °C hotter is the most effective lever here. Grind and yield stay.`); }
+      else if(room >= (filter ? 5 : 1)){ tGoal = Math.min(T.tMax - mgn, t + (filter ? 10 : 2) * k); why.push(`${label} although the time fits: a little finer so it runs longer and pulls more sweetness.`); }
+      else if(canT(1)){ dT = 1; tGoal = t; why.push(`${label}, and the time is already at the top of your window: 1 °C hotter extracts more without lengthening the shot.`); }
+      else { dR = sour ? rStep : rStep / 2; tGoal = t; why.push(`${label}, the time is at the top of the window: a little more yield (longer ratio) pulls more sweetness.`); }
+    }
+    else if(status === 'slow'){ tGoal = Math.min(t, T.tMax); if(canT(1)) { dT = 1; why.push(`${label} despite a long shot time: 1 °C hotter instead of even longer. Often the water is a bit too cool or the puck uneven.`); } else { dR = rStep; why.push(`${label} despite a long shot time: a little more yield instead of even longer.`); } hints.push('Check puck prep (WDT, level tamp).'); }
     else { dR = rStep / 2; why.push(`${label}: increase the yield slightly.`); }
   } else if(bitter){
     if(status === 'slow'){ why.push('Bitter and too long: over-extraction. Grind coarser so the shot runs faster.'); tGoal = center - (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = -rStep; tGoal = Math.max(T.tMin, t - (filter ? 10 : 2) * k); why.push('Bitter with the right time: stop the shot earlier (shorter ratio).'); if(T.temp && T.temp > 90){ dT = -1; why.push('Also brew 1 °C cooler.'); } }
-    else if(status === 'fast'){ dT = T.temp ? -1 : 0; tGoal = center; why.push('Bitter despite a fast shot is unusual and usually points to channeling or a dark roast.'); hints.push('Check puck prep and lower the temperature by 1–2 °C.'); }
+    else if(status === 'ok'){
+      const room = t - (T.tMin + mgn);
+      if(DARKISH(rlc) && canT(-1)){ dT = -1; tGoal = t; why.push('Bitter with a dark roast: 1 °C cooler is the most effective lever here. Grind and yield stay.'); }
+      else if(room >= (filter ? 5 : 1)){ tGoal = Math.max(T.tMin + mgn, t - (filter ? 10 : 2) * k); why.push('Bitter at a fitting time: a little coarser so it runs shorter and dissolves fewer bitter compounds.'); }
+      else if(canT(-1)){ dT = -1; tGoal = t; why.push('Bitter, and the time is already at the bottom of your window: 1 °C cooler lowers extraction without shortening the shot.'); }
+      else { dR = -rStep; tGoal = t; why.push('Bitter, the time is at the bottom of the window: stop the shot earlier (shorter ratio).'); }
+    }
+    else if(status === 'fast'){ dT = canT(-1) ? -1 : 0; tGoal = Math.max(t, T.tMin); why.push('Bitter despite a fast shot is unusual and usually points to channeling or a dark roast.'); hints.push('Check puck prep and lower the temperature by 1–2 °C.'); }
     else { dR = -rStep / 2; why.push('Bitter: reduce the yield slightly.'); }
   } else {
     why.push(`No taste recorded. The shot ${sTxt}, so the recommendation aims for the middle of the time window.`);
@@ -1093,6 +1120,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     if(anchor.firstDrip < 4) hints.push(`The first drip came after only ${fmt(anchor.firstDrip,0)} s. Water finds a path through the puck very quickly: check distribution and tamping, grind finer.`);
     else if(anchor.firstDrip > 13) hints.push(`The first drip only came after ${fmt(anchor.firstDrip,0)} s. The puck is very dense, leaving little time for the actual extraction.`);
   }
+  if(!filter && firstOfDay(anchor) && (needMoreX || needLessX)) hints.push('The base shot was the first of the day. Machine and grinder are often not fully warmed up then, and old grounds from the grinder end up in the basket. It therefore counts only half in the model, and the recommendation stays cautious.');
   const chA = channelingCheck(anchor, shots, T);
   if(chA && chA.level === 'high') hints.unshift(`Channeling likely (index ${chA.score}/100: ${chA.sig.slice(0, 2).map(x => x.title).join(', ')}). Fix the puck prep first, otherwise the grind setting tells you little. Details in the shot analysis.`);
   else if(chA && chA.level === 'mid' && chA.curve) hints.push(`Mild signs of channeling in the curve (index ${chA.score}/100). Pay attention to even distribution.`);
@@ -1106,12 +1134,12 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     if(tNow){
       if(T.tempMode !== 'levels' && tNow < ta - 0.5 && !needLess){ const d = Math.min(2, Math.round((ta - tNow) * 2) / 2); if(dT < d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} roast: ${fmt(tNow,0)} °C is below the usual range of ${ta}–${tb} °C, so brew hotter.`); } }
       else if(T.tempMode !== 'levels' && tNow > tb + 0.5 && !needMore){ const d = -Math.min(2, Math.round((tNow - tb) * 2) / 2); if(dT > d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} roast: ${fmt(tNow,0)} °C is above the usual range of ${ta}–${tb} °C, so brew cooler.`); } }
-      else if(needMore && LIGHTISH(rl) && dT <= 0 && tNow + 1 <= tb + 0.5){ dT = 1; why.push('Light roasts are hard to extract. Temperature is the most effective lever here, so 1 °C hotter.'); }
-      else if(needLess && DARKISH(rl) && dT >= 0 && tNow - 1 >= ta - 0.5){ dT = -1; why.push('Dark roasts extract easily. Brewing cooler removes bitterness fastest, so 1 °C cooler.'); }
+      else if(false && needMore && LIGHTISH(rl) && dT <= 0 && tNow + 1 <= tb + 0.5){ dT = 1; why.push('Light roasts are hard to extract. Temperature is the most effective lever here, so 1 °C hotter.'); }
+      else if(false && needLess && DARKISH(rl) && dT >= 0 && tNow - 1 >= ta - 0.5){ dT = -1; why.push('Dark roasts extract easily. Brewing cooler removes bitterness fastest, so 1 °C cooler.'); }
     }
     const Rn = T.ratio + dR;
-    if(needMore && LIGHTISH(rl) && Rn < ra){ dR += Math.min(0.2, ra - Rn); why.push(`Light roast: a longer ratio (typically 1:${fmt(ra,1)}–1:${fmt(rb,1)}) brings more sweetness than just more time.`); }
-    else if(needLess && DARKISH(rl) && Rn > rb){ dR -= Math.min(0.2, Rn - rb); why.push(`Dark roast: a shorter ratio (typically 1:${fmt(ra,1)}–1:${fmt(rb,1)}) cuts the bitter last grams.`); }
+    if(needMore && LIGHTISH(rl) && Rn < ra && !dT){ dR += Math.min(0.2, ra - Rn); why.push(`Light roast: a longer ratio (typically 1:${fmt(ra,1)}–1:${fmt(rb,1)}) brings more sweetness than just more time.`); }
+    else if(needLess && DARKISH(rl) && Rn > rb && !dT){ dR -= Math.min(0.2, Rn - rb); why.push(`Dark roast: a shorter ratio (typically 1:${fmt(ra,1)}–1:${fmt(rb,1)}) cuts the bitter last grams.`); }
     if(T.ratio < ra - 0.25 || T.ratio > rb + 0.25) hints.push(`For a ${RP.adj} roast, ratios from 1:${fmt(ra,1)} to 1:${fmt(rb,1)} are typical. Your target 1:${fmt(T.ratio,2)} is ${T.ratio < ra ? 'below' : 'above'}. That may be intended, but it is a possible lever.`);
     if(needMore && DARKISH(rl) && status !== 'fast') hints.push('Sour with a dark roast is unusual. Often the water is too cool, the shot runs unevenly, or the bean is lighter than assumed.');
     if(needLess && LIGHTISH(rl) && status !== 'slow') hints.push('Bitter with a light roast usually comes from too many fines or channeling, less often from too much extraction.');
@@ -1923,19 +1951,26 @@ const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
 const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (recommended, very cheap)', 'claude-sonnet-5-5':'Sonnet 5.5 (more thorough)', 'claude-opus-5-5':'Opus 5.5 (most thorough, pricier)' };
 const aiOwn = () => { try{ const v = JSON.parse(localStorage.getItem('dk.aikey') || 'null'); return v && v.key ? v : null; }catch(e){ return null; } };
-const AI_SYSTEM = `You are an experienced barista and coffee scientist. You receive data from the "Dial-in Kompass" app as JSON: bean, roast level, bean age, bag opening, grinder and its scale, machine, targets (dose, ratio, time window), the app’s learned model (flow per grind step and expected times per grind setting), the recent shots (grind, dose, yield, time, first drip, temperature, rating, taste, notes, dial-in compass, channeling index with evidence, scale-curve metrics) and the recommendation the app computed itself.
+const AI_SYSTEM = `You are an experienced barista and coffee scientist. You receive data from the "Dial-in Kompass" app as JSON: bean, roast level, bean age, bag opening, grinder and its scale, machine, targets (dose, ratio, time window), the app’s learned grinder model (flow per grind step and expected times per grind setting), the recent shots (grind, dose, yield, time, first drip, temperature, rating, taste, notes, dial-in compass, channeling index with evidence, scale-curve metrics) and the recommendation the app computed itself.
 
-Your role: you review and complement the app, you do not replace it.
-- The app’s numbers are the basis: expected times per grind setting, channeling index with its evidence, compass. Do not recompute them and do not contradict them without a concrete data point.
-- The app’s recommendation is the starting point. Confirm it unless the data clearly speaks against it. Deviate only if you can name a concrete shot or value as evidence, and then by at most one grind step or on a single lever.
-- Add what the app cannot see: patterns across several shots, notes, first shot of the day, freshly opened bag, contradictions in the inputs.
-- Only claim channeling if the curve shows it. Signs from taste alone are weak.
-- Only suggest temperatures the machine can actually set.
+Your role: you judge the data independently and reach your own conclusion. You do not have to agree with the app. The measurements and the grinder model are data; the app’s recommendation is just an opinion.
+
+The app works by these dial-in rules. Apply them too so your results are comparable. If you think a rule is wrong in this specific case, say so explicitly:
+1. Taste before the clock: if sour, never pull shorter or grind coarser; if bitter, never pull longer or grind finer, even if the time window asks for it.
+2. One lever per shot where possible. If sour, first go finer (as long as the time stays at most just above the window), otherwise hotter or a little more yield. If bitter, first go coarser, otherwise cooler or a little less yield. For dark roasts temperature is often the best first lever, for light roasts too, just the other way.
+3. Too thin without sourness: shorter ratio or 0.5–1 g more dose. Too strong: longer ratio. If the shot is also sour, do not shorten the ratio.
+4. If the last yield differs from the target, do not jump back to the target against the taste.
+5. Channeling only if the scale curve shows it. Then improve puck prep first, not the grind.
+6. The first shot of the day and shots on the day the bag was opened are less meaningful. Do not adjust based on them alone.
+7. Only suggest temperatures the machine can actually set, and respect the usual range for the roast.
+
+Further guidance:
+- Add what the app cannot see: patterns across several shots, notes, contradictions in the inputs.
 - Do not invent data. Answer in English, concise and direct, at most about 300 words. No tables, only headings, paragraphs and lists.
 
 Structure (Markdown):
 ## Check against the app
-(one or two sentences: agreed or adjusted, and why)
+(one or two sentences: same conclusion or a different one, and why)
 ## What the data shows
 ## Next shot
 ## After that
@@ -1964,7 +1999,7 @@ function aiPayload(anchor, shots, T, model, rec){
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
       beanAgeDays: beanAge(s), daysSinceBagOpened: daysOpen(s) != null ? (daysOpen(s) < 0 ? 'bag still sealed' : r1(daysOpen(s))) : undefined,
       channeling: ch ? { index: ch.score, fromCurve: ch.sig.filter(x => x.src === 'curve').map(x => x.title), fromTasteOrData: ch.sig.filter(x => x.src !== 'curve').map(x => x.title), note: ch.curve && !ch.sig.some(x => x.src === 'curve') && ch.sig.length ? 'curve looks clean; index comes only from taste/data, weak evidence, do not treat as proof of channeling' : undefined } : undefined,
-      firstShotOfDay: s.date && !allShots().some(o => o !== s && o.date && o.date < s.date && o.date.toDateString() === s.date.toDateString()) || undefined,
+      firstShotOfDay: firstOfDay(s) || undefined,
       curve: an ? { mainFlow: r2(an.mMain), ...(ch && ch.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5) ? { ignoredOutlier: `${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s, probably manual (scale/cup touched), not counted` } : { peakFlow: r2(an.peak), peakAt: r1(an.tPeak) }), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
     };
   });
@@ -2285,7 +2320,7 @@ function welcomeHTML(){
   </section>`;
 }
 function render(){
-  CH_CACHE.clear();
+  CH_CACHE.clear(); FOD.clear();
   if(!allShots().length){
     $('#ctx').hidden = true;
     $('#status').textContent = 'No data loaded yet';
@@ -2474,6 +2509,7 @@ function render(){
   <details class="card">
     <summary>How the Kompass calculates</summary>
     <ul>
+      <li><b>Dial-in rules</b> (shared by app and AI):<ol class="rules"><li>Taste before the clock: if sour, never pull shorter or grind coarser; if bitter, never pull longer or grind finer, even if the time window asks for it.</li><li>One lever per shot where possible. If sour, first go finer (as long as the time stays at most just above the window), otherwise hotter or a little more yield. If bitter, first go coarser, otherwise cooler or a little less yield. For dark roasts temperature is often the best first lever, for light roasts too, just the other way.</li><li>Too thin without sourness: shorter ratio or 0.5–1 g more dose. Too strong: longer ratio. If the shot is also sour, do not shorten the ratio.</li><li>If the last yield differs from the target, do not jump back to the target against the taste.</li><li>Channeling only if the scale curve shows it. Then improve puck prep first, not the grind.</li><li>The first shot of the day and shots on the day the bag was opened are less meaningful. Do not adjust based on them alone.</li><li>Only suggest temperatures the machine can actually set, and respect the usual range for the roast.</li></ol></li>
       <li>The base is your latest shot for this bean/grinder combination (or the one you pick as base in the history).</li>
       <li>From all shots with time and yield, flow (g/s) per grind setting is estimated with a weighted regression. Newer shots count more because beans run faster as they age. If one bean has too little data, shots of all beans on the same grinder are used.</li>
       <li>Taste decides what changes: sour and fast → finer; sour with the right time → longer ratio and hotter; bitter and slow → coarser; bitter with the right time → shorter ratio and cooler; sour and bitter → puck prep.</li>

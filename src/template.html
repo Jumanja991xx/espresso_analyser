@@ -756,6 +756,12 @@ function openDrift(shots, model){
   if(!fit || fit.b <= 0 || fit.r2 < 0.3) return null;
   return { perDay: fit.b, n: pts.length, r2: fit.r2 };
 }
+const FOD = new Map();
+function firstOfDay(s){
+  if(!s.date) return false;
+  if(!FOD.size){ const seen = {}; allShots().slice().sort((a, b) => (a.date || 0) - (b.date || 0)).forEach(o => { if(!o.date) return; const d = o.date.toDateString(); FOD.set(o.id, !seen[d]); seen[d] = 1; }); }
+  return FOD.get(s.id) ?? false;
+}
 const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip + 2 ? s.yield / (s.time - s.firstDrip) : null;
 
 /* Bewertungen lassen sich im Verlauf ändern: Überschreibung in UI.rating, Originalwert bleibt erhalten */
@@ -786,7 +792,7 @@ function wlr(pts){
 function buildModel(anchor){
   const sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
   const ref = anchor?.date || new Date();
-  const w = s => Math.max(0.15, Math.pow(0.5, Math.abs(daysBetween(ref, s.date || ref)) / 10));
+  const w = s => Math.max(0.15, Math.pow(0.5, Math.abs(daysBetween(ref, s.date || ref)) / 10)) * (firstOfDay(s) ? 0.5 : 1) * (daysOpen(s) != null && daysOpen(s) >= 0 && daysOpen(s) < 1 ? 0.5 : 1);
   const usable = allShots().filter(s => s.grinder === UI.grinder && s.grind != null && flow(s));
   const local = usable.filter(s => s.bean === UI.bean);
   const out = { sign, contradict:false };
@@ -1001,6 +1007,9 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const rStep = (filter ? 1 : 0.2) * k;
   // Richtung laut Geschmack; Ratio-Basis: nicht gegen den Geschmack zurück aufs Ziel ziehen (ein Hebel pro Shot)
   const needMoreX = comp ? comp.x < -0.05 : !!sour, needLessX = comp ? comp.x > 0.05 : !!bitter;
+  const rlc = roastClass(anchor);
+  const canT = d => T.temp && (d > 0 ? T.temp + d <= (rlc ? ROAST[rlc].temp[1] + 1 : 96) : T.temp + d >= (rlc ? ROAST[rlc].temp[0] - 1 : 87));
+  const mgn = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
   const aR = ratio(anchor);
   let rBase = T.ratio;
   if(aR && !filter && ((needMoreX && aR > T.ratio + 0.05) || (needLessX && aR < T.ratio - 0.05))){
@@ -1024,7 +1033,13 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       const mg = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
       tGoal = clamp(desired, T.tMin + mg, T.tMax - mg);
       const overflow = desired - tGoal;                       // was das Fenster nicht mehr hergibt
-      if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
+      const roastTemp = !filter && Math.abs(e) < 0.5 && ((LIGHTISH(rlc) && e < -0.05) || (DARKISH(rlc) && e > 0.05)) && canT(e < 0 ? 1 : -1);
+      if(roastTemp){
+        tGoal = t ? clamp(t, T.tMin + mgn, T.tMax - mgn) : center;
+        dT = e < 0 ? 1 : -1;
+        why.push(e < 0 ? 'Bei einer hellen Röstung ist die Temperatur der wirksamste erste Hebel: 1 °C wärmer, Mahlgrad und Zeit bleiben.' : 'Bei einer dunklen Röstung ist die Temperatur der wirksamste erste Hebel: 1 °C kühler, Mahlgrad und Zeit bleiben.');
+      }
+      else if(T.temp && Math.abs(overflow) > 0.8 * fs) dT = Math.sign(overflow) * (Math.abs(overflow) > 3 * fs ? 2 : 1);
       else if(T.temp && Math.abs(eNeed) > 0.7) dT = Math.sign(eNeed);
       else if(!T.temp && Math.abs(overflow) > 0.8 * fs){ dR += Math.sign(overflow) * (filter ? 1 : 0.1); why.push('Die Temperatur lässt sich an deiner Maschine nicht einstellen, deshalb übernimmt die Ratio den Rest.'); tempNote = true; }
       if(status === 'slow' && t > T.tMax + 2 && e < -0.05) hints.push('Sauer trotz langer Laufzeit: Mehr Zeit allein hilft hier nicht. Wärmer brühen und die Puck-Vorbereitung prüfen (ungleichmäßiger Durchfluss lässt Teile des Pucks unterextrahiert).');
@@ -1034,7 +1049,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
       else why.push(`Kompass: ${compassText(comp)}. Die Extraktion passt, nur die Stärke ändert sich.`);
       if(s > 0.05) why.push(e < -0.05 ? 'Eine längere Ratio macht ihn milder und extrahiert gleichzeitig mehr, das hilft doppelt.' : 'Zu stark: längere Ratio. Damit die Extraktion nicht kippt, wird die Zielzeit angepasst.');
       if(s < -0.05) why.push(e > 0.05 ? 'Eine kürzere Ratio macht ihn kräftiger und nimmt gleichzeitig Bitterkeit weg.' : dR < 0 ? 'Zu schwach: eine etwas kürzere Ratio macht ihn kräftiger.' : 'Etwas dünn, aber auch sauer: eine kürzere Ratio würde die Extraktion senken. Deshalb bleibt die Ratio, mehr Körper kommt mit der höheren Extraktion.');
-      if(dT) why.push(dT > 0 ? `Das Zeitfenster allein reicht nicht für die nötige Extraktion, deshalb zusätzlich ${dT} °C wärmer.` : `Das Zeitfenster allein reicht nicht, um die Extraktion zu senken, deshalb zusätzlich ${-dT} °C kühler.`);
+      if(dT && !roastTemp) why.push(dT > 0 ? `Das Zeitfenster allein reicht nicht für die nötige Extraktion, deshalb zusätzlich ${dT} °C wärmer.` : `Das Zeitfenster allein reicht nicht, um die Extraktion zu senken, deshalb zusätzlich ${-dT} °C kühler.`);
       if(s < -0.4) hints.push('Alternative zur kürzeren Ratio: 0,5–1 g mehr Kaffeemehl bei gleicher Ratio. Dann muss die Mühle etwas gröber.');
     }
   } else if(mixed){
@@ -1048,13 +1063,25 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   } else if(sour || sharp){
     const label = tags.salty ? 'Salzig' : tags.sour ? 'Sauer' : tags.flat ? 'Flach' : 'Spitz';
     if(status === 'fast'){ why.push(`${label} und zu schnell: klassische Unterextraktion. Feiner mahlen, damit der Shot länger läuft.`); tGoal = center + (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, obwohl die Zeit passt: mehr Ausbeute (längere Ratio) zieht mehr Süße und Körper.`); if(T.temp && T.temp < 95){ dT = 1; why.push('Zusätzlich 1 °C wärmer brühen.'); } }
-    else if(status === 'slow'){ dR = rStep; dT = T.temp && T.temp < 95 ? 1 : 0; tGoal = center; why.push(`${label} trotz langer Laufzeit deutet auf ungleichmäßigen Durchfluss oder zu kühles Wasser.`); hints.push('Puck-Vorbereitung prüfen (WDT, gerade tampen). Die Temperatur leicht anheben.'); }
+    else if(status === 'ok'){
+      const room = (T.tMax - mgn) - t;
+      if(LIGHTISH(rlc) && canT(1)){ dT = 1; tGoal = t; why.push(`${label} bei einer hellen Röstung: 1 °C wärmer ist hier der wirksamste Hebel. Mahlgrad und Ausbeute bleiben.`); }
+      else if(room >= (filter ? 5 : 1)){ tGoal = Math.min(T.tMax - mgn, t + (filter ? 10 : 2) * k); why.push(`${label}, obwohl die Zeit passt: etwas feiner, damit er länger läuft und mehr Süße zieht.`); }
+      else if(canT(1)){ dT = 1; tGoal = t; why.push(`${label}, und die Zeit ist schon am oberen Rand deines Fensters: 1 °C wärmer zieht mehr Extraktion, ohne die Zeit zu verlängern.`); }
+      else { dR = sour ? rStep : rStep / 2; tGoal = t; why.push(`${label}, die Zeit ist am oberen Rand: etwas mehr Ausbeute (längere Ratio) zieht mehr Süße.`); }
+    }
+    else if(status === 'slow'){ tGoal = Math.min(t, T.tMax); if(canT(1)) { dT = 1; why.push(`${label} trotz langer Laufzeit: 1 °C wärmer statt noch länger. Oft ist das Wasser etwas zu kühl oder der Puck ungleichmäßig.`); } else { dR = rStep; why.push(`${label} trotz langer Laufzeit: etwas mehr Ausbeute statt noch länger.`); } hints.push('Puck-Vorbereitung prüfen (WDT, gerade tampen).'); }
     else { dR = rStep / 2; why.push(`${label}: Ausbeute leicht erhöhen.`); }
   } else if(bitter){
     if(status === 'slow'){ why.push('Bitter und zu lange: Überextraktion. Gröber mahlen, damit der Shot schneller läuft.'); tGoal = center - (filter ? 10 : 1); }
-    else if(status === 'ok'){ dR = -rStep; tGoal = Math.max(T.tMin, t - (filter ? 10 : 2) * k); why.push('Bitter bei passender Zeit: Shot früher stoppen (kürzere Ratio).'); if(T.temp && T.temp > 90){ dT = -1; why.push('Zusätzlich 1 °C kühler brühen.'); } }
-    else if(status === 'fast'){ dT = T.temp ? -1 : 0; tGoal = center; why.push('Bitter trotz schneller Laufzeit ist untypisch und deutet meist auf Channeling oder eine dunkle Röstung hin.'); hints.push('Puck-Vorbereitung prüfen und die Temperatur um 1–2 °C senken.'); }
+    else if(status === 'ok'){
+      const room = t - (T.tMin + mgn);
+      if(DARKISH(rlc) && canT(-1)){ dT = -1; tGoal = t; why.push('Bitter bei einer dunklen Röstung: 1 °C kühler ist hier der wirksamste Hebel. Mahlgrad und Ausbeute bleiben.'); }
+      else if(room >= (filter ? 5 : 1)){ tGoal = Math.max(T.tMin + mgn, t - (filter ? 10 : 2) * k); why.push('Bitter bei passender Zeit: etwas gröber, damit er kürzer läuft und weniger Bitterstoffe löst.'); }
+      else if(canT(-1)){ dT = -1; tGoal = t; why.push('Bitter, und die Zeit ist schon am unteren Rand deines Fensters: 1 °C kühler senkt die Extraktion, ohne die Zeit zu verkürzen.'); }
+      else { dR = -rStep; tGoal = t; why.push('Bitter, die Zeit ist am unteren Rand: Shot früher stoppen (kürzere Ratio).'); }
+    }
+    else if(status === 'fast'){ dT = canT(-1) ? -1 : 0; tGoal = Math.max(t, T.tMin); why.push('Bitter trotz schneller Laufzeit ist untypisch und deutet meist auf Channeling oder eine dunkle Röstung hin.'); hints.push('Puck-Vorbereitung prüfen und die Temperatur um 1–2 °C senken.'); }
     else { dR = -rStep / 2; why.push('Bitter: Ausbeute leicht reduzieren.'); }
   } else {
     why.push(`Keine Geschmacksangabe. Der Shot ${sTxt}, die Empfehlung steuert auf die Mitte des Zeitfensters.`);
@@ -1072,6 +1099,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     if(anchor.firstDrip < 4) hints.push(`Der erste Tropfen kam schon nach ${fmt(anchor.firstDrip,0)} s. Das Wasser findet sehr schnell einen Weg durch den Puck: Verteilung und Tampen prüfen, eher feiner.`);
     else if(anchor.firstDrip > 13) hints.push(`Der erste Tropfen kam erst nach ${fmt(anchor.firstDrip,0)} s. Der Puck ist sehr dicht, für die eigentliche Extraktion bleibt wenig Zeit.`);
   }
+  if(!filter && firstOfDay(anchor) && (needMoreX || needLessX)) hints.push('Der Ausgangs-Shot war der erste des Tages. Maschine und Mühle sind dann oft noch nicht ganz durchgewärmt, und altes Mahlgut aus der Mühle landet mit im Sieb. Er zählt im Modell deshalb nur halb, die Empfehlung bleibt vorsichtig.');
   const chA = channelingCheck(anchor, shots, T);
   if(chA && chA.level === 'high') hints.unshift(`Channeling wahrscheinlich (Index ${chA.score}/100: ${chA.sig.slice(0, 2).map(x => x.title).join(', ')}). Erst die Puck-Vorbereitung verbessern, sonst sagt der Mahlgrad wenig aus. Details in der Shot-Analyse.`);
   else if(chA && chA.level === 'mid' && chA.curve) hints.push(`Leichte Channeling-Hinweise in der Kurve (Index ${chA.score}/100). Auf saubere Verteilung achten.`);
@@ -1085,12 +1113,12 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     if(tNow){
       if(T.tempMode !== 'levels' && tNow < ta - 0.5 && !needLess){ const d = Math.min(2, Math.round((ta - tNow) * 2) / 2); if(dT < d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} Röstung: ${fmt(tNow,0)} °C liegt unter dem üblichen Bereich von ${ta}–${tb} °C, deshalb wärmer.`); } }
       else if(T.tempMode !== 'levels' && tNow > tb + 0.5 && !needMore){ const d = -Math.min(2, Math.round((tNow - tb) * 2) / 2); if(dT > d){ dT = d; why.push(`${RP.adj[0].toUpperCase() + RP.adj.slice(1)} Röstung: ${fmt(tNow,0)} °C liegt über dem üblichen Bereich von ${ta}–${tb} °C, deshalb kühler.`); } }
-      else if(needMore && LIGHTISH(rl) && dT <= 0 && tNow + 1 <= tb + 0.5){ dT = 1; why.push('Helle Röstungen lösen sich schwer. Die Temperatur ist hier der wirksamste Hebel, deshalb 1 °C wärmer.'); }
-      else if(needLess && DARKISH(rl) && dT >= 0 && tNow - 1 >= ta - 0.5){ dT = -1; why.push('Dunkle Röstungen extrahieren leicht. Kühler brühen nimmt Bitterkeit am schnellsten heraus, deshalb 1 °C kühler.'); }
+      else if(false && needMore && LIGHTISH(rl) && dT <= 0 && tNow + 1 <= tb + 0.5){ dT = 1; why.push('Helle Röstungen lösen sich schwer. Die Temperatur ist hier der wirksamste Hebel, deshalb 1 °C wärmer.'); }
+      else if(false && needLess && DARKISH(rl) && dT >= 0 && tNow - 1 >= ta - 0.5){ dT = -1; why.push('Dunkle Röstungen extrahieren leicht. Kühler brühen nimmt Bitterkeit am schnellsten heraus, deshalb 1 °C kühler.'); }
     }
     const Rn = T.ratio + dR;
-    if(needMore && LIGHTISH(rl) && Rn < ra){ dR += Math.min(0.2, ra - Rn); why.push(`Helle Röstung: eine längere Ratio (üblich 1:${fmt(ra,1)}–1:${fmt(rb,1)}) bringt mehr Süße als nur mehr Zeit.`); }
-    else if(needLess && DARKISH(rl) && Rn > rb){ dR -= Math.min(0.2, Rn - rb); why.push(`Dunkle Röstung: eine kürzere Ratio (üblich 1:${fmt(ra,1)}–1:${fmt(rb,1)}) nimmt die bitteren letzten Gramm weg.`); }
+    if(needMore && LIGHTISH(rl) && Rn < ra && !dT){ dR += Math.min(0.2, ra - Rn); why.push(`Helle Röstung: eine längere Ratio (üblich 1:${fmt(ra,1)}–1:${fmt(rb,1)}) bringt mehr Süße als nur mehr Zeit.`); }
+    else if(needLess && DARKISH(rl) && Rn > rb && !dT){ dR -= Math.min(0.2, Rn - rb); why.push(`Dunkle Röstung: eine kürzere Ratio (üblich 1:${fmt(ra,1)}–1:${fmt(rb,1)}) nimmt die bitteren letzten Gramm weg.`); }
     if(T.ratio < ra - 0.25 || T.ratio > rb + 0.25) hints.push(`Für eine ${RP.adj} Röstung sind Ratios von 1:${fmt(ra,1)} bis 1:${fmt(rb,1)} üblich. Dein Ziel 1:${fmt(T.ratio,2)} liegt ${T.ratio < ra ? 'darunter' : 'darüber'}. Das kann gewollt sein, ist aber ein möglicher Hebel.`);
     if(needMore && DARKISH(rl) && status !== 'fast') hints.push('Sauer bei einer dunklen Röstung ist ungewöhnlich. Oft ist das Wasser zu kühl, der Shot läuft ungleichmäßig, oder die Bohne ist heller als gedacht.');
     if(needLess && LIGHTISH(rl) && status !== 'slow') hints.push('Bitter bei einer hellen Röstung kommt meist von zu feinem Mahlgut (Feinanteil) oder Channeling, seltener von zu viel Extraktion.');
@@ -1902,19 +1930,26 @@ const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
 const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (empfohlen, sehr günstig)', 'claude-sonnet-5-5':'Sonnet 5.5 (gründlicher)', 'claude-opus-5-5':'Opus 5.5 (am gründlichsten, teurer)' };
 const aiOwn = () => { try{ const v = JSON.parse(localStorage.getItem('dk.aikey') || 'null'); return v && v.key ? v : null; }catch(e){ return null; } };
-const AI_SYSTEM = `Du bist ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Öffnung der Packung, Mühle und deren Skala, Maschine, Ziele (Dosis, Ratio, Zeitfenster), das gelernte Modell der App (Durchfluss je Mahlgrad-Stufe und erwartete Zeiten je Mahlgrad), die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index mit Belegen, Kennzahlen der Waagenkurve) und die Empfehlung, die die App selbst berechnet hat.
+const AI_SYSTEM = `Du bist ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Öffnung der Packung, Mühle und deren Skala, Maschine, Ziele (Dosis, Ratio, Zeitfenster), das gelernte Mühlenmodell der App (Durchfluss je Mahlgrad-Stufe und erwartete Zeiten je Mahlgrad), die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index mit Belegen, Kennzahlen der Waagenkurve) und die Empfehlung, die die App selbst berechnet hat.
 
-Deine Rolle: Du prüfst und ergänzt die App, du ersetzt sie nicht.
-- Die Zahlen der App sind die Grundlage: erwartete Zeiten je Mahlgrad, Channeling-Index samt Belegen, Kompass. Rechne sie nicht neu und widersprich ihnen nicht ohne konkreten Datenpunkt.
-- Die Empfehlung der App ist der Ausgangspunkt. Bestätige sie, wenn die Daten nicht klar dagegen sprechen. Weiche nur ab, wenn du einen konkreten Shot oder Wert als Beleg nennen kannst, und dann höchstens um eine Mahlgrad-Stufe oder bei einem einzigen Hebel.
-- Ergänze, was die App nicht sieht: Muster über mehrere Shots, Notizen, erster Shot des Tages, Packung frisch geöffnet, Widersprüche in den Angaben.
-- Channeling nur behaupten, wenn die Kurve es belegt. Hinweise nur aus Geschmack sind schwach.
-- Schlage nur Temperaturen vor, die die Maschine einstellen kann.
+Deine Rolle: Du beurteilst die Daten unabhängig und kommst zu deinem eigenen Schluss. Du musst der App nicht zustimmen. Die Messwerte und das Mühlenmodell sind Daten, die Empfehlung der App ist nur eine Meinung.
+
+Die App arbeitet nach diesen Dial-in-Regeln. Wende sie ebenfalls an, damit eure Ergebnisse vergleichbar sind. Wenn du eine Regel im konkreten Fall für falsch hältst, sag es ausdrücklich:
+1. Geschmack vor Uhr: Bei sauer nie kürzer ziehen oder gröber mahlen, bei bitter nie länger ziehen oder feiner mahlen, auch wenn das Zeitfenster es verlangt.
+2. Möglichst ein Hebel pro Shot. Bei sauer zuerst feiner (solange die Zeit höchstens knapp über dem Fenster liegt), sonst wärmer oder etwas mehr Ausbeute. Bei bitter zuerst gröber, sonst kühler oder etwas weniger Ausbeute. Bei dunklen Röstungen ist die Temperatur oft der beste erste Hebel, bei hellen ebenfalls, nur in die andere Richtung.
+3. Zu dünn ohne Säure: kürzere Ratio oder 0,5–1 g mehr Dosis. Zu stark: längere Ratio. Ist der Shot gleichzeitig sauer, die Ratio nicht kürzen.
+4. Weicht die letzte Ausbeute vom Ziel ab, nicht gegen den Geschmack aufs Ziel zurückspringen.
+5. Channeling nur, wenn die Waagenkurve es zeigt. Dann zuerst die Puck-Vorbereitung verbessern, nicht den Mahlgrad.
+6. Der erste Shot des Tages und Shots am Tag des Öffnens der Packung sind weniger aussagekräftig. Nicht allein darauf nachjustieren.
+7. Nur Temperaturen vorschlagen, die die Maschine einstellen kann, und die übliche Spanne der Röstung beachten.
+
+Weitere Vorgaben:
+- Ergänze, was die App nicht sieht: Muster über mehrere Shots, Notizen, Widersprüche in den Angaben.
 - Erfinde keine Daten. Antworte auf Deutsch, knapp und direkt, höchstens etwa 300 Wörter. Keine Tabellen, nur Überschriften, Absätze und Listen.
 
 Gliederung (Markdown):
 ## Abgleich mit der App
-(ein bis zwei Sätze: zugestimmt oder angepasst, und warum)
+(ein bis zwei Sätze: gleicher Schluss oder anderer, und warum)
 ## Was die Daten zeigen
 ## Nächster Shot
 ## Danach
@@ -1943,7 +1978,7 @@ function aiPayload(anchor, shots, T, model, rec){
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
       beanAgeDays: beanAge(s), daysSinceBagOpened: daysOpen(s) != null ? (daysOpen(s) < 0 ? 'bag still sealed' : r1(daysOpen(s))) : undefined,
       channeling: ch ? { index: ch.score, fromCurve: ch.sig.filter(x => x.src === 'Kurve').map(x => x.title), fromTasteOrData: ch.sig.filter(x => x.src !== 'Kurve').map(x => x.title), note: ch.curve && !ch.sig.some(x => x.src === 'Kurve') && ch.sig.length ? 'curve looks clean; index comes only from taste/data, weak evidence, do not treat as proof of channeling' : undefined } : undefined,
-      firstShotOfDay: s.date && !allShots().some(o => o !== s && o.date && o.date < s.date && o.date.toDateString() === s.date.toDateString()) || undefined,
+      firstShotOfDay: firstOfDay(s) || undefined,
       curve: an ? { mainFlow: r2(an.mMain), ...(ch && ch.events.some(e => e.ignored && Math.abs(e.t - an.tPeak) <= 1.5) ? { ignoredOutlier: `${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s, probably manual (scale/cup touched), not counted` } : { peakFlow: r2(an.peak), peakAt: r1(an.tPeak) }), endFlowRise: r2(an.endRatio), pumpOffAt: st ? r1(st.tStop) : null, dripAfterStop: st ? r1(st.drip) : null, maxPressure: r1(an.pMax) } : undefined,
     };
   });
@@ -2264,7 +2299,7 @@ function welcomeHTML(){
   </section>`;
 }
 function render(){
-  CH_CACHE.clear();
+  CH_CACHE.clear(); FOD.clear();
   if(!allShots().length){
     $('#ctx').hidden = true;
     $('#status').textContent = 'Noch keine Daten geladen';
@@ -2453,6 +2488,7 @@ function render(){
   <details class="card">
     <summary>So rechnet der Kompass</summary>
     <ul>
+      <li><b>Dial-in-Regeln</b> (gelten für App und KI):<ol class="rules"><li>Geschmack vor Uhr: Bei sauer nie kürzer ziehen oder gröber mahlen, bei bitter nie länger ziehen oder feiner mahlen, auch wenn das Zeitfenster es verlangt.</li><li>Möglichst ein Hebel pro Shot. Bei sauer zuerst feiner (solange die Zeit höchstens knapp über dem Fenster liegt), sonst wärmer oder etwas mehr Ausbeute. Bei bitter zuerst gröber, sonst kühler oder etwas weniger Ausbeute. Bei dunklen Röstungen ist die Temperatur oft der beste erste Hebel, bei hellen ebenfalls, nur in die andere Richtung.</li><li>Zu dünn ohne Säure: kürzere Ratio oder 0,5–1 g mehr Dosis. Zu stark: längere Ratio. Ist der Shot gleichzeitig sauer, die Ratio nicht kürzen.</li><li>Weicht die letzte Ausbeute vom Ziel ab, nicht gegen den Geschmack aufs Ziel zurückspringen.</li><li>Channeling nur, wenn die Waagenkurve es zeigt. Dann zuerst die Puck-Vorbereitung verbessern, nicht den Mahlgrad.</li><li>Der erste Shot des Tages und Shots am Tag des Öffnens der Packung sind weniger aussagekräftig. Nicht allein darauf nachjustieren.</li><li>Nur Temperaturen vorschlagen, die die Maschine einstellen kann, und die übliche Spanne der Röstung beachten.</li></ol></li>
       <li>Basis ist dein letzter Shot dieser Bohnen-Mühlen-Kombination (oder der, den du im Verlauf als Basis wählst).</li>
       <li>Aus allen Bezügen mit Zeit und Ausbeute wird der Durchfluss (g/s) je Mahlgrad als gewichtete Regression geschätzt. Neuere Bezüge zählen mehr, weil Bohnen mit dem Alter schneller laufen. Reichen die Daten einer Bohne nicht, nutzt der Kompass die Bezüge aller Bohnen auf derselben Mühle.</li>
       <li>Der Geschmack entscheidet, was sich ändert: sauer und schnell → feiner; sauer bei passender Zeit → längere Ratio und wärmer; bitter und langsam → gröber; bitter bei passender Zeit → kürzere Ratio und kühler; sauer und bitter → Puck-Vorbereitung.</li>
