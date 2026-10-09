@@ -230,10 +230,13 @@ td.tastecell .tgl{padding-top:0}
 .acctmsg{border-radius:8px;padding:8px 12px;font-size:13.5px}
 .acctmsg.ok{background:var(--accent-soft)}
 .acctmsg.err{background:color-mix(in srgb,var(--mixed) 14%,transparent)}
-.basecard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,460px);column-gap:28px;row-gap:12px;align-items:start}
+.basecard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,480px);column-gap:28px;row-gap:12px;align-items:start}
 .basecard > *{grid-column:1}
 .basecard > .card-head{grid-column:1 / -1}
-.basecard > .cmpwrap{grid-column:2;grid-row:2 / span 8;grid-template-columns:minmax(0,250px) minmax(0,1fr)}
+.basecard > .cmpwrap{grid-column:2;grid-row:2 / span 8;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
+.basecard > .cmpwrap svg{max-width:440px;margin:0 auto}
+.basecard .cmpinfo{text-align:center;align-items:center}
+.basecard .cmpinfo .btn{align-self:center!important}
 @media (max-width:860px){.basecard{grid-template-columns:minmax(0,1fr)}.basecard > .cmpwrap{grid-column:1;grid-row:auto}}
 .targetline{font-size:13px;color:var(--muted);margin-top:-4px}
 .targetline b{color:var(--ink);font-weight:600}
