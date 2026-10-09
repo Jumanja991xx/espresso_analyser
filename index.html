@@ -201,6 +201,29 @@ textarea.copy{width:100%;min-height:120px;font-family:var(--f-data);font-size:12
 .findings li i{width:10px;height:10px;border-radius:50%;margin-top:6px;display:block}
 .findings .ok i{background:var(--good)} .findings .warn i{background:var(--sour)} .findings .bad i{background:var(--mixed)} .findings .info i{background:var(--none)}
 .findings b{font-weight:600}
+.chan{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
+.chan-head{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.chan-grid{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:760px){.chan-grid{grid-template-columns:minmax(0,1fr)}}
+.chan-score{display:flex;flex-direction:column;gap:6px}
+.chmeter{position:relative;height:14px}
+.chzones{display:grid;grid-template-columns:20fr 25fr 55fr;gap:2px;height:100%;border-radius:99px;overflow:hidden}
+.chzones i:nth-child(1){background:color-mix(in srgb,var(--good) 45%,transparent)}
+.chzones i:nth-child(2){background:color-mix(in srgb,var(--sour) 45%,transparent)}
+.chzones i:nth-child(3){background:color-mix(in srgb,var(--mixed) 45%,transparent)}
+.chmark{position:absolute;top:-4px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--surface);border:4px solid;box-shadow:var(--shadow)}
+.chscale{position:relative;height:14px;font-size:10.5px;color:var(--muted)}
+.chscale span{position:absolute;transform:translateX(-50%)}
+.chscale span:nth-child(1){left:0;transform:none}.chscale span:nth-child(2){left:20%}.chscale span:nth-child(3){left:45%}.chscale span:nth-child(4){right:0;transform:none}
+.chverdict{display:flex;align-items:baseline;gap:10px}
+.chverdict > b{font-family:var(--f-data);font-size:34px;line-height:1}
+.chhist{display:flex;gap:4px;align-items:flex-end;height:74px}
+.chh{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;background:none;border:0;padding:0;cursor:pointer;font:inherit}
+.chh i{display:block;width:100%;max-width:22px;border-radius:3px 3px 0 0;opacity:.75}
+.chh span{font-size:9.5px;color:var(--muted);white-space:nowrap}
+.chh.cur i{opacity:1;outline:2px solid var(--ink);outline-offset:1px}
+.chh:hover i{opacity:1}
+.chsrc{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 7px;margin-left:4px;white-space:nowrap}
 .cmp{min-width:520px}
 .cmp td.n{text-align:right}
 .cmp th:not(:first-child){text-align:right}
@@ -977,8 +1000,9 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     if(anchor.firstDrip < 4) hints.push(`Der erste Tropfen kam schon nach ${fmt(anchor.firstDrip,0)} s. Das Wasser findet sehr schnell einen Weg durch den Puck: Verteilung und Tampen prüfen, eher feiner.`);
     else if(anchor.firstDrip > 13) hints.push(`Der erste Tropfen kam erst nach ${fmt(anchor.firstDrip,0)} s. Der Puck ist sehr dicht, für die eigentliche Extraktion bleibt wenig Zeit.`);
   }
-  const fa = FLOWS[anchor.id] ? analyzeFlow(FLOWS[anchor.id], anchor) : null;
-  if(fa && fa.jump > 0.8) hints.push(`Die Waagenkurve zeigt bei ${fmt(fa.tJump,0)} s einen Flow-Sprung um ${fmt(fa.jump,1)} g/s, ein typisches Zeichen für Channeling.`);
+  const chA = channelingCheck(anchor, shots, T);
+  if(chA && chA.level === 'high') hints.unshift(`Channeling wahrscheinlich (Index ${chA.score}/100: ${chA.sig.slice(0, 2).map(x => x.title).join(', ')}). Erst die Puck-Vorbereitung verbessern, sonst sagt der Mahlgrad wenig aus. Details in der Shot-Analyse.`);
+  else if(chA && chA.level === 'mid' && chA.curve) hints.push(`Leichte Channeling-Hinweise in der Kurve (Index ${chA.score}/100). Auf saubere Verteilung achten.`);
 
   // Ziel ist immer das Zeitfenster: Zielzeit mit etwas Abstand zum Rand
   const margin = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
@@ -1367,7 +1391,7 @@ function phaseSVG(s, T, fdIn){
   g += `<text x="${X(T.tMax)}" y="74" font-size="10.5" text-anchor="end" fill="var(--accent)">Zielfenster ${T.tMin}–${T.tMax} s</text>`;
   return g + '</svg>';
 }
-function flowSVG(fl, an, ref, refAn, st){
+function flowSVG(fl, an, ref, refAn, st, evs){
   const W = 560, H = 300, L = 40, R = 40, Tp = 14, B = 34;
   const tEnd = Math.max(an.end || 0, refAn?.end || 0) + 1;
   const wMax = Math.max(10, Math.ceil(Math.max(an.final || 0, refAn?.final || 0) * 1.08 / 5) * 5);
@@ -1390,7 +1414,11 @@ function flowSVG(fl, an, ref, refAn, st){
   if(fl.t?.length) g += `<path d="${path(fl.t, fl.w, X, YW)}" fill="none" stroke="var(--ink)" stroke-width="2.2"/>`;
   if(an.fd){ g += `<line x1="${X(an.fd)}" x2="${X(an.fd)}" y1="${Tp}" y2="${H - B}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${X(an.fd) + 4}" y="${Tp + 11}" font-size="10.5" fill="var(--ink)">1. Tropfen</text>`; }
   if(st){ const x = X(st.tStop); g += `<line x1="${x}" x2="${x}" y1="${Tp}" y2="${H - B}" stroke="var(--mixed)" stroke-dasharray="4 3"/><circle cx="${x}" cy="${YW(st.wStop)}" r="4.5" fill="var(--mixed)"><title>Pumpe aus</title></circle><text x="${x - 5}" y="${Tp + 11}" font-size="10.5" text-anchor="end" fill="var(--mixed)">${'Pumpe aus'}</text><text x="${x - 5}" y="${Tp + 24}" font-size="10.5" text-anchor="end" fill="var(--mixed)">+${fmt(st.drip,1)} g ${'Nachlauf'}</text>`; }
-  if(an.tJump && an.jump > 0.8) g += `<circle cx="${X(an.tJump)}" cy="${YF(an.f[an.ft.indexOf(an.tJump)] ?? 0)}" r="6" fill="none" stroke="var(--mixed)" stroke-width="2"><title>Flow-Sprung</title></circle>`;
+  (evs || []).forEach((e, i) => {
+    const cy = e.p != null ? YP(e.p) : YF(e.f != null ? e.f : (an.f[an.ft.findIndex(x => x >= e.t)] ?? 0));
+    const below = e.p != null;   // Druck-Marker beschriften wir unterhalb, damit sie nicht mit Flow-Markern kollidieren
+    g += `<circle cx="${X(e.t)}" cy="${cy}" r="7" fill="var(--mixed)" fill-opacity="0.15" stroke="var(--mixed)" stroke-width="2"${e.p != null ? ' stroke-dasharray="3 2"' : ''}><title>${e.kind} ${fmt(e.t,1)} s · ${e.txt}</title></circle><text x="${X(e.t)}" y="${below ? cy + 20 : cy - 11}" font-size="10" font-weight="700" text-anchor="middle" fill="var(--mixed)">C${i + 1}</text>`;
+  });
   return g + '</svg>';
 }
 function findings(s, T, an, shots, st){
@@ -1429,8 +1457,9 @@ function findings(s, T, an, shots, st){
   if(s.tempRaw != null && s.temp == null) add('info', `Temperatur ${fmt(s.tempRaw,0)} °C unplausibel`, 'Vermutlich ein Tippfehler, der Wert wird ignoriert.');
   if(s.ey) add(s.ey >= 18 && s.ey <= 22 ? 'ok' : 'warn', `Extraktion ${fmt(s.ey,1)} %`, s.ey < 18 ? 'Unter 18 %: eher unterextrahiert.' : s.ey > 22 ? 'Über 22 %: eher überextrahiert.' : 'Im klassischen Bereich von 18–22 %.');
   if(an){
-    if(an.cv != null) an.cv > 0.25 ? add('warn', `Unruhiger Flow (Schwankung ${fmt(an.cv * 100,0)} %)`, 'Der Durchfluss schwankt in der Hauptphase stark. Häufig ein Zeichen für ungleichmäßige Verteilung.') : add('ok', `Gleichmäßiger Flow (Schwankung ${fmt(an.cv * 100,0)} %)`, 'Der Puck hält gleichmäßig.');
-    if(an.jump > 0.8) add('bad', `Flow-Sprung bei ${fmt(an.tJump,0)} s`, `Der Durchfluss steigt innerhalb einer Sekunde um ${fmt(an.jump,1)} g/s. Typisch für Channeling.`);
+    const chF = channelingCheck(s, shots, T);
+    if(chF && chF.level !== 'low') add(chF.level === 'high' ? 'bad' : 'warn', `Channeling ${CH_LABEL[chF.level]} (Index ${chF.score}/100)`, 'Details und Gegenmaßnahmen im Channeling-Check unten.');
+    if(an.cv != null && !(chF && chF.level !== 'low' && an.cv <= 0.25)) an.cv > 0.25 ? add('warn', `Unruhiger Flow (Schwankung ${fmt(an.cv * 100,0)} %)`, 'Der Durchfluss schwankt in der Hauptphase stark. Häufig ein Zeichen für ungleichmäßige Verteilung.') : add('ok', `Gleichmäßiger Flow (Schwankung ${fmt(an.cv * 100,0)} %)`, 'Der Puck hält gleichmäßig.');
     if(an.endRatio != null && an.endRatio > 1.4) add('warn', 'Flow steigt zum Ende stark an', `Im letzten Viertel ${fmt((an.endRatio - 1) * 100,0)} % schneller als in der Mitte. Der Puck baut ab, die letzten Gramm schmecken dann oft dünn oder bitter.`);
     if(an.peak > 3.2) add('warn', `Spitzenflow ${fmt(an.peak,1)} g/s`, 'Sehr hoch für Espresso.');
     if(st) add('info', `Pumpe aus bei ca. ${fmt(st.tStop,1)} s und ${fmt(st.wStop,1)} g`, `Danach liefen noch ${fmt(st.drip,1)} g nach, die Tasse endete bei ${fmt(an.final,1)} g.`);
@@ -1438,6 +1467,155 @@ function findings(s, T, an, shots, st){
   }
   const order = {bad:0, warn:1, info:2, ok:3};
   return out.sort((a, b) => order[a.lvl] - order[b.lvl]);
+}
+
+/* ---------- Channeling-Check ----------
+   Sammelt Hinweise aus Waagenkurve, Shot-Daten und Geschmack und gewichtet sie zu einem Index 0–100. */
+const CH_CACHE = new Map();
+function channelingCheck(s, shots, T){
+  if(!s || isFilter(shots)) return null;
+  const fl = FLOWS[s.id] || null;
+  const key = s.id + '|' + (fl ? 1 : 0) + '|' + JSON.stringify(shotTags(s)) + '|' + (s.firstDrip || '') + '|' + (T ? T.tMin + '-' + T.tMax : '');
+  if(CH_CACHE.has(key)) return CH_CACHE.get(key);
+  const an = fl ? analyzeFlow(fl, s) : null;
+  const st = an ? detectStop(fl, an) : null;
+  const sig = [], events = [];
+  const add = (id, pts, src, title, text) => sig.push({ id, pts: Math.round(pts), src, title, text });
+  let curve = false;
+  if(an && an.mMain && an.ft.length > 10){
+    curve = true;
+    const ft = an.ft, f = an.f, m = an.mMain;
+    // Hauptphase: nach dem Anlaufen bis kurz vor dem Ausschalten
+    let tRamp = null; for(let i = 0; i < ft.length; i++) if((an.fd == null || ft[i] > an.fd) && f[i] >= 0.7 * m){ tRamp = ft[i]; break; }
+    const tA = tRamp != null ? tRamp + 0.5 : null, tB = st ? st.tStop - 0.5 : an.end - 1;
+    if(tA != null && tB > tA + 3){
+      // 1) plötzliche Flow-Sprünge (Anstieg innerhalb 1 s), Ereignisse mind. 2 s auseinander
+      const thr = Math.max(0.5, 0.25 * m);
+      const cand = [];
+      for(let i = 0; i < ft.length; i++){
+        if(ft[i] < tA || ft[i] > tB) continue;
+        let best = 0, jb = -1;
+        for(let j = i + 1; j < ft.length && ft[j] - ft[i] <= 1; j++){ const d = f[j] - f[i]; if(d > best){ best = d; jb = j; } }
+        if(best >= thr) cand.push({ t: ft[jb], d: best, f: f[jb] });
+      }
+      cand.sort((a, b) => b.d - a.d);
+      const spikes = [];
+      cand.forEach(c => { if(spikes.every(x => Math.abs(x.t - c.t) >= 2)) spikes.push(c); });
+      spikes.sort((a, b) => a.t - b.t);
+      spikes.forEach(x => events.push({ t: x.t, f: x.f, kind: 'Flow-Sprung', txt: `+${fmt(x.d,1)} g/s in 1 s` }));
+      if(spikes.length){
+        const big = Math.max(...spikes.map(x => x.d));
+        add('spike', Math.min(40, 14 * spikes.length + (big > 1.2 ? 10 : big > 0.8 ? 5 : 0)), 'Kurve', spikes.length === 1 ? `Flow-Sprung bei ${fmt(spikes[0].t,0)} s` : `${spikes.length} Flow-Sprünge (${spikes.map(x => fmt(x.t,0)).join(', ')} s)`,
+          `Der Durchfluss steigt plötzlich um bis zu ${fmt(big,1)} g/s innerhalb einer Sekunde. So sieht es aus, wenn sich im Puck ein Kanal öffnet.`);
+      }
+      // 2) Unruhe in der Hauptphase
+      let vals = []; for(let i = 0; i < ft.length; i++) if(ft[i] >= tA && ft[i] <= tB) vals.push(f[i]);
+      if(vals.length > 5){
+        const mu = vals.reduce((a, b) => a + b, 0) / vals.length;
+        // Schwankung um den Trend (lineare Drift herausrechnen), damit ein langsam steigender Flow nicht als Unruhe zählt
+        const xs = ft.filter(t => t >= tA && t <= tB); const fit = wlr(xs.map((x, i) => ({ x, y: vals[i], w: 1 })));
+        const res = fit ? vals.map((v, i) => v - (fit.a + fit.b * xs[i])) : vals.map(v => v - mu);
+        const cv = Math.sqrt(res.reduce((a, r) => a + r * r, 0) / res.length) / mu;
+        if(cv > 0.12) add('cv', cv > 0.25 ? 22 : cv > 0.18 ? 14 : 7, 'Kurve', `Unruhiger Flow (Schwankung ${fmt(cv * 100,0)} %)`, 'Der Durchfluss zittert in der Hauptphase stärker als üblich. Ein gleichmäßig durchströmter Puck liefert eine ruhige Kurve.');
+      }
+      // 3) Durchbruch direkt am Anfang
+      if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m) {
+        add('early', an.peak > 2 * m ? 18 : 12, 'Kurve', `Früher Flow-Ausschlag (${fmt(an.peak,1)} g/s bei ${fmt(an.tPeak,0)} s)`, 'Kurz nach dem ersten Tropfen schießt der Flow weit über den späteren Durchschnitt. Das Wasser findet sofort einen bequemen Weg durch den Puck.');
+        events.push({ t: an.tPeak, f: an.peak, kind: 'Früher Ausschlag', txt: `${fmt(an.peak,1)} g/s` });
+      }
+      // 4) Puck baut zum Ende ab
+      if(an.endRatio != null && an.endRatio > 1.3) add('late', an.endRatio > 1.6 ? 14 : 8, 'Kurve', `Flow steigt zum Ende (+${fmt((an.endRatio - 1) * 100,0)} %)`, 'Der Puck verliert gegen Ende Widerstand. Das ist oft Erosion oder ein Kanal, der sich langsam weitet.');
+      // 5) Druck fällt, während der Flow steigt
+      if(fl.p?.length > 5){
+        let worst = null;
+        for(let i = 0; i < fl.pt.length; i++){
+          const t = fl.pt[i]; if(t < tA || t > tB) continue;
+          let j = i; while(j > 0 && t - fl.pt[j - 1] <= 1.5) j--;
+          const dp = fl.p[j] - fl.p[i];
+          if(dp > 0.8){
+            const fNow = f[ft.findIndex(x => x >= t)] ?? 0, fThen = f[ft.findIndex(x => x >= fl.pt[j])] ?? 0;
+            if(fNow - fThen > 0.2 && (!worst || dp > worst.dp)) worst = { t, dp, p: fl.p[i] };
+          }
+        }
+        if(worst){ add('pdrop', 30, 'Kurve', `Druckeinbruch bei ${fmt(worst.t,0)} s (−${fmt(worst.dp,1)} bar)`, 'Der Druck fällt, während der Flow steigt: Der Widerstand im Puck bricht ein. Das ist das deutlichste Zeichen für einen Kanal.'); events.push({ t: worst.t, p: worst.p, kind: 'Druckeinbruch', txt: `−${fmt(worst.dp,1)} bar` }); }
+      }
+    }
+  }
+  // Shot-Daten
+  const fd = s.firstDrip || an?.fd;
+  if(fd != null){
+    if(fd < 4) add('fd', 15, 'Daten', `Erster Tropfen sehr früh (${fmt(fd,0)} s)`, 'Das Wasser ist sehr schnell durch. Bei ungleichmäßiger Verteilung findet es den kürzesten Weg.');
+    else if(fd < 5) add('fd', 7, 'Daten', `Erster Tropfen früh (${fmt(fd,0)} s)`, 'Etwas früh für eine Maschine ohne lange Preinfusion.');
+  }
+  if(s.grind != null && flow(s)){
+    const res = grinderRes();
+    const nb = shots.filter(x => x.id !== s.id && x.grind != null && Math.abs(x.grind - s.grind) <= res * 1.01 && flow(x) && x.dose && s.dose && Math.abs(x.dose - s.dose) <= 1);
+    if(nb.length >= 2){
+      const ref = nb.map(flow).sort((a, b) => a - b)[Math.floor(nb.length / 2)];
+      const r = flow(s) / ref;
+      if(r > 1.2) add('fast', r > 1.4 ? 16 : 9, 'Daten', `Schneller als sonst bei dieser Einstellung (+${fmt((r - 1) * 100,0)} %)`, `Bei Mahlgrad ${esc(s.grindRaw)} laufen deine anderen Shots im Mittel ${fmt(ref,2)} g/s, dieser ${fmt(flow(s),2)} g/s. Gleiche Mühle, gleiche Dosis, trotzdem weniger Widerstand: ein Hinweis auf einen Kanal.`);
+    }
+  }
+  const age = beanAge(s);
+  if(age != null && age < 5) add('fresh', 5, 'Daten', `Sehr frische Bohne (${age} Tage)`, 'Viel CO₂ im Puck macht die Extraktion unruhiger und begünstigt Kanäle.');
+  // Geschmack
+  const tg = shotTags(s);
+  const under = hasDir(tg, 'under'), over = hasDir(tg, 'over');
+  if(under && over) add('mixed', 22, 'Geschmack', 'Sauer und bitter zugleich', 'Klassisches Geschmacksbild von Channeling: Ein Teil des Kaffees wird überextrahiert (Kanal), der Rest bleibt unterextrahiert.');
+  else if(tg.unbal) add('unbal', 14, 'Geschmack', 'Unausgewogen', 'Ein unruhiges, zerrissenes Geschmacksbild passt zu ungleichmäßiger Extraktion.');
+  if(tg.astr) add('astr', 10, 'Geschmack', 'Trocken oder pelzig', 'Adstringenz im Abgang entsteht häufig, wenn ein Teil des Pucks stark überextrahiert wird.');
+  if(under && T && s.time && s.time > T.tMax) add('soursl', 12, 'Geschmack', 'Sauer trotz langer Laufzeit', 'Lange Kontaktzeit und trotzdem sauer: Das Wasser hat einen großen Teil des Pucks umgangen.');
+  if(tg.thin && T && s.time && s.time >= T.tMin && !under) add('thin', 6, 'Geschmack', 'Dünn bei normaler Zeit', 'Wenig Körper trotz passender Laufzeit kann auf einen Kanal hindeuten, durch den das Wasser vorbeifließt.');
+
+  const score = Math.min(100, sig.reduce((a, x) => a + x.pts, 0));
+  const level = score >= 45 ? 'high' : score >= 20 ? 'mid' : 'low';
+  // passende Gegenmaßnahmen
+  const tips = [];
+  if(level !== 'low'){
+    tips.push('WDT gründlich bis zum Siebboden, besonders an den Rändern. Klumpen auflösen.');
+    tips.push('Gerade tampen (Level-Tamper oder Wasserwaage) und danach nicht mehr gegen den Siebträger klopfen.');
+    if(sig.some(x => x.id === 'fd' || x.id === 'early')) tips.push('Sanfter starten: Preinfusion oder langsamer Druckaufbau, falls die Maschine das kann. Bleibt der erste Tropfen früh, etwas feiner mahlen.');
+    if(sig.some(x => x.id === 'late')) tips.push('Puck baut zum Ende ab: Dosis passend zur Siebgröße wählen (genug Mehl im Sieb) und eventuell etwas kürzer ziehen.');
+    if(sig.some(x => x.id === 'pdrop' || x.id === 'spike')) tips.push('Ein Puck-Screen oben drauf verteilt das Wasser gleichmäßiger. Duschsieb und Siebe sauber und trocken halten.');
+    if(sig.some(x => x.id === 'fresh')) tips.push('Die Bohne ein paar Tage länger ruhen lassen.');
+    if(sig.some(x => x.id === 'fast')) tips.push('Shot unter gleichen Bedingungen wiederholen. Läuft er wieder normal, war es die Vorbereitung und nicht der Mahlgrad.');
+    tips.push('Erst die Vorbereitung stabil bekommen, dann weiter am Mahlgrad drehen. Sonst jagst du einem Zufallswert hinterher.');
+  }
+  events.sort((a, b) => a.t - b.t);
+  const out = { score, level, sig: sig.sort((a, b) => b.pts - a.pts), events, tips, curve, an, st };
+  CH_CACHE.set(key, out);
+  return out;
+}
+const CH_LABEL = { low:'gering', mid:'möglich', high:'wahrscheinlich' };
+function channelingHTML(s, shots, T){
+  const ch = channelingCheck(s, shots, T);
+  if(!ch) return '';
+  const col = { low:'var(--good)', mid:'var(--sour)', high:'var(--mixed)' }[ch.level];
+  // Verlauf der letzten Shots dieser Kombination
+  const hist = shots.filter(x => x.time && x.date && s.date && x.date <= s.date).slice(0, 10).reverse().map(x => ({ x, c: channelingCheck(x, shots, T) })).filter(h => h.c);
+  const bars = hist.length > 1 ? `<div class="chhist" role="img" aria-label="Channeling-Index der letzten Shots">${hist.map(h => `<button type="button" class="chh ${h.x.id === s.id ? 'cur' : ''}" data-ana="${esc(h.x.id)}" title="${fmtDate(h.x.date)} · Index ${h.c.score}${h.c.curve ? ' · mit Kurve' : ''}"><i style="height:${Math.max(4, h.c.score)}%;background:${{ low:'var(--good)', mid:'var(--sour)', high:'var(--mixed)' }[h.c.level]}"></i><span>${fmtDate(h.x.date).split(' ')[0]}</span></button>`).join('')}</div>` : '';
+  return `
+    <div class="chan">
+      <div class="chan-head">
+        <h3>Channeling-Check</h3>
+        <span class="muted" style="font-size:12.5px">${ch.curve ? 'Grundlage: Waagenkurve, Shot-Daten und Geschmack' : 'Grundlage: nur Shot-Daten und Geschmack. Mit Waagenkurve wird die Aussage deutlich sicherer.'}</span>
+      </div>
+      <div class="chan-grid">
+        <div class="chan-score">
+          <div class="chmeter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${ch.score}" aria-label="Channeling-Index">
+            <div class="chzones"><i></i><i></i><i></i></div>
+            <span class="chmark" style="left:${ch.score}%;border-color:${col}"></span>
+          </div>
+          <div class="chscale num"><span>0</span><span>20</span><span>45</span><span>100</span></div>
+          <div class="chverdict"><b class="num" style="color:${col}">${ch.score}</b><span>Channeling <b>${CH_LABEL[ch.level]}</b></span></div>
+          ${bars ? `<span class="eyebrow" style="margin-top:6px">Letzte Shots</span>${bars}` : ''}
+        </div>
+        <div>
+          ${ch.sig.length ? `<ul class="findings">${ch.sig.map(x => `<li class="${x.pts >= 15 ? 'bad' : x.pts >= 8 ? 'warn' : 'info'}"><i aria-hidden="true"></i><span><b>${x.title}.</b> ${x.text} <span class="chsrc">${x.src} · ${x.pts} P.</span></span></li>`).join('')}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Keine Hinweise auf Channeling. ${ch.curve ? 'Die Kurve läuft ruhig und ohne Sprünge.' : 'Lade die Waagenkurve dazu, um es genauer zu prüfen.'}</p>`}
+          ${ch.tips.length ? `<h3 style="margin-top:14px">Was hilft</h3><ul class="why">${ch.tips.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
+        </div>
+      </div>
+    </div>`;
 }
 function analysisHTML(s, T, shots, scale){
   const fl = FLOWS[s.id] || null;
@@ -1518,8 +1696,8 @@ function analysisHTML(s, T, shots, scale){
     <div class="ana-grid">
       <div>
         ${phaseSVG(s, T, an?.fd)}
-        ${an ? `${flowSVG(fl, an, refFl && ref.id !== s.id ? refFl : null, refAn && ref.id !== s.id ? refAn : null, st)}
-          <div class="legend"><span><i style="background:var(--ink)"></i>Gewicht (g)</span><span><i style="background:var(--accent)"></i>Durchfluss (g/s)${an.derived ? ', aus Gewicht berechnet' : ''}</span>${fl.p?.length ? '<span><i style="background:var(--sour)"></i>Druck (0–12 bar)</span>' : ''}${refFl && ref.id !== s.id ? `<span><i style="background:var(--muted)"></i>${chosen ? 'Vergleich' : 'Referenz'} ${fmtDate(ref.date)}</span>` : ''}</div>
+        ${an ? `${flowSVG(fl, an, refFl && ref.id !== s.id ? refFl : null, refAn && ref.id !== s.id ? refAn : null, st, channelingCheck(s, shots, T)?.events)}
+          <div class="legend"><span><i style="background:var(--ink)"></i>Gewicht (g)</span><span><i style="background:var(--accent)"></i>Durchfluss (g/s)${an.derived ? ', aus Gewicht berechnet' : ''}</span>${fl.p?.length ? '<span><i style="background:var(--sour)"></i>Druck (0–12 bar)</span>' : ''}${channelingCheck(s, shots, T)?.events.length ? '<span><i style="background:var(--mixed)"></i>C = Channeling-Hinweis</span>' : ''}${refFl && ref.id !== s.id ? `<span><i style="background:var(--muted)"></i>${chosen ? 'Vergleich' : 'Referenz'} ${fmtDate(ref.date)}</span>` : ''}</div>
           ${reassign}`
         : `<div class="flowhint">Keine Waagenkurve für diesen Shot. In Beanconqueror lässt sich in der Detailansicht eines Bezugs das Flowprofil als JSON oder Excel herunterladen (oder die Visualizer-Datei). Leg die Datei hier ab, sie wird automatisch dem passenden Shot zugeordnet.${s.deviceFlow ? ' Laut Backup existiert für diesen Bezug eine Kurve auf deinem Gerät.' : ''}</div>`}
         <div class="metrics">${metrics.join('')}</div>
@@ -1529,6 +1707,7 @@ function analysisHTML(s, T, shots, scale){
         <ul class="findings">${F.map(f => `<li class="${f.lvl}"><i aria-hidden="true"></i><span><b>${f.title}.</b> ${f.text}</span></li>`).join('')}</ul>
       </div>
     </div>
+    ${channelingHTML(s, shots, T)}
     ${cols.length > 1 ? `<h3>Vergleich</h3><div class="tablewrap"><table class="cmp"><thead><tr><th></th>${cols.map(c => `<th>${c[0]}<br><span class="muted num" style="text-transform:none;letter-spacing:0">${fmtDate(c[1].date)}</span></th>`).join('')}</tr></thead>
       <tbody>${cmpRows.map(([lab, f, fn]) => { const j = judge(lab, s, prev); return `<tr><td>${lab}</td>${cols.map((c, i) => `<td class="n ${i === 0 && j ? 'cmp-' + j : ''}"${i === 0 && j ? ` title="${j === 'better' ? 'besser als der vorherige Shot' : 'schlechter als der vorherige Shot'}"` : ''}>${f(c[1])}${i > 0 ? delta(fn, s, c[1]) : ''}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
       <span class="muted" style="font-size:12.5px">In Klammern: Unterschied dieses Shots zur jeweiligen Spalte.${prev ? ' <span class="cmpkey better">grün</span> näher am Ziel als der vorherige Shot, <span class="cmpkey worse">rot</span> weiter weg.' : ''}</span>` : ''}
@@ -1704,6 +1883,7 @@ function welcomeHTML(){
   </section>`;
 }
 function render(){
+  CH_CACHE.clear();
   if(!allShots().length){
     $('#ctx').hidden = true;
     $('#status').textContent = 'Noch keine Daten geladen';
@@ -1934,6 +2114,7 @@ function render(){
   document.querySelectorAll('[data-detail]').forEach(b => b.onclick = () => goDetail(b.dataset.detail));
   document.querySelectorAll('.chart circle[data-id]').forEach(c => c.addEventListener('click', () => goDetail(c.dataset.id)));
   $('#anaSel').onchange = e => goDetail(e.target.value);
+  document.querySelectorAll('.chh[data-ana]').forEach(b => b.onclick = () => goDetail(b.dataset.ana));
   const ordered = shots.slice().sort((a, b) => a.date - b.date), di = ordered.findIndex(x => x.id === detail.id);
   $('#anaPrev').onclick = () => { if(di > 0) goDetail(ordered[di - 1].id); };
   $('#anaNext').onclick = () => { if(di < ordered.length - 1) goDetail(ordered[di + 1].id); };
