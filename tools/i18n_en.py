@@ -524,3 +524,5 @@ PHRASES += [
     ('<span class="muted">Gelernt aus ', '<span class="muted">Learned from '),
     ('<title>Pumpe aus</title>', '<title>Pump off</title>'),
 ]
+
+EXACT.update({'Fertig': 'Done', 'Aus Notiz': 'From note', 'Geschmack bearbeiten': 'Edit taste', '+ Geschmack': '+ taste'})

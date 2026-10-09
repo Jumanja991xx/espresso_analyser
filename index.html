@@ -197,6 +197,11 @@ table.levers{min-width:760px}
 .lang a{padding:2px 9px;border:1px solid var(--line);border-radius:99px;color:var(--muted);text-decoration:none}
 .lang a:hover{border-color:var(--accent);color:var(--ink)}
 .lang a[aria-current="page"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tagbtn{background:none;border:1px dashed transparent;border-radius:6px;padding:2px 4px;margin:-3px -5px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.tagbtn:hover,.tagbtn:focus-visible{border-color:var(--line);background:var(--sunk)}
+.chip.mini{padding:1px 8px;font-size:12px}
+td.tastecell{min-width:9em}
+td.tastecell .chips{min-width:17em}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
 .linkbtn:hover{color:var(--mixed)}
 .confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
@@ -330,6 +335,12 @@ function tagNotes(text, rating, scale){
   }
   if(!tags.sour && !tags.bitter && !tags.sharp && !tags.thin && !tags.unbal && rating && rating >= 0.8 * scale) tags.good = true;
   return tags;
+}
+function toggleTaste(s, key){
+  const cur = { ...shotTags(s) }; cur[key] = !cur[key];
+  if(key === 'good' && cur.good){ cur.sour = cur.bitter = cur.sharp = cur.thin = cur.unbal = false; }
+  else if(key !== 'good' && cur[key]) cur.good = false;
+  UI.taste[s.id] = cur; saveUI();
 }
 function tasteClass(tags){
   if(!tags) return 'none';
@@ -1411,7 +1422,9 @@ function tableHTML(rows, anchor, scale){
       <td class="n">${s.temp ? fmt(s.temp,0) : s.tempRaw != null ? `<span class="flag" title="unplausibel">${fmt(s.tempRaw,0)}</span>` : '–'}</td>
       <td class="n">${beanAge(s) != null ? beanAge(s) + ' d' : '–'}</td>
       <td class="n">${s.rating ? fmt(s.rating,0) + '/' + scale : '<span class="muted">–</span>'}</td>
-      <td>${tags || '<span class="muted">–</span>'}</td>
+      <td class="tastecell">${UI.editTaste === s.id
+        ? `<div class="chips">${TASTES.map(T => `<button type="button" class="chip mini" data-t="${T.k}" data-tt="${T.k}" data-sid="${esc(s.id)}" aria-pressed="${!!t[T.k]}">${T.label}</button>`).join('')}</div><div class="row" style="margin-top:4px"><button class="btn small" type="button" data-tdone="1">${'Fertig'}</button>${UI.taste[s.id] ? `<button class="btn small" type="button" data-treset="${esc(s.id)}">${'Aus Notiz'}</button>` : ''}</div>`
+        : `<button type="button" class="tagbtn" data-edit-taste="${esc(s.id)}" title="${'Geschmack bearbeiten'}">${tags || `<span class="muted">${'+ Geschmack'}</span>`}${UI.taste[s.id] ? '<span class="muted" aria-hidden="true"> ✎</span>' : ''}</button>`}</td>
       <td>${esc(s.notes)}</td>
       <td style="white-space:nowrap"><button class="btn small" type="button" data-detail="${esc(s.id)}">Analyse</button> ${inCtx && s.time ? `<button class="btn small" type="button" data-anchor="${esc(s.id)}">${anchor && s.id === anchor.id ? 'Basis' : 'als Basis'}</button>` : ''}${s.source === 'app' ? ` <button class="btn small" type="button" data-del="${esc(s.id)}" aria-label="Eintrag löschen">×</button>` : ''}</td>
     </tr>`;}).join('')}</tbody></table></div>`;
@@ -1579,12 +1592,11 @@ function render(){
   </details>`;
 
   // Ereignisse
-  document.querySelectorAll('#tasteChips .chip').forEach(c => c.onclick = () => {
-    const cur = {...shotTags(anchor)}; cur[c.dataset.t] = !cur[c.dataset.t];
-    if(cur.good && c.dataset.t === 'good') { cur.sour = cur.bitter = cur.sharp = cur.thin = cur.unbal = false; }
-    else if(c.dataset.t !== 'good' && cur[c.dataset.t]) cur.good = false;
-    UI.taste[anchor.id] = cur; formDirty = false; saveUI(); render();
-  });
+  document.querySelectorAll('#tasteChips .chip').forEach(c => c.onclick = () => { toggleTaste(anchor, c.dataset.t); formDirty = false; render(); });
+  document.querySelectorAll('[data-edit-taste]').forEach(b => b.onclick = () => { UI.editTaste = b.dataset.editTaste; render(); });
+  document.querySelectorAll('.tastecell .chip[data-tt]').forEach(c => c.onclick = () => { const s = allShots().find(x => x.id === c.dataset.sid); if(s){ toggleTaste(s, c.dataset.tt); render(); } });
+  document.querySelectorAll('[data-tdone]').forEach(b => b.onclick = () => { UI.editTaste = null; render(); });
+  document.querySelectorAll('[data-treset]').forEach(b => b.onclick = () => { delete UI.taste[b.dataset.treset]; saveUI(); render(); });
   document.querySelectorAll('#intenChips .chip').forEach(c => c.onclick = () => { UI.intensity[anchor.id] = c.dataset.i; formDirty = false; saveUI(); render(); });
   const rcp = $('#recipeCopy'); if(rcp) rcp.onclick = () => {
     const txt = `${UI.bean} · ${UI.grinder}: Mahlgrad ${recipe.grindRaw}, ${recipe.dose} g → ${recipe.yield} g in ${recipe.time} s${recipe.temp ? ', ' + recipe.temp + ' °C' : ''}`;
