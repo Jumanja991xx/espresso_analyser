@@ -828,7 +828,8 @@ function grindSVG(shots, anchor, rec, model, T){
   const res = grinderRes();
   let x0 = Math.min(...gs) - res * 2, x1 = Math.max(...gs) + res * 2;
   let y0 = Math.min(...ts) - 3, y1 = Math.max(...ts) + 3;
-  const X = v => L + (v - x0) / (x1 - x0) * (W - L - Rr), Y = v => Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B);
+  const rev = UI.coarserHigher[UI.grinder] !== false; // gröber links, feiner rechts
+  const X = v => { const u = (v - x0) / (x1 - x0); return L + (rev ? 1 - u : u) * (W - L - Rr); }, Y = v => Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grind vs shot time">`;
   niceTicks(x0, x1, 7).forEach(v => s += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tp}" y2="${H - B}" stroke="var(--line)"/><text x="${X(v)}" y="${H - B + 16}" font-size="11" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmtG(v, res)}</text>`);
   niceTicks(y0, y1, 5).forEach(v => s += `<line x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmt(v, 0)}</text>`);
@@ -851,7 +852,7 @@ function grindSVG(shots, anchor, rec, model, T){
     const cx = X(rec.newGrind), cy = Y(clamp(rec.tPred, y0, y1));
     s += `<path d="M${cx} ${cy - 9} L${cx + 9} ${cy} L${cx} ${cy + 9} L${cx - 9} ${cy} Z" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"><title>Recommendation</title></path>`;
   }
-  const fine = UI.coarserHigher[UI.grinder] === false ? 'coarser ←  grind  → finer' : 'finer ←  grind  → coarser';
+  const fine = 'coarser ←  grind  → finer';
   s += `<text x="${(L + W - Rr) / 2}" y="${H - 6}" font-size="11.5" text-anchor="middle" fill="var(--muted)">${fine}</text>`;
   s += `<text transform="translate(12 ${(Tp + H - B) / 2}) rotate(-90)" font-size="11.5" text-anchor="middle" fill="var(--muted)">Time (s)</text>`;
   return s + '</svg>';
@@ -861,7 +862,8 @@ function rulerSVG(shots, anchor, rec){
   const res = rec.res, W = 560, H = 74, L = 16, R = 16;
   const gs = shots.filter(s => s.grind != null).map(s => s.grind).concat([rec.newGrind, anchor.grind]);
   let x0 = Math.min(...gs) - res * 3, x1 = Math.max(...gs) + res * 3;
-  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R);
+  const rev = UI.coarserHigher[UI.grinder] !== false; // gröber links, feiner rechts
+  const X = v => { const u = (v - x0) / (x1 - x0); return L + (rev ? 1 - u : u) * (W - L - R); };
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grind scale">`;
   s += `<line x1="${L}" x2="${W - R}" y1="34" y2="34" stroke="var(--ink)" stroke-width="1.5"/>`;
   const steps = Math.round((x1 - x0) / res);
@@ -877,8 +879,7 @@ function rulerSVG(shots, anchor, rec){
   s += `<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker></defs>`;
   s += `<line x1="${ax}" x2="${ax}" y1="18" y2="34" stroke="var(--ink)" stroke-width="2"/>`;
   s += `<path d="M${nx - 6} 34 L${nx + 6} 34 L${nx} 24 Z" fill="var(--accent)"/>`;
-  const fineLeft = UI.coarserHigher[UI.grinder] !== false;
-  s += `<text x="${L}" y="70" font-size="10.5" fill="var(--muted)">${fineLeft ? 'finer' : 'coarser'}</text><text x="${W - R}" y="70" font-size="10.5" text-anchor="end" fill="var(--muted)">${fineLeft ? 'coarser' : 'finer'}</text>`;
+  s += `<text x="${L}" y="70" font-size="10.5" fill="var(--muted)">${'coarser'}</text><text x="${W - R}" y="70" font-size="10.5" text-anchor="end" fill="var(--muted)">${'finer'}</text>`;
   return s + '</svg>';
 }
 
@@ -978,7 +979,9 @@ function calibrationRows(base, model, res, T){
   const measured = {};
   ctxShots().filter(s => s.grind != null && s.time).forEach(s => { const k = (Math.round(s.grind / res) * res).toFixed(2); (measured[k] ||= []).push(s); });
   const rows = [];
-  for(let i = -5; i <= 5; i++){
+  const rev = UI.coarserHigher[UI.grinder] !== false; // gröber oben, feiner unten
+  for(let k = -5; k <= 5; k++){
+    const i = rev ? -k : k;
     const g = Math.round((base.grind + i * res) / res) * res;
     const f = f0 + b * (g - base.grind);
     const cells = doses.map(d => { const fd = f * base.dose / d; return fd > 0.15 ? T.ratio * d / fd : null; });
