@@ -526,3 +526,30 @@ PHRASES += [
 ]
 
 EXACT.update({'Fertig': 'Done', 'Aus Notiz': 'From note', 'Geschmack bearbeiten': 'Edit taste', '+ Geschmack': '+ taste'})
+
+EXACT.update({
+    'salzig': 'salty', 'flach/leer': 'flat/hollow', 'trocken/pelzig': 'dry/astringent', 'verbrannt/aschig': 'burnt/ashy',
+    'zu stark': 'too strong', 'süß': 'sweet', 'voller Körper': 'full body', 'schokoladig': 'chocolatey', 'nussig': 'nutty',
+    'fruchtig': 'fruity', 'würzig': 'spicy', 'Fehler': 'Faults', 'Gelungen': 'Good', 'Aromen': 'Flavours',
+    'Salzig': 'Salty', 'Flach': 'Flat',
+    'Zu stark: eine längere Ratio verdünnt den Espresso, ohne die Extraktion zu verschlechtern.': 'Too strong: a longer ratio dilutes the espresso without hurting extraction.',
+    'Verbrannt oder aschig: Die Temperatur ist für diese Röstung meist zu hoch. Kühler brühen hilft am schnellsten.': 'Burnt or ashy: the temperature is usually too high for this roast. Brewing cooler helps fastest.',
+    'Trocken oder pelzig im Abgang entsteht oft durch Channeling oder zu viel Feinanteil. Puck-Vorbereitung prüfen; hilft das nicht, minimal gröber oder früher stoppen.': 'A dry or furry finish often comes from channeling or too many fines. Check puck prep; if that does not help, go slightly coarser or stop earlier.',
+    'Flacher Geschmack passt zum Bohnenalter (': 'A flat taste fits the bean age (',
+    ' Tage). Aromen bauen ab, mehr Extraktion hilft nur begrenzt.': ' days). Aromas fade; more extraction only helps so much.',
+    'Salzig ist ein deutliches Zeichen für Unterextraktion: Der Shot braucht mehr Kontaktzeit.': 'Salty is a clear sign of under-extraction: the shot needs more contact time.',
+    'sauer/flach Ø ': 'sour/flat avg ', 'gelungen Ø ': 'good avg ', 'bitter/trocken Ø ': 'bitter/dry avg ',
+    'Gelungene Shots lagen bei ': 'Good shots ran ',
+    ', Mahlgrad ': ', grind ',
+    'Dein Sweet Spot liegt vermutlich dazwischen, bei etwa ': 'Your sweet spot is probably in between, at about ',
+    '“ kam am deutlichsten bei Ø ': '” came through most at avg ',
+    ' s und 1:': ' s and 1:',
+})
+PHRASES += [
+    ('<span class="eyebrow">Geschmack nach Laufzeit</span>', '<span class="eyebrow">Taste by shot time</span>'),
+    ('<span class="eyebrow">Aromen</span>', '<span class="eyebrow">Flavours</span>'),
+    ('<p>„', '<p>“'),
+]
+EXACT.update({'„': '“'})
+
+EXACT.update({' am ': ' on '})

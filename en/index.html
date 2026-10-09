@@ -99,6 +99,10 @@ button,select,input,textarea{font:inherit;color:inherit}
 .chip[data-t="sour"][aria-pressed="true"]{color:var(--sour);background:color-mix(in srgb,var(--sour) 12%,transparent)}
 .chip[data-t="bitter"][aria-pressed="true"]{color:var(--bitter);background:color-mix(in srgb,var(--bitter) 14%,transparent)}
 .chip[data-t="good"][aria-pressed="true"]{color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.chip[data-t="salty"][aria-pressed="true"],.chip[data-t="flat"][aria-pressed="true"]{color:var(--sour);background:color-mix(in srgb,var(--sour) 12%,transparent)}
+.chip[data-t="astr"][aria-pressed="true"],.chip[data-t="burnt"][aria-pressed="true"],.chip[data-t="strong"][aria-pressed="true"]{color:var(--bitter);background:color-mix(in srgb,var(--bitter) 14%,transparent)}
+.chip[data-t="sweet"][aria-pressed="true"],.chip[data-t="body"][aria-pressed="true"]{color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.chip[data-t="choc"][aria-pressed="true"],.chip[data-t="nutty"][aria-pressed="true"],.chip[data-t="fruity"][aria-pressed="true"],.chip[data-t="spicy"][aria-pressed="true"]{color:var(--accent);background:var(--accent-soft)}
 .chip[data-t="sharp"][aria-pressed="true"],.chip[data-t="thin"][aria-pressed="true"],.chip[data-t="unbal"][aria-pressed="true"]{color:var(--mixed);background:color-mix(in srgb,var(--mixed) 11%,transparent)}
 .note{font-size:13.5px;color:var(--muted);font-style:italic}
 
@@ -144,7 +148,7 @@ tr.anchor td{background:var(--accent-soft)}
 tr:last-child td{border-bottom:0}
 .flag{color:var(--warn-ink);background:var(--warn-bg);border-radius:4px;padding:0 4px}
 .tag{display:inline-block;font-size:11.5px;border-radius:99px;padding:0 7px;margin:1px 2px 1px 0;border:1px solid currentColor}
-.tag.sour{color:var(--sour)}.tag.bitter{color:var(--bitter)}.tag.good{color:var(--good)}.tag.sharp,.tag.thin,.tag.unbal{color:var(--mixed)}
+.tag.sour,.tag.salty,.tag.flat{color:var(--sour)}.tag.astr,.tag.burnt,.tag.strong{color:var(--bitter)}.tag.sweet,.tag.body{color:var(--good)}.tag.choc,.tag.nutty,.tag.fruity,.tag.spicy{color:var(--accent)}.tag.bitter{color:var(--bitter)}.tag.good{color:var(--good)}.tag.sharp,.tag.thin,.tag.unbal{color:var(--mixed)}
 .src{font-size:11px;color:var(--accent);font-weight:600}
 
 /* Formular */
@@ -205,6 +209,12 @@ table.levers{min-width:760px}
 .chip.mini{padding:1px 8px;font-size:12px}
 td.tastecell{min-width:9em}
 td.tastecell .chips{min-width:17em}
+.tgroups{display:flex;flex-direction:column;gap:6px}
+.tg{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:8px;align-items:start}
+.tgl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-top:6px}
+td.tastecell .tg{grid-template-columns:minmax(0,1fr)}
+td.tastecell .tgl{padding-top:0}
+@media (max-width:560px){.tg{grid-template-columns:minmax(0,1fr)}.tgl{padding-top:0}}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer}
 .linkbtn:hover{color:var(--mixed)}
 .confirm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;font-size:13px;max-width:28em;text-align:right}
@@ -319,39 +329,60 @@ function findCols(header, fields){
 }
 
 /* ---------- Geschmack aus Notizen ---------- */
+/* Geschmacksmerkmale. group: neg = Fehler (steuert die Empfehlung), pos = gelungen, aroma = Aromanoten.
+   dir: under = Unterextraktion, over = Überextraktion, channel, weak/strong = Konzentration */
 const TASTES = [
-  {k:'sour',   label:'sour',        re:/sauer|säuer|säur|sour|acid/gi},
-  {k:'bitter', label:'bitter',       re:/bitter/gi},
-  {k:'sharp',  label:'sharp', re:/spitz|scharf|adstring|astring|harsh|sharp/gi},
-  {k:'thin',   label:'thin',         re:/dünn|wässr|watery|thin/gi},
-  {k:'unbal',  label:'unbalanced', re:/unausgewogen|unbalanced|channel/gi},
-  {k:'good',   label:'good/round',     re:/sehr gut|ganz gut|rund|ausgewogen|balanced|lecker|perfekt|süß|sweet|good|great|round|delicious/gi},
+  {k:'sour',   group:'neg', dir:'under',   label:'sour',         re:/sauer|säuer|säur|sour|acid/gi},
+  {k:'sharp',  group:'neg', dir:'under',   label:'sharp',  re:/spitz|scharf|harsh|sharp/gi},
+  {k:'salty',  group:'neg', dir:'under',   label:'salty',        re:/salzig|salty/gi},
+  {k:'flat',   group:'neg', dir:'under',   label:'flat/hollow',    re:/flach|leer|hohl|langweilig|flat|hollow|dull|muted/gi},
+  {k:'bitter', group:'neg', dir:'over',    label:'bitter',        re:/bitter/gi},
+  {k:'astr',   group:'neg', dir:'over',    label:'dry/astringent', re:/adstring|astring|trocken|pelzig|dry|drying/gi},
+  {k:'burnt',  group:'neg', dir:'over',    label:'burnt/ashy', re:/verbrannt|aschig|rauchig|burnt|ashy|smoky/gi},
+  {k:'thin',   group:'neg', dir:'weak',    label:'thin',          re:/dünn|wässr|watery|thin/gi},
+  {k:'strong', group:'neg', dir:'strong',  label:'too strong',      re:/zu stark|zu intensiv|zu kräftig|too strong|too intense/gi},
+  {k:'unbal',  group:'neg', dir:'channel', label:'unbalanced',  re:/unausgewogen|unbalanced|channel/gi},
+  {k:'good',   group:'pos', label:'good/round',     re:/sehr gut|ganz gut|rund|ausgewogen|balanced|lecker|perfekt|good|great|round|delicious/gi},
+  {k:'sweet',  group:'pos', label:'sweet',          re:/süß|süss|sweet|karamell|caramel|honig|honey/gi},
+  {k:'body',   group:'pos', label:'full body', re:/körper|vollmundig|sirupig|cremig|full.?bodied|syrupy|creamy/gi},
+  {k:'choc',   group:'aroma', label:'chocolatey', re:/schoko|kakao|chocolat|cocoa/gi},
+  {k:'nutty',  group:'aroma', label:'nutty',      re:/nuss|nussig|mandel|nutty|hazelnut|almond/gi},
+  {k:'fruity', group:'aroma', label:'fruity',    re:/fruchtig|beere|kirsch|zitrus|fruity|berry|cherry|citrus/gi},
+  {k:'spicy',  group:'aroma', label:'spicy',      re:/würzig|gewürz|spicy|spice/gi},
 ];
+const TASTE_GROUPS = [['neg', 'Faults'], ['pos', 'Good'], ['aroma', 'Flavours']];
+const NEG_KEYS = TASTES.filter(T => T.group === 'neg').map(T => T.k);
+const hasDir = (tags, d) => TASTES.some(T => T.dir === d && tags[T.k]);
+const anyNeg = tags => NEG_KEYS.some(k => tags[k]);
+function tasteChipsHTML(tags, extra = () => '', cls = 'chip'){
+  return `<div class="tgroups">${TASTE_GROUPS.map(([g, lab]) => `<div class="tg"><span class="tgl">${lab}</span><div class="chips">${TASTES.filter(T => T.group === g).map(T => `<button type="button" class="${cls}" data-t="${T.k}" ${extra(T)} aria-pressed="${!!tags[T.k]}">${T.label}</button>`).join('')}</div></div>`).join('')}</div>`;
+}
 function tagNotes(text, rating, scale){
   const tags = {};
   let t = String(text || '');
-  const negated = idx => /\b(kein\w*|nicht|no|not|ohne)\b[^.,;!?]{0,22}$/i.test(t.slice(Math.max(0, idx - 30), idx));
+  const negated = idx => /\b(kein\w*|nicht|no|not|ohne|wenig|weniger|less|little|lacks?|lacking)\b[^.,;!?]{0,22}$/i.test(t.slice(Math.max(0, idx - 30), idx));
   for(const T of TASTES){
     T.re.lastIndex = 0; let m;
     while((m = T.re.exec(t))){ if(!negated(m.index)){ tags[T.k] = true; break; } }
     if(T.k === 'unbal') t = t.replace(/unausgewogen|unbalanced/gi, '');
   }
-  if(!tags.sour && !tags.bitter && !tags.sharp && !tags.thin && !tags.unbal && rating && rating >= 0.8 * scale) tags.good = true;
+  if(!anyNeg(tags) && rating && rating >= 0.8 * scale) tags.good = true;
   return tags;
 }
 function toggleTaste(s, key){
   const cur = { ...shotTags(s) }; cur[key] = !cur[key];
-  if(key === 'good' && cur.good){ cur.sour = cur.bitter = cur.sharp = cur.thin = cur.unbal = false; }
-  else if(key !== 'good' && cur[key]) cur.good = false;
+  if(key === 'good' && cur.good){ NEG_KEYS.forEach(k => cur[k] = false); }
+  else if(NEG_KEYS.includes(key) && cur[key]) cur.good = false;
   UI.taste[s.id] = cur; saveUI();
 }
 function tasteClass(tags){
   if(!tags) return 'none';
-  if(tags.unbal || (tags.sour && tags.bitter)) return 'mixed';
-  if(tags.sour || tags.sharp) return 'sour';
-  if(tags.bitter) return 'bitter';
-  if(tags.thin) return 'mixed';
-  if(tags.good) return 'good';
+  const u = hasDir(tags, 'under'), o = hasDir(tags, 'over');
+  if(tags.unbal || (u && o)) return 'mixed';
+  if(u) return 'sour';
+  if(o) return 'bitter';
+  if(tags.thin || tags.strong) return 'mixed';
+  if(tags.good || tags.sweet || tags.body) return 'good';
   return 'none';
 }
 
@@ -681,7 +712,7 @@ const CONF_LABEL = { high:'high', mid:'medium', low:'low' };
 const INTENS_LABEL = { light:'slight', medium:'medium', strong:'strong' };
 function intensityOf(s){
   if(UI.intensity[s.id]) return UI.intensity[s.id];
-  const n = String(s.notes || '').toLowerCase();
+  const n = String(s.notes || '').toLowerCase().replace(/(sehr|very|really|richtig|super)\s+(gut|good|lecker|nice|great|rund|süß|sweet)/g, '');
   if(/sehr|stark|deutlich|extrem|viel zu|total|very|strong|extremely|way too/.test(n)) return 'strong';
   if(/etwas|leicht|eventuell|evtl|bisschen|minimal|a bit|slightly|a little|maybe|\?/.test(n)) return 'light';
   return 'medium';
@@ -746,9 +777,10 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const t = anchor.time;
   const status = !t ? 'unknown' : t < T.tMin ? 'fast' : t > T.tMax ? 'slow' : 'ok';
   const sTxt = {fast:`ran ${fmt(t,0)} s, too fast`, slow:`ran ${fmt(t,0)} s, too long`, ok:`was within the time window at ${fmt(t,0)} s`, unknown:'has no time recorded'}[status];
-  const sour = tags.sour, bitter = tags.bitter, sharp = tags.sharp, thin = tags.thin;
-  const mixed = tags.unbal || (sour && bitter);
-  const good = tags.good && !sour && !bitter && !sharp && !thin && !mixed;
+  const under = hasDir(tags, 'under'), over = hasDir(tags, 'over');
+  const sour = tags.sour || tags.salty || (under && !tags.sharp && !tags.flat), bitter = over, sharp = tags.sharp || tags.flat, thin = tags.thin;
+  const mixed = tags.unbal || (under && over);
+  const good = (tags.good || tags.sweet || tags.body) && !anyNeg(tags);
   const k = INTENS[intensity] || 1;
   const rStep = (filter ? 1 : 0.2) * k;
 
@@ -761,7 +793,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     tGoal = status === 'ok' ? t : center;
     if(status === 'ok') why.push('Keep the recipe. To fine-tune: change the ratio by ±0.1 and compare.');
   } else if(sour || sharp){
-    const label = sour ? 'Sour' : 'Sharp';
+    const label = tags.salty ? 'Salty' : tags.sour ? 'Sour' : tags.flat ? 'Flat' : 'Sharp';
     if(status === 'fast'){ why.push(`${label} and too fast: classic under-extraction. Grind finer so the shot runs longer.`); tGoal = center + (filter ? 10 : 1); }
     else if(status === 'ok'){ dR = sour ? rStep : rStep / 2; tGoal = Math.min(T.tMax, t + (filter ? 10 : 2) * k); why.push(`${label}, although the time is right: more yield (longer ratio) pulls more sweetness and body.`); if((T.temp || 0) < 95){ dT = 1; why.push('Also brew 1 °C hotter.'); } }
     else if(status === 'slow'){ dR = rStep; dT = (T.temp || 0) < 95 ? 1 : 0; tGoal = center; why.push(`${label} despite a long shot time points to uneven flow or water that is too cool.`); hints.push('Check puck prep (WDT, straight tamp). Raise the temperature slightly.'); }
@@ -778,6 +810,11 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     dDose = filter ? 1 : 0.5; if(dR === 0) dR = -rStep / 2;
     why.push('Thin and watery: a little more coffee and a shorter ratio give more body.');
   }
+  if(tags.strong && !thin){ dR += rStep; why.push('Too strong: a longer ratio dilutes the espresso without hurting extraction.'); }
+  if(tags.burnt){ if(!tags.bitter && !tags.astr) dR = Math.max(dR, 0); dT = Math.min(dT, 0) - 1; why.push('Burnt or ashy: the temperature is usually too high for this roast. Brewing cooler helps fastest.'); }
+  if(tags.astr && !mixed) hints.push('A dry or furry finish often comes from channeling or too many fines. Check puck prep; if that does not help, go slightly coarser or stop earlier.');
+  if(tags.flat){ const ag = beanAge(anchor); if(ag != null && ag > 35) hints.push(`A flat taste fits the bean age (${ag} days). Aromas fade; more extraction only helps so much.`); }
+  if(tags.salty && status !== 'slow') hints.push('Salty is a clear sign of under-extraction: the shot needs more contact time.');
   if(!filter && anchor.firstDrip){
     if(anchor.firstDrip < 4) hints.push(`The first drip came after only ${fmt(anchor.firstDrip,0)} s. Water finds a path through the puck very quickly: check distribution and tamping, grind finer.`);
     else if(anchor.firstDrip > 13) hints.push(`The first drip only came after ${fmt(anchor.firstDrip,0)} s. The puck is very dense, leaving little time for the actual extraction.`);
@@ -1340,7 +1377,7 @@ function insightsHTML(shots, anchor, model, T, rec){
   const rated = shots.filter(s => s.rating > 0);
   const best = rated.slice().sort((a, b) => b.rating - a.rating || b.date - a.date)[0];
   if(best){
-    out.push(`<div class="ins"><span class="eyebrow">Your reference shot</span><span class="big">${esc(best.grindRaw)} · ${fmt(best.time,0)} s · 1:${fmt(ratio(best),2)}</span><p>${fmt(best.rating,0)}/${scale} am ${fmtDate(best.date)}${best.notes ? ` – “${esc(best.notes)}”` : ''}</p></div>`);
+    out.push(`<div class="ins"><span class="eyebrow">Your reference shot</span><span class="big">${esc(best.grindRaw)} · ${fmt(best.time,0)} s · 1:${fmt(ratio(best),2)}</span><p>${fmt(best.rating,0)}/${scale} on ${fmtDate(best.date)}${best.notes ? ` – “${esc(best.notes)}”` : ''}</p></div>`);
   }
   if(model.scope !== 'none' && anchor && flow(anchor)){
     const step = rec.res, Y = rec.yld, f0 = flow(anchor);
@@ -1350,7 +1387,7 @@ function insightsHTML(shots, anchor, model, T, rec){
     out.push(`<div class="ins warn"><span class="eyebrow">Grinder sensitivity</span><p>${model.contradict ? 'The shots on this grinder contradict each other (finer sometimes ran faster). Common causes: different bean ages, dose or puck prep. Also check whether “higher number = coarser” is right for your grinder.' : 'Not enough shots with different grind settings yet.'} Until then the recommendation uses a rule of thumb.</p></div>`);
   }
   const recent = shots.slice(0, 6), cnt = {sour:0, bitter:0, good:0};
-  recent.forEach(s => { const t = shotTags(s); if(t.sour || t.sharp) cnt.sour++; if(t.bitter) cnt.bitter++; if(t.good) cnt.good++; });
+  recent.forEach(s => { const t = shotTags(s); if(hasDir(t, 'under')) cnt.sour++; if(hasDir(t, 'over')) cnt.bitter++; if(t.good || t.sweet) cnt.good++; });
   if(cnt.sour + cnt.bitter){
     const tend = cnt.sour > cnt.bitter ? 'Leaning under-extracted: finer, longer, hotter.' : cnt.bitter > cnt.sour ? 'Leaning over-extracted: coarser, shorter, cooler.' : 'Sour and bitter are balanced, which points to uneven extraction.';
     out.push(`<div class="ins"><span class="eyebrow">Taste trend (last ${recent.length})</span><span class="big">${cnt.sour}× sour · ${cnt.bitter}× bitter · ${cnt.good}× good</span><p>${tend}</p></div>`);
@@ -1394,6 +1431,27 @@ function insightsHTML(shots, anchor, model, T, rec){
     const dT = predictDrip(ov, tgt, (T.tMin + T.tMax) / 2, fdT);
     out.push(`<div class="ins"><span class="eyebrow">Your machine’s post-stop drip</span><span class="big">Ø ${fmt(ov.g,1)} g${ov.dur ? ` · ${fmt(ov.dur,1)} s` : ''}</span><p>From ${ov.n} ${ov.n === 1 ? 'scale curve' : 'scale curves'}${ov.n > 1 ? `, Spanne ${fmt(ov.min,1)}–${fmt(ov.max,1)} g` : ''}. For ${tgt} g in the cup, switch off at about ${fmt(tgt - dT,1)} g. The faster the shot runs, the more drips through afterwards.</p></div>`);
   }
+  // Geschmack nach Laufzeit: wo kippt es von sauer nach bitter?
+  const grp = { under:[], over:[], good:[] };
+  shots.forEach(s => { if(!s.time) return; const t = shotTags(s); const u = hasDir(t, 'under'), o = hasDir(t, 'over'); if(u && !o) grp.under.push(s); else if(o && !u) grp.over.push(s); else if(!anyNeg(t) && (t.good || t.sweet || t.body)) grp.good.push(s); });
+  const avgT = a => a.reduce((x, s) => x + s.time, 0) / a.length;
+  if((grp.under.length && grp.over.length) || (grp.good.length && (grp.under.length || grp.over.length))){
+    const parts = [];
+    if(grp.under.length) parts.push(`sour/flat avg ${fmt(avgT(grp.under),0)} s`);
+    if(grp.good.length) parts.push(`good avg ${fmt(avgT(grp.good),0)} s`);
+    if(grp.over.length) parts.push(`bitter/dry avg ${fmt(avgT(grp.over),0)} s`);
+    const gg = grp.good.filter(s => s.grind != null).map(s => s.grind);
+    const rng = (a, f) => { const lo = Math.min(...a), hi = Math.max(...a); return lo === hi ? f(lo) : `${f(lo)}–${f(hi)}`; };
+    const sweet = grp.good.length ? `Good shots ran ${rng(grp.good.map(s => s.time), v => fmt(v,0))} s${gg.length ? `, grind ${rng(gg, v => fmtG(v, grinderRes()))}` : ''}.` : (grp.under.length && grp.over.length ? `Your sweet spot is probably in between, at about ${fmt((avgT(grp.under) + avgT(grp.over)) / 2,0)} s.` : '');
+    out.push(`<div class="ins"><span class="eyebrow">Taste by shot time</span><span class="big">${parts.join(' · ')}</span><p>${sweet}</p></div>`);
+  }
+  // Aromen-Profil
+  const ar = TASTES.filter(T => T.group === 'aroma' || T.k === 'sweet' || T.k === 'body').map(T => ({ T, n: shots.filter(s => shotTags(s)[T.k]).length })).filter(x => x.n).sort((a, b) => b.n - a.n);
+  if(ar.length){
+    const best = ar[0];
+    const withBest = shots.filter(s => shotTags(s)[best.T.k] && s.time);
+    out.push(`<div class="ins"><span class="eyebrow">Flavours</span><span class="big">${ar.slice(0, 4).map(x => `${x.n}× ${x.T.label}`).join(' · ')}</span><p>${withBest.length ? `“${best.T.label}” came through most at avg ${fmt(avgT(withBest),0)} s and 1:${fmt(withBest.reduce((x, s) => x + (ratio(s) || 0), 0) / withBest.length,2)}.` : ''}</p></div>`);
+  }
   const issues = [];
   const nd = shots.filter(s => !s.dose).length, nt = shots.filter(s => s.tempRaw != null && s.temp == null).length, nr = shots.filter(s => !s.rating).length, nti = shots.filter(s => !s.time).length;
   if(nd) issues.push(`${nd}× dose 0 g`);
@@ -1426,7 +1484,7 @@ function tableHTML(rows, anchor, scale){
       <td class="n">${beanAge(s) != null ? beanAge(s) + ' d' : '–'}</td>
       <td class="n">${s.rating ? fmt(s.rating,0) + '/' + scale : '<span class="muted">–</span>'}</td>
       <td class="tastecell">${UI.editTaste === s.id
-        ? `<div class="chips">${TASTES.map(T => `<button type="button" class="chip mini" data-t="${T.k}" data-tt="${T.k}" data-sid="${esc(s.id)}" aria-pressed="${!!t[T.k]}">${T.label}</button>`).join('')}</div><div class="row" style="margin-top:4px"><button class="btn small" type="button" data-tdone="1">${'Done'}</button>${UI.taste[s.id] ? `<button class="btn small" type="button" data-treset="${esc(s.id)}">${'From note'}</button>` : ''}</div>`
+        ? `${tasteChipsHTML(t, T => `data-tt="${T.k}" data-sid="${esc(s.id)}"`, 'chip mini')}<div class="row" style="margin-top:4px"><button class="btn small" type="button" data-tdone="1">${'Done'}</button>${UI.taste[s.id] ? `<button class="btn small" type="button" data-treset="${esc(s.id)}">${'From note'}</button>` : ''}</div>`
         : `<button type="button" class="tagbtn" data-edit-taste="${esc(s.id)}" title="${'Edit taste'}">${tags || `<span class="muted">${'+ taste'}</span>`}${UI.taste[s.id] ? '<span class="muted" aria-hidden="true"> ✎</span>' : ''}</button>`}</td>
       <td>${esc(s.notes)}</td>
       <td style="white-space:nowrap"><button class="btn small" type="button" data-detail="${esc(s.id)}">Analyse</button> ${inCtx && s.time ? `<button class="btn small" type="button" data-anchor="${esc(s.id)}">${anchor && s.id === anchor.id ? 'Base' : 'use as base'}</button>` : ''}${s.source === 'app' ? ` <button class="btn small" type="button" data-del="${esc(s.id)}" aria-label="Delete entry">×</button>` : ''}</td>
@@ -1486,7 +1544,7 @@ function render(){
   const dripNext = predictDrip(over, rec.yld, rec.tPred, fdTyp);
   const stopAt = dripNext != null && dripNext >= 0.3 ? Math.round((rec.yld - dripNext) * 10) / 10 : null;
   const recipe = UI.recipes[ctxKey()];
-  const negTaste = tags.sour || tags.bitter || tags.sharp || tags.thin;
+  const negTaste = anyNeg(tags);
   const res = rec.res;
   const dirTxt = rec.dir === 'keep' ? 'keep' : `${fmtG(Math.abs(rec.dG), res)} ${rec.dir}`;
   const tLo = Math.round(rec.tPred - (rec.filter ? 10 : 1.5)), tHi = Math.round(rec.tPred + (rec.filter ? 10 : 1.5));
@@ -1512,7 +1570,7 @@ function render(){
         ${anchor.notes ? `<div class="note">“${esc(anchor.notes)}”</div>` : ''}
         ${ageA == null ? `<div class="roast"><label for="roastIn">Roast date of <b>${esc(anchor.bean)}</b> is missing:</label><input type="date" id="roastIn" max="${new Date().toISOString().slice(0,10)}"><button class="btn small" type="button" id="roastSave">Apply</button></div>` : `<div class="muted" style="font-size:13px">Beans at this shot: ${ageA} days after roasting${UI.roast[beanKey(anchor)] ? ` · <button class="btn small" type="button" id="roastClear">Change roast date</button>` : ''}${anchor.firstDrip ? ` · first drip after ${fmt(anchor.firstDrip,0)} s` : ''}</div>`}
         <div class="field"><label>How did it taste?</label>
-          <div class="chips" id="tasteChips">${TASTES.map(T => `<button type="button" class="chip" data-t="${T.k}" aria-pressed="${!!tags[T.k]}">${T.label}</button>`).join('')}</div>
+          <div id="tasteChips">${tasteChipsHTML(tags)}</div>
         </div>
         ${negTaste ? `<div class="row" style="font-size:13px"><span class="muted">How strong?</span><div class="chips" id="intenChips">${Object.keys(INTENS).map(x => `<button type="button" class="chip" data-i="${x}" aria-pressed="${x === inten}">${INTENS_LABEL[x]}</button>`).join('')}</div></div>` : ''}
         ${UI.taste[anchor.id] ? '<button type="button" class="btn small" id="tasteReset" style="align-self:flex-start">Take from note</button>' : '<span class="muted" style="font-size:12.5px">Pre-selected from your note and rating. Tap to correct.</span>'}
@@ -1569,7 +1627,7 @@ function render(){
       <div class="field"><label for="fDrip">First drip s</label><input id="fDrip" type="number" step="1"></div>
       <div class="field"><label for="fTemp">Temp °C</label><input id="fTemp" type="number" step="0.5"></div>
       <div class="field"><label for="fRating">Rating /${scale}</label><input id="fRating" type="number" min="0" max="${scale}" step="1"></div>
-      <div class="field wide"><label>Taste</label><div class="chips" id="formChips">${TASTES.map(T => `<button type="button" class="chip" data-t="${T.k}" aria-pressed="false">${T.label}</button>`).join('')}</div></div>
+      <div class="field wide"><label>Taste</label><div id="formChips">${tasteChipsHTML({})}</div></div>
       <div class="field wide"><label for="fNotes">Note</label><textarea id="fNotes" placeholder="e.g. sweeter, still slightly sharp in the finish"></textarea></div>
       <div class="row wide"><button class="btn primary" type="submit">Save shot</button>${APP.length ? `<button class="btn" type="button" id="copyApp">Copy new entries (${APP.length})</button><button class="btn" type="button" id="clearApp">Delete new entries</button>` : ''}<span class="muted" id="formMsg" style="font-size:13px"></span></div>
       <div class="wide" id="copyOut"></div>
