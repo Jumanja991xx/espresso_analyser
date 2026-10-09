@@ -797,3 +797,15 @@ PHRASES += [('Mit eigenem Schlüssel von Anthropic geht die Anfrage direkt aus d
 EXACT.update({'Haiku 5.5 (empfohlen, sehr günstig)': 'Haiku 5.5 (recommended, very cheap)', 'Sonnet 5.5 (gründlicher)': 'Sonnet 5.5 (more thorough)', 'Opus 5.5 (am gründlichsten, teurer)': 'Opus 5.5 (most thorough, pricier)'})
 
 EXACT.update({'Die KI hat keinen Text geliefert': 'The AI returned no text', ', die Antwort war zu lang. Bitte nochmal versuchen.': ', the answer was too long. Please try again.', '. Bitte nochmal versuchen.': '. Please try again.'})
+
+# KI-Assistent statt Claude, Spinner
+EXACT.update({
+  'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für KI-Assistenten kopieren“.': 'The AI is not set up yet: the server is missing its API key. Until then, “Copy data for AI assistant” works.',
+  'Kopiert. Jetzt im KI-Assistenten einfügen.': 'Copied. Now paste it into your AI assistant.',
+  '<span class="muted" style="font-size:12.5px">Für die KI-Analyse in der App brauchst du ein Konto oder einen eigenen API-Schlüssel. Oder du kopierst die Daten und fügst sie in einen KI-Assistenten deiner Wahl ein, zum Beispiel Claude oder ChatGPT.</span>': '<span class="muted" style="font-size:12.5px">The in-app AI analysis needs an account or your own API key. Or copy the data and paste it into an AI assistant of your choice, for example Claude or ChatGPT.</span>',
+})
+PHRASES += [
+  ('<span>Die KI liest deine Shots und schreibt die Analyse. Das dauert meist 10–30 Sekunden.</span>', '<span>The AI is reading your shots and writing the analysis. This usually takes 10–30 seconds.</span>'),
+  ('title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude, ChatGPT, Gemini oder einen anderen KI-Assistenten">Daten für KI-Assistenten kopieren</button>', 'title="Data package and instructions to the clipboard, for pasting into Claude, ChatGPT, Gemini or another AI assistant">Copy data for AI assistant</button>'),
+]
+PHRASES += [('</span>Analysiere …', '</span>Analysing …')]

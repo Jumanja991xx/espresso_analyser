@@ -303,6 +303,11 @@ td.tastecell .tgl{padding-top:0}
 .aitext code{font-family:var(--f-data);font-size:13px;background:var(--sunk);padding:0 4px;border-radius:4px}
 .aitext .mdrow{font-family:var(--f-data);font-size:13px}
 .aicard{border-left:3px solid var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:8px}
+.spin.big{width:22px;height:22px;border-width:3px;color:var(--accent);margin:0;flex:none}
+.aiwait{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
 .aikey{border-top:1px solid var(--line);padding-top:10px}
 .aikey summary{cursor:pointer;font-size:13.5px;font-weight:600}
 .aikey-body{display:flex;flex-direction:column;gap:8px;margin-top:8px}
@@ -1584,7 +1589,7 @@ function channelingCheck(s, shots, T){
       spikes.sort((a, b) => a.t - b.t);
       // Ausreißer erkennen, die eher von Hand kommen (Waage/Tasse berührt) als aus dem Puck
       const manualReason = x => {
-        if(x.d > Math.max(2, 0.9 * m)) return 'extremely large jump';
+        if(x.d > Math.max(2, 0.9 * m) || x.f > 6) return 'extremely large jump';
         let mn = Infinity; for(let j = 0; j < ft.length; j++) if(ft[j] > x.t && ft[j] - x.t <= 0.8) mn = Math.min(mn, f[j]);
         if(mn !== Infinity && mn <= x.f - x.d * 0.75) return 'dropped straight back';
         if(fl.t?.length){
@@ -1621,7 +1626,7 @@ function channelingCheck(s, shots, T){
       }
       // 3) Durchbruch direkt am Anfang
       if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m && !events.some(e => Math.abs(e.t - an.tPeak) < 1)) {
-        const k = evKey('early', an.tPeak), why = an.peak > Math.max(4.5, 3 * m) ? 'extremely high surge' : null;
+        const k = evKey('early', an.tPeak), why = an.peak > 6 || an.peak > 3 * m ? 'extremely high surge' : null;
         const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
         if(!ign) add('early', an.peak > 2 * m ? 18 : 12, 'curve', `Early flow surge (${fmt(an.peak,1)} g/s at ${fmt(an.tPeak,0)} s)`, 'Right after the first drip, flow shoots far above its later average. The water immediately finds an easy path through the puck.');
         events.push({ key: k, t: an.tPeak, f: an.peak, kind: 'Early surge', txt: `${fmt(an.peak,1)} g/s`, ignored: ign, why, auto: !!why });
@@ -1822,7 +1827,7 @@ function analysisHTML(s, T, shots, scale){
 
 /* ---------- KI-Analyse ----------
    Schickt ein kompaktes Datenpaket an die Edge Function "ai-analyse" (Claude API, nur mit Konto).
-   Ohne Konto: Datenpaket mit Anleitung kopieren und selbst in Claude einfügen. */
+   Ohne Konto: Datenpaket mit Anleitung kopieren und in einen KI-Assistenten einfügen. */
 const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
 const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (recommended, very cheap)', 'claude-sonnet-5-5':'Sonnet 5.5 (more thorough)', 'claude-opus-5-5':'Opus 5.5 (most thorough, pricier)' };
@@ -1855,7 +1860,7 @@ function aiPayload(anchor, shots, T, model, rec){
     const ch = channelingCheck(s, shots, T), fl = FLOWS[s.id], an = fl ? analyzeFlow(fl, s) : null, st = an ? detectStop(fl, an) : null, c = UI.compass[s.id];
     return {
       date: s.date ? s.date.toISOString().slice(0, 16) : null, isBaseShot: s.id === anchor.id || undefined,
-      grind: s.grindRaw || null, dose: s.dose || null, yield: s.yield || null, ratio: r2(ratio(s)), time: s.time || null,
+      grind: s.grindRaw || null, dose: s.dose || null, yield: s.yield || null, ratio: r2(ratio(s)), time: s.time || null, flowGs: r2(flow(s)),
       firstDrip: s.firstDrip || null, temp: s.temp || null, rating: s.rating ? `${s.rating}/${scale}` : null,
       taste: TASTES.filter(x => shotTags(s)[x.k]).map(x => x.label), notes: s.notes || undefined,
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
@@ -1868,18 +1873,26 @@ function aiPayload(anchor, shots, T, model, rec){
   allShots().filter(s => s.grinder === UI.grinder && s.bean !== UI.bean && s.grind != null && s.time).forEach(s => (groups[s.bean] ||= []).push(s));
   const others = Object.entries(groups).slice(0, 5).map(([bean, g]) => { const ts = g.map(x => x.time).sort((a, b) => a - b); const gs = g.map(x => x.grind); return { bean, shots: g.length, grindRange: [fmtG(Math.min(...gs), res), fmtG(Math.max(...gs), res)], medianTime: ts[Math.floor(ts.length / 2)], roastLevel: (() => { const k = roastClass(g[0]); return k ? ROAST[k].label : null; })() }; });
   const over = learnOvershoot(shots), recipe = UI.recipes[ctxKey()];
-  return {
+  const clean = v => { if(Array.isArray(v)) return v.map(clean); if(v && typeof v === 'object'){ const o = {}; for(const [k, x] of Object.entries(v)){ const c = clean(x); if(c == null || (Array.isArray(c) && !c.length) || (typeof c === 'object' && !Array.isArray(c) && !Object.keys(c).length)) continue; o[k] = c; } return o; } return v; };
+  return clean({
     app: 'Dial-in Kompass', language: AI_LANG(), today: new Date().toISOString().slice(0, 10),
     bean: { name: anchor.bean, roaster: b?.roaster || null, roastLevel: rl ? ROAST[rl].label : null, roastLevelSource: roastLevel(anchor) ? 'set by user' : rl ? 'estimated' : 'unknown', ageDays: beanAge(anchor), decaf: b?.decaf || undefined, flavorNotes: b?.flavor || undefined },
     grinder: { name: anchor.grinder, step: res, higherNumberIsCoarser: UI.coarserHigher[UI.grinder] !== false },
     targets: { dose: T.dose, ratio: T.ratio, timeWindowSec: [T.tMin, T.tMax], machineTemp: T.temp || null },
-    flowModel: model.scope === 'none' ? { scope: 'none, app uses rule of thumb' } : { scope: model.scope, flowChangePerGrindUnit: r2(model.b), r2: r2(model.r2), n: model.n },
+    flowModel: model.scope === 'none' ? { scope: 'none, app uses rule of thumb' } : { scope: model.scope, meaning: 'change of total flow (yield / shot time, g/s) per ONE grind step coarser (negative = finer slows the shot)', flowChangePerStep: r2(model.b * res * (UI.coarserHigher[UI.grinder] === false ? -1 : 1)) , stepSize: res, r2: r2(model.r2), n: model.n },
+    predictedShotTimes: (() => {
+      // Erwartete Laufzeit je Mahlgrad (Ziel-Ausbeute), wie die App sie aus dem Modell berechnet
+      const fL = flow(anchor); if(anchor.grind == null || !fL || model.scope === 'none') return undefined;
+      const out = {}; const yl = rec.yld;
+      for(let k = -3; k <= 3; k++){ const g = Math.round((anchor.grind + k * res) / res) * res, f = fL + model.b * (g - anchor.grind); if(f > 0.3) out[fmtG(g, res)] = Math.round(yl / f); }
+      return { yieldGrams: yl, secondsByGrind: out, note: 'model estimate from the base shot; real shots scatter by a few seconds' };
+    })(),
     postStopDrip: over ? { avgGrams: r1(over.g), n: over.n } : null,
     savedRecipe: recipe ? { grind: recipe.grindRaw, dose: recipe.dose, yield: recipe.yield, time: recipe.time, temp: recipe.temp || null } : null,
     appRecommendation: { grind: rec.newGrind != null ? fmtG(rec.newGrind, res) : null, grindChange: rec.dir, dose: rec.dose, yield: rec.yld, ratio: rec.R, temp: rec.temp, expectedTimeSec: Math.round(rec.tPred), confidence: rec.conf, reasons: rec.why.map(strip), hints: rec.hints.map(strip) },
     shots: list,
     otherBeansSameGrinder: others,
-  };
+  });
 }
 function mdToHTML(md){
   let html = '', list = null, para = [];
@@ -1909,13 +1922,14 @@ function aiCardHTML(anchor){
     ${r ? `<div class="aitext">${mdToHTML(r.text)}</div>
       <span class="muted" style="font-size:12.5px">Created ${fmtDate(new Date(r.at))}${stale ? ' · <b>there is a newer base shot since then</b>' : ''}${r.left != null ? ` · ${r.left} ${r.left === 1 ? 'analysis' : 'analyses'} left today` : ''}. AI assessments can be wrong, compare with the recommendation above.</span>`
     : `<p class="muted" style="margin:0;font-size:14px">An AI reads your shots, scale curves, roast level and taste notes together and writes an assessment with a concrete suggestion for the next shot. It also sees the app’s recommendation and says whether it agrees.</p>`}
+    ${AI.busy ? `<div class="aiwait" role="status"><span class="spin big" aria-hidden="true"></span><span>The AI is reading your shots and writing the analysis. This usually takes 10–30 seconds.</span></div>` : ''}
     ${AI.err ? `<div class="acctmsg err">${AI.err}</div>` : ''}
     <div class="row">
-      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled' : ''}>${AI.busy ? 'Analysing …' : !SESSION && !own ? 'Sign in for AI analysis' : r ? 'Analyse again' : 'Create analysis'}</button>
-      <button class="btn" type="button" id="aiCopy" title="Data package and instructions to the clipboard, for pasting into Claude">Copy data for Claude</button>
+      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled aria-busy="true"' : ''}>${AI.busy ? '<span class="spin" aria-hidden="true"></span>Analysing …' : !SESSION && !own ? 'Sign in for AI analysis' : r ? 'Analyse again' : 'Create analysis'}</button>
+      <button class="btn" type="button" id="aiCopy" title="Data package and instructions to the clipboard, for pasting into Claude, ChatGPT, Gemini or another AI assistant">Copy data for AI assistant</button>
       ${r ? '<button class="btn" type="button" id="aiDel">Remove analysis</button>' : ''}
     </div>
-    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">The in-app AI analysis needs an account or your own API key. Or copy the data and paste it into Claude yourself.</span>' : ''}
+    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">The in-app AI analysis needs an account or your own API key. Or copy the data and paste it into an AI assistant of your choice, for example Claude or ChatGPT.</span>' : ''}
     <details class="aikey" ${AI.keyOpen ? 'open' : ''}>
       <summary>${own ? `Own API key active <span class="num muted">(…${esc(own.key.slice(-4))}, ${esc(AI_MODELS[own.model] || own.model)})</span>` : 'Use your own API key'}</summary>
       <div class="aikey-body">
@@ -1960,7 +1974,7 @@ async function runAI(payload){
     const r = await fetch(SB_URL + '/functions/v1/ai-analyse', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + tok, apikey:SB_KEY }, body: JSON.stringify({ lang: AI_LANG(), data: payload }) });
     const j = await r.json().catch(() => ({}));
     if(r.ok && j.text){ (UI.ai ||= {})[key] = { text: j.text, at: Date.now(), model: j.model, anchorId, left: j.left }; saveUI(); }
-    else if(j.error === 'no_key') AI.err = 'The AI is not set up yet: the server is missing its API key. Until then, “Copy data for Claude” works.';
+    else if(j.error === 'no_key') AI.err = 'The AI is not set up yet: the server is missing its API key. Until then, “Copy data for AI assistant” works.';
     else if(j.error === 'limit') AI.err = `Daily limit reached (${j.limit} analyses in 24 hours). Try again tomorrow.`;
     else if(r.status === 401 || j.error === 'auth') AI.err = 'Your session has expired. Please sign in again.';
     else if(j.error === 'empty') AI.err = 'The AI returned no text' + (j.stop === 'max_tokens' ? ', the answer was too long. Please try again.' : '. Please try again.');
@@ -2349,7 +2363,7 @@ function render(){
   const air = $('#aiRun'); if(air) air.onclick = () => runAI(aiPayload(anchor, shots, T, model, rec));
   const aic = $('#aiCopy'); if(aic) aic.onclick = () => {
     const txt = AI_PROMPT + '\n\n```json\n' + JSON.stringify(aiPayload(anchor, shots, T, model, rec), null, 1) + '\n```';
-    const done = () => { aic.textContent = 'Copied. Now paste it into Claude.'; };
+    const done = () => { aic.textContent = 'Copied. Now paste it into your AI assistant.'; };
     try{ navigator.clipboard.writeText(txt).then(done, () => { prompt('Copy:', txt); }); }catch(e){ prompt('Copy:', txt); }
   };
   const aks = $('#aiKeySave'); if(aks) aks.onclick = () => {

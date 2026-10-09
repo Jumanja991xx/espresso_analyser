@@ -303,6 +303,11 @@ td.tastecell .tgl{padding-top:0}
 .aitext code{font-family:var(--f-data);font-size:13px;background:var(--sunk);padding:0 4px;border-radius:4px}
 .aitext .mdrow{font-family:var(--f-data);font-size:13px}
 .aicard{border-left:3px solid var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:8px}
+.spin.big{width:22px;height:22px;border-width:3px;color:var(--accent);margin:0;flex:none}
+.aiwait{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
 .aikey{border-top:1px solid var(--line);padding-top:10px}
 .aikey summary{cursor:pointer;font-size:13.5px;font-weight:600}
 .aikey-body{display:flex;flex-direction:column;gap:8px;margin-top:8px}
@@ -1584,7 +1589,7 @@ function channelingCheck(s, shots, T){
       spikes.sort((a, b) => a.t - b.t);
       // Ausreißer erkennen, die eher von Hand kommen (Waage/Tasse berührt) als aus dem Puck
       const manualReason = x => {
-        if(x.d > Math.max(2, 0.9 * m)) return 'extrem großer Sprung';
+        if(x.d > Math.max(2, 0.9 * m) || x.f > 6) return 'extrem großer Sprung';
         let mn = Infinity; for(let j = 0; j < ft.length; j++) if(ft[j] > x.t && ft[j] - x.t <= 0.8) mn = Math.min(mn, f[j]);
         if(mn !== Infinity && mn <= x.f - x.d * 0.75) return 'sofort wieder abgefallen';
         if(fl.t?.length){
@@ -1621,7 +1626,7 @@ function channelingCheck(s, shots, T){
       }
       // 3) Durchbruch direkt am Anfang
       if(an.tPeak != null && an.tPeak <= tA + 0.3 * (tB - tA) && an.peak > 1.6 * m && !events.some(e => Math.abs(e.t - an.tPeak) < 1)) {
-        const k = evKey('early', an.tPeak), why = an.peak > Math.max(4.5, 3 * m) ? 'extrem hoher Ausschlag' : null;
+        const k = evKey('early', an.tPeak), why = an.peak > 6 || an.peak > 3 * m ? 'extrem hoher Ausschlag' : null;
         const ign = (ov[k] || (why ? 'ignore' : 'count')) === 'ignore';
         if(!ign) add('early', an.peak > 2 * m ? 18 : 12, 'Kurve', `Früher Flow-Ausschlag (${fmt(an.peak,1)} g/s bei ${fmt(an.tPeak,0)} s)`, 'Kurz nach dem ersten Tropfen schießt der Flow weit über den späteren Durchschnitt. Das Wasser findet sofort einen bequemen Weg durch den Puck.');
         events.push({ key: k, t: an.tPeak, f: an.peak, kind: 'Früher Ausschlag', txt: `${fmt(an.peak,1)} g/s`, ignored: ign, why, auto: !!why });
@@ -1822,7 +1827,7 @@ function analysisHTML(s, T, shots, scale){
 
 /* ---------- KI-Analyse ----------
    Schickt ein kompaktes Datenpaket an die Edge Function "ai-analyse" (Claude API, nur mit Konto).
-   Ohne Konto: Datenpaket mit Anleitung kopieren und selbst in Claude einfügen. */
+   Ohne Konto: Datenpaket mit Anleitung kopieren und in einen KI-Assistenten einfügen. */
 const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
 const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (empfohlen, sehr günstig)', 'claude-sonnet-5-5':'Sonnet 5.5 (gründlicher)', 'claude-opus-5-5':'Opus 5.5 (am gründlichsten, teurer)' };
@@ -1855,7 +1860,7 @@ function aiPayload(anchor, shots, T, model, rec){
     const ch = channelingCheck(s, shots, T), fl = FLOWS[s.id], an = fl ? analyzeFlow(fl, s) : null, st = an ? detectStop(fl, an) : null, c = UI.compass[s.id];
     return {
       date: s.date ? s.date.toISOString().slice(0, 16) : null, isBaseShot: s.id === anchor.id || undefined,
-      grind: s.grindRaw || null, dose: s.dose || null, yield: s.yield || null, ratio: r2(ratio(s)), time: s.time || null,
+      grind: s.grindRaw || null, dose: s.dose || null, yield: s.yield || null, ratio: r2(ratio(s)), time: s.time || null, flowGs: r2(flow(s)),
       firstDrip: s.firstDrip || null, temp: s.temp || null, rating: s.rating ? `${s.rating}/${scale}` : null,
       taste: TASTES.filter(x => shotTags(s)[x.k]).map(x => x.label), notes: s.notes || undefined,
       compass: c ? { extraction: Math.round(c.x * 10), strength: Math.round(c.y * 10), scale: '-10..+10' } : undefined,
@@ -1868,18 +1873,26 @@ function aiPayload(anchor, shots, T, model, rec){
   allShots().filter(s => s.grinder === UI.grinder && s.bean !== UI.bean && s.grind != null && s.time).forEach(s => (groups[s.bean] ||= []).push(s));
   const others = Object.entries(groups).slice(0, 5).map(([bean, g]) => { const ts = g.map(x => x.time).sort((a, b) => a - b); const gs = g.map(x => x.grind); return { bean, shots: g.length, grindRange: [fmtG(Math.min(...gs), res), fmtG(Math.max(...gs), res)], medianTime: ts[Math.floor(ts.length / 2)], roastLevel: (() => { const k = roastClass(g[0]); return k ? ROAST[k].label : null; })() }; });
   const over = learnOvershoot(shots), recipe = UI.recipes[ctxKey()];
-  return {
+  const clean = v => { if(Array.isArray(v)) return v.map(clean); if(v && typeof v === 'object'){ const o = {}; for(const [k, x] of Object.entries(v)){ const c = clean(x); if(c == null || (Array.isArray(c) && !c.length) || (typeof c === 'object' && !Array.isArray(c) && !Object.keys(c).length)) continue; o[k] = c; } return o; } return v; };
+  return clean({
     app: 'Dial-in Kompass', language: AI_LANG(), today: new Date().toISOString().slice(0, 10),
     bean: { name: anchor.bean, roaster: b?.roaster || null, roastLevel: rl ? ROAST[rl].label : null, roastLevelSource: roastLevel(anchor) ? 'set by user' : rl ? 'estimated' : 'unknown', ageDays: beanAge(anchor), decaf: b?.decaf || undefined, flavorNotes: b?.flavor || undefined },
     grinder: { name: anchor.grinder, step: res, higherNumberIsCoarser: UI.coarserHigher[UI.grinder] !== false },
     targets: { dose: T.dose, ratio: T.ratio, timeWindowSec: [T.tMin, T.tMax], machineTemp: T.temp || null },
-    flowModel: model.scope === 'none' ? { scope: 'none, app uses rule of thumb' } : { scope: model.scope, flowChangePerGrindUnit: r2(model.b), r2: r2(model.r2), n: model.n },
+    flowModel: model.scope === 'none' ? { scope: 'none, app uses rule of thumb' } : { scope: model.scope, meaning: 'change of total flow (yield / shot time, g/s) per ONE grind step coarser (negative = finer slows the shot)', flowChangePerStep: r2(model.b * res * (UI.coarserHigher[UI.grinder] === false ? -1 : 1)) , stepSize: res, r2: r2(model.r2), n: model.n },
+    predictedShotTimes: (() => {
+      // Erwartete Laufzeit je Mahlgrad (Ziel-Ausbeute), wie die App sie aus dem Modell berechnet
+      const fL = flow(anchor); if(anchor.grind == null || !fL || model.scope === 'none') return undefined;
+      const out = {}; const yl = rec.yld;
+      for(let k = -3; k <= 3; k++){ const g = Math.round((anchor.grind + k * res) / res) * res, f = fL + model.b * (g - anchor.grind); if(f > 0.3) out[fmtG(g, res)] = Math.round(yl / f); }
+      return { yieldGrams: yl, secondsByGrind: out, note: 'model estimate from the base shot; real shots scatter by a few seconds' };
+    })(),
     postStopDrip: over ? { avgGrams: r1(over.g), n: over.n } : null,
     savedRecipe: recipe ? { grind: recipe.grindRaw, dose: recipe.dose, yield: recipe.yield, time: recipe.time, temp: recipe.temp || null } : null,
     appRecommendation: { grind: rec.newGrind != null ? fmtG(rec.newGrind, res) : null, grindChange: rec.dir, dose: rec.dose, yield: rec.yld, ratio: rec.R, temp: rec.temp, expectedTimeSec: Math.round(rec.tPred), confidence: rec.conf, reasons: rec.why.map(strip), hints: rec.hints.map(strip) },
     shots: list,
     otherBeansSameGrinder: others,
-  };
+  });
 }
 function mdToHTML(md){
   let html = '', list = null, para = [];
@@ -1909,13 +1922,14 @@ function aiCardHTML(anchor){
     ${r ? `<div class="aitext">${mdToHTML(r.text)}</div>
       <span class="muted" style="font-size:12.5px">Erstellt am ${fmtDate(new Date(r.at))}${stale ? ' · <b>seitdem gibt es einen neueren Ausgangs-Shot</b>' : ''}${r.left != null ? ` · heute noch ${r.left} ${r.left === 1 ? 'Analyse' : 'Analysen'} frei` : ''}. KI-Einschätzungen können danebenliegen, vergleiche mit der Empfehlung oben.</span>`
     : `<p class="muted" style="margin:0;font-size:14px">Eine KI liest deine Shots, die Waagenkurven, den Röstgrad und deine Geschmacksangaben gemeinsam und schreibt eine Einschätzung mit konkretem Vorschlag für den nächsten Shot. Sie sieht auch die Empfehlung der App und sagt, ob sie zustimmt.</p>`}
+    ${AI.busy ? `<div class="aiwait" role="status"><span class="spin big" aria-hidden="true"></span><span>Die KI liest deine Shots und schreibt die Analyse. Das dauert meist 10–30 Sekunden.</span></div>` : ''}
     ${AI.err ? `<div class="acctmsg err">${AI.err}</div>` : ''}
     <div class="row">
-      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled' : ''}>${AI.busy ? 'Analysiere …' : !SESSION && !own ? 'Anmelden für KI-Analyse' : r ? 'Neu analysieren' : 'Analyse erstellen'}</button>
-      <button class="btn" type="button" id="aiCopy" title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude">Daten für Claude kopieren</button>
+      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled aria-busy="true"' : ''}>${AI.busy ? '<span class="spin" aria-hidden="true"></span>Analysiere …' : !SESSION && !own ? 'Anmelden für KI-Analyse' : r ? 'Neu analysieren' : 'Analyse erstellen'}</button>
+      <button class="btn" type="button" id="aiCopy" title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude, ChatGPT, Gemini oder einen anderen KI-Assistenten">Daten für KI-Assistenten kopieren</button>
       ${r ? '<button class="btn" type="button" id="aiDel">Analyse entfernen</button>' : ''}
     </div>
-    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">Für die KI-Analyse in der App brauchst du ein Konto oder einen eigenen API-Schlüssel. Oder du kopierst die Daten und fügst sie selbst in Claude ein.</span>' : ''}
+    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">Für die KI-Analyse in der App brauchst du ein Konto oder einen eigenen API-Schlüssel. Oder du kopierst die Daten und fügst sie in einen KI-Assistenten deiner Wahl ein, zum Beispiel Claude oder ChatGPT.</span>' : ''}
     <details class="aikey" ${AI.keyOpen ? 'open' : ''}>
       <summary>${own ? `Eigener API-Schlüssel aktiv <span class="num muted">(…${esc(own.key.slice(-4))}, ${esc(AI_MODELS[own.model] || own.model)})</span>` : 'Eigenen API-Schlüssel verwenden'}</summary>
       <div class="aikey-body">
@@ -1960,7 +1974,7 @@ async function runAI(payload){
     const r = await fetch(SB_URL + '/functions/v1/ai-analyse', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + tok, apikey:SB_KEY }, body: JSON.stringify({ lang: AI_LANG(), data: payload }) });
     const j = await r.json().catch(() => ({}));
     if(r.ok && j.text){ (UI.ai ||= {})[key] = { text: j.text, at: Date.now(), model: j.model, anchorId, left: j.left }; saveUI(); }
-    else if(j.error === 'no_key') AI.err = 'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für Claude kopieren“.';
+    else if(j.error === 'no_key') AI.err = 'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für KI-Assistenten kopieren“.';
     else if(j.error === 'limit') AI.err = `Tageslimit erreicht (${j.limit} Analysen in 24 Stunden). Morgen geht es weiter.`;
     else if(r.status === 401 || j.error === 'auth') AI.err = 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.';
     else if(j.error === 'empty') AI.err = 'Die KI hat keinen Text geliefert' + (j.stop === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
@@ -2349,7 +2363,7 @@ function render(){
   const air = $('#aiRun'); if(air) air.onclick = () => runAI(aiPayload(anchor, shots, T, model, rec));
   const aic = $('#aiCopy'); if(aic) aic.onclick = () => {
     const txt = AI_PROMPT + '\n\n```json\n' + JSON.stringify(aiPayload(anchor, shots, T, model, rec), null, 1) + '\n```';
-    const done = () => { aic.textContent = 'Kopiert. Jetzt in Claude einfügen.'; };
+    const done = () => { aic.textContent = 'Kopiert. Jetzt im KI-Assistenten einfügen.'; };
     try{ navigator.clipboard.writeText(txt).then(done, () => { prompt('Kopieren:', txt); }); }catch(e){ prompt('Kopieren:', txt); }
   };
   const aks = $('#aiKeySave'); if(aks) aks.onclick = () => {
