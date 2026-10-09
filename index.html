@@ -252,6 +252,7 @@ table.levers{min-width:760px}
 .tagbtn:hover,.tagbtn:focus-visible{border-color:var(--line);background:var(--sunk)}
 .chip.mini{padding:1px 8px;font-size:12px}
 td.tastecell{min-width:9em}
+td.ratecell .chips{min-width:12em;justify-content:flex-end}
 td.tastecell .chips{min-width:17em}
 .tgroups{display:flex;flex-direction:column;gap:6px}
 .tg{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:8px;align-items:start}
@@ -708,19 +709,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -738,7 +739,9 @@ function beanAge(s){
 }
 const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip + 2 ? s.yield / (s.time - s.firstDrip) : null;
 
-function allShots(){ return (DATA ? DATA.shots : []).concat(APP).filter(s => !s.archived).sort((a, b) => (b.date || 0) - (a.date || 0)); }
+/* Bewertungen lassen sich im Verlauf ändern: Überschreibung in UI.rating, Originalwert bleibt erhalten */
+function applyRating(s){ if(s._r0 === undefined) s._r0 = s.rating || 0; const o = (UI.rating || {})[s.id]; s.rating = o != null ? o : s._r0; return s; }
+function allShots(){ return (DATA ? DATA.shots : []).concat(APP).filter(s => !s.archived).map(applyRating).sort((a, b) => (b.date || 0) - (a.date || 0)); }
 function ratingScale(){ return allShots().some(s => s.rating > 5) ? 10 : 5; }
 function shotTags(s){
   if(UI.taste[s.id]) return UI.taste[s.id];
@@ -2130,7 +2133,9 @@ function tableHTML(rows, anchor, scale){
       <td class="n">${mainFlow(s) ? fmt(mainFlow(s),2) : '–'}</td>
       <td class="n">${s.temp ? fmt(s.temp,0) : s.tempRaw != null ? `<span class="flag" title="unplausibel">${fmt(s.tempRaw,0)}</span>` : '–'}</td>
       <td class="n">${beanAge(s) != null ? beanAge(s) + ' d' : '–'}</td>
-      <td class="n">${s.rating ? fmt(s.rating,0) + '/' + scale : '<span class="muted">–</span>'}</td>
+      <td class="n ratecell">${UI.editRating === s.id
+        ? `<div class="chips">${Array.from({ length: scale }, (_, i) => i + 1).map(v => `<button type="button" class="chip mini" data-rate="${v}" data-sid="${esc(s.id)}" aria-pressed="${s.rating === v}">${v}</button>`).join('')}<button type="button" class="chip mini" data-rate="0" data-sid="${esc(s.id)}" aria-pressed="${!s.rating}" title="${'keine Bewertung'}">–</button></div><div class="row" style="margin-top:4px"><button class="btn small" type="button" data-rdone="1">${'Fertig'}</button>${(UI.rating || {})[s.id] != null ? `<button class="btn small" type="button" data-rreset="${esc(s.id)}">${'Original'}${s._r0 ? ' (' + fmt(s._r0,0) + ')' : ''}</button>` : ''}</div>`
+        : `<button type="button" class="tagbtn" data-edit-rating="${esc(s.id)}" title="${'Bewertung bearbeiten'}">${s.rating ? fmt(s.rating,0) + '/' + scale : `<span class="muted">${'+ Bewertung'}</span>`}${(UI.rating || {})[s.id] != null ? '<span class="muted" aria-hidden="true"> ✎</span>' : ''}</button>`}</td>
       <td class="tastecell">${UI.editTaste === s.id
         ? `${tasteChipsHTML(t, T => `data-tt="${T.k}" data-sid="${esc(s.id)}"`, 'chip mini')}<div class="row" style="margin-top:4px"><button class="btn small" type="button" data-tdone="1">${'Fertig'}</button>${UI.taste[s.id] ? `<button class="btn small" type="button" data-treset="${esc(s.id)}">${'Aus Notiz'}</button>` : ''}</div>`
         : `<button type="button" class="tagbtn" data-edit-taste="${esc(s.id)}" title="${'Geschmack bearbeiten'}">${tags || `<span class="muted">${'+ Geschmack'}</span>`}${UI.taste[s.id] ? '<span class="muted" aria-hidden="true"> ✎</span>' : ''}</button>`}</td>
@@ -2349,6 +2354,11 @@ function render(){
   // Ereignisse
   document.querySelectorAll('#tasteChips .chip').forEach(c => c.onclick = () => { toggleTaste(anchor, c.dataset.t); formDirty = false; render(); });
   document.querySelectorAll('[data-edit-taste]').forEach(b => b.onclick = () => { UI.editTaste = b.dataset.editTaste; render(); });
+  const keepY = (el, sel) => { const y = el.getBoundingClientRect().top; return () => { const n = document.querySelector(sel); if(n) window.scrollBy(0, n.getBoundingClientRect().top - y); }; };
+  document.querySelectorAll('[data-edit-rating]').forEach(b => b.onclick = () => { const k = keepY(b, `[data-sid="${CSS.escape(b.dataset.editRating)}"]`); UI.editRating = b.dataset.editRating; render(); k(); });
+  document.querySelectorAll('.ratecell [data-rate]').forEach(c => c.onclick = () => { const id = c.dataset.sid, v = +c.dataset.rate; const sh = allShots().find(x => x.id === id); (UI.rating ||= {}); if(sh && v === (sh._r0 || 0)) delete UI.rating[id]; else UI.rating[id] = v; UI.editRating = null; formDirty = false; saveUI(); const k = keepY(c, `[data-edit-rating="${CSS.escape(id)}"]`); render(); k(); });
+  document.querySelectorAll('[data-rdone]').forEach(b => b.onclick = () => { UI.editRating = null; render(); });
+  document.querySelectorAll('[data-rreset]').forEach(b => b.onclick = () => { delete (UI.rating || {})[b.dataset.rreset]; UI.editRating = null; saveUI(); render(); });
   document.querySelectorAll('.tastecell .chip[data-tt]').forEach(c => c.onclick = () => { const s = allShots().find(x => x.id === c.dataset.sid); if(s){ toggleTaste(s, c.dataset.tt); render(); } });
   document.querySelectorAll('[data-tdone]').forEach(b => b.onclick = () => { UI.editTaste = null; render(); });
   document.querySelectorAll('[data-treset]').forEach(b => b.onclick = () => { delete UI.taste[b.dataset.treset]; saveUI(); render(); });
@@ -2580,7 +2590,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Konto' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){

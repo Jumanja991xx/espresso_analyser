@@ -809,3 +809,4 @@ PHRASES += [
   ('title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude, ChatGPT, Gemini oder einen anderen KI-Assistenten">Daten für KI-Assistenten kopieren</button>', 'title="Data package and instructions to the clipboard, for pasting into Claude, ChatGPT, Gemini or another AI assistant">Copy data for AI assistant</button>'),
 ]
 PHRASES += [('</span>Analysiere …', '</span>Analysing …')]
+EXACT.update({'keine Bewertung': 'no rating', 'Bewertung bearbeiten': 'Edit rating', '+ Bewertung': '+ rating', 'Original': 'Original'})
