@@ -339,6 +339,9 @@ table.rvs th:nth-child(2),table.rvs th:nth-child(3){text-align:right}
 table.rvs tr.d td{font-weight:600}
 table.rvs tr.d td:last-child{color:var(--signal)}
 table.rvs tr.res td{border-top:2px solid var(--line)}
+.rvs-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.butlervs{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--accent) 7%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line));font-size:14px}
+.butlervs p{margin:0}.butlervs.empty{background:var(--sunk);border-color:var(--line)}
 .rvs-sum{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .dripadj{display:inline-flex;align-items:center;gap:6px;margin-left:2px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .dripadj .btn{min-width:28px;padding:2px 8px}
@@ -2013,7 +2016,7 @@ const AI = { busy:false, err:null, keyOpen:false };
 /* Eigener Schlüssel: bleibt nur in diesem Browser (nicht im Konto-Sync), Anfrage geht direkt an Anthropic */
 const AI_MODELS = { 'claude-haiku-5-5':'Haiku 5.5 (empfohlen, sehr günstig)', 'claude-sonnet-5-5':'Sonnet 5.5 (gründlicher)', 'claude-opus-5-5':'Opus 5.5 (am gründlichsten, teurer)' };
 const aiOwn = () => { try{ const v = JSON.parse(localStorage.getItem('dk.aikey') || 'null'); return v && v.key ? v : null; }catch(e){ return null; } };
-const AI_SYSTEM = `Du bist ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Öffnung der Packung, Mühle und deren Skala, Maschine, Ziele (Dosis, Ratio, Zeitfenster), das gelernte Mühlenmodell der App (Durchfluss je Mahlgrad-Stufe und erwartete Zeiten je Mahlgrad), die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index mit Belegen, Kennzahlen der Waagenkurve) und die Empfehlung, die die App selbst berechnet hat.
+const AI_SYSTEM = `Du bist der Butler des Dial-in Kompass: ein erfahrener Barista und Kaffee-Wissenschaftler. Du bekommst die Daten aus der App "Dial-in Kompass" als JSON: Bohne, Röstgrad, Bohnenalter, Öffnung der Packung, Mühle und deren Skala, Maschine, Ziele (Dosis, Ratio, Zeitfenster), das gelernte Mühlenmodell der App (Durchfluss je Mahlgrad-Stufe und erwartete Zeiten je Mahlgrad), die letzten Shots (Mahlgrad, Dosis, Ausbeute, Zeit, erster Tropfen, Temperatur, Bewertung, Geschmack, Notizen, Dial-in-Kompass, Channeling-Index mit Belegen, Kennzahlen der Waagenkurve), den Vergleich des letzten Shots mit der Empfehlung, die für ihn galt, und die neue Empfehlung, die die App selbst berechnet hat.
 
 Deine Rolle: Du beurteilst die Daten unabhängig und kommst zu deinem eigenen Schluss. Du musst der App nicht zustimmen. Die Messwerte und das Mühlenmodell sind Daten, die Empfehlung der App ist nur eine Meinung.
 
@@ -2028,11 +2031,13 @@ Die App arbeitet nach diesen Dial-in-Regeln. Wende sie ebenfalls an, damit eure 
 
 Weitere Vorgaben:
 - Ergänze, was die App nicht sieht: Muster über mehrere Shots, Notizen, Widersprüche in den Angaben.
-- Erfinde keine Daten. Antworte auf Deutsch, knapp und direkt, höchstens etwa 300 Wörter. Keine Tabellen, nur Überschriften, Absätze und Listen.
+- Erfinde keine Daten. Antworte auf Deutsch, knapp und direkt, höchstens etwa 350 Wörter. Keine Tabellen, nur Überschriften, Absätze und Listen.
 
 Gliederung (Markdown):
 ## Abgleich mit der App
 (ein bis zwei Sätze: gleicher Schluss oder anderer, und warum)
+## Letzter Shot vs. Empfehlung
+(zwei bis vier Sätze, aus lastShotVsRecommendation: Wurde die Empfehlung umgesetzt? Hat sie im Geschmack gewirkt? Stimmte die vorhergesagte Zeit, und was sagt eine Abweichung über das Mühlenmodell, die Bohne oder die Puck-Vorbereitung? Fehlt der Vergleich, schreib das in einem Satz.)
 ## Was die Daten zeigen
 ## Nächster Shot
 ## Danach
@@ -2086,6 +2091,23 @@ function aiPayload(anchor, shots, T, model, rec){
     })(),
     postStopDrip: over || dripAdj(anchor) ? { avgGramsMeasured: over ? r1(over.g) : undefined, n: over ? over.n : undefined, userCorrectionGrams: dripAdj(anchor) || undefined, note: 'Measured from the scale curve, counted from the reading at pump-off (scale lag corrected). The user correction adds what the scale misses.' } : null,
     savedRecipe: recipe ? { grind: recipe.grindRaw, dose: recipe.dose, yield: recipe.yield, time: recipe.time, temp: recipe.temp || null } : null,
+    lastShotVsRecommendation: (() => {
+      const D = recVsData(anchor, shots, T); if(!D) return undefined;
+      const { prev, r, rows, dt, missed } = D, rs = r.res || res;
+      return {
+        meaning: 'The base shot (the newest shot) compared with what the app recommended for it, based on the shot before it',
+        recommendationSource: r.src === 'log' ? 'exactly as shown in the app before the shot was pulled' : 'recalculated afterwards with the data from before this shot',
+        butlerSuggestionWasAccepted: r.ai || undefined,
+        recommendationBasedOnShot: prev.date ? prev.date.toISOString().slice(0, 16) : null,
+        recommended: { grind: fmtG(r.g, rs), dose: r.dose, yield: r.yld, switchOffAtScaleGrams: r.stop || undefined, expectedTimeSec: r.t, temp: r.tm === 'none' ? undefined : r.tm === 'levels' ? (r.dT > 0 ? 'one level warmer' : r.dT < 0 ? 'one level cooler' : 'same level') : r.temp },
+        pulled: { grind: fmtG(anchor.grind, rs), dose: anchor.dose || null, yield: anchor.yield || null, timeSec: anchor.time, temp: anchor.temp || null },
+        followedRecommendation: !missed.length,
+        differences: rows.filter(x => x.off).map(x => `${x.k}: ${strip(x.d)}`),
+        timeVsPredictionSec: dt,
+        tasteOfPulledShot: hasTaste(anchor) ? compassText(compassOf(anchor)) : 'not entered',
+        tasteOfShotBefore: hasTaste(prev) ? compassText(compassOf(prev)) : 'not entered',
+      };
+    })(),
     appRecommendation: { grind: rec.newGrind != null ? fmtG(rec.newGrind, res) : null, grindChange: rec.dir, dose: rec.dose, yield: rec.yld, ratio: rec.R, temp: rec.temp, expectedTimeSec: Math.round(rec.tPred), confidence: rec.conf, reasons: rec.why.map(strip), hints: rec.hints.map(strip) },
     shots: list,
     otherBeansSameGrinder: others,
@@ -2115,7 +2137,7 @@ function applyAIPlan(rec, plan, anchor, T){
   rec.R = rec.yld / rec.dose;
   if(t != null) rec.tPred = t;
   if(tp != null && rec.tempMode !== 'none' && rec.tempMode !== 'levels'){ rec.temp = tp; rec.dT = T.temp ? tp - T.temp : 0; }
-  rec.why = [`KI-Vorschlag übernommen${plan.reason ? ': ' + esc(plan.reason) : '.'}`].concat(rec.why.map(w => `<span class="muted">App: ${w}</span>`));
+  rec.why = [`Butler-Vorschlag übernommen${plan.reason ? ': ' + esc(plan.reason) : '.'}`].concat(rec.why.map(w => `<span class="muted">App: ${w}</span>`));
   rec.fromAI = true;
   return rec;
 }
@@ -2128,13 +2150,13 @@ function aiCompareHTML(r, where){
   const diff = rows.filter(([, x, y]) => !same(x, y)).length;
   const agree = plan.agree === true && !diff;
   const acc = (UI.aiAcc || {})[ctxKey()]?.anchorId === r.anchorId;
-  if(acc && where === 'rec') return `<div class="aicmp ok slim"><b>✓ KI-Vorschlag übernommen</b><span>Die Werte oben stammen jetzt von der KI. <button class="linkbtn" type="button" id="aiUndo">Zur App-Empfehlung zurück</button></span></div>`;
-  if(where === 'rec' && agree) return `<div class="aicmp ok slim"><b>✓ KI bestätigt diese Empfehlung</b><span>${plan.reason ? esc(plan.reason) + ' ' : ''}<button class="linkbtn" type="button" data-goto="hAi">Zur KI-Analyse</button></span></div>`;
-  if(where === 'ai') return `<div class="aicmp ${agree ? 'ok' : 'dev'} slim"><b>${agree ? '✓ KI bestätigt die Empfehlung der App' : '≠ KI schlägt eine Anpassung vor'}</b><span>${agree ? (plan.reason ? esc(plan.reason) : '') : 'Den Vergleich findest du oben bei „Nächster Shot“.'} <button class="linkbtn" type="button" data-goto="hRec">${agree ? 'Zum nächsten Shot' : 'Zum Vergleich'}</button></span></div>`;
+  if(acc && where === 'rec') return `<div class="aicmp ok slim"><b>✓ Butler-Vorschlag übernommen</b><span>Die Werte oben stammen jetzt vom Butler. <button class="linkbtn" type="button" id="aiUndo">Zur App-Empfehlung zurück</button></span></div>`;
+  if(where === 'rec' && agree) return `<div class="aicmp ok slim"><b>✓ Der Butler bestätigt diese Empfehlung</b><span>${plan.reason ? esc(plan.reason) + ' ' : ''}<button class="linkbtn" type="button" data-goto="hAi">Zum Butler</button></span></div>`;
+  if(where === 'ai') return `<div class="aicmp ${agree ? 'ok' : 'dev'} slim"><b>${agree ? '✓ Der Butler bestätigt die Empfehlung der App' : '≠ Der Butler schlägt eine Anpassung vor'}</b><span>${agree ? (plan.reason ? esc(plan.reason) : '') : 'Den Vergleich findest du oben bei „Nächster Shot“.'} <button class="linkbtn" type="button" data-goto="hRec">${agree ? 'Zum nächsten Shot' : 'Zum Vergleich'}</button></span></div>`;
   return `<div class="aicmp ${agree ? 'ok' : 'dev'}">
-    <div class="aicmp-head"><b>${agree ? '✓ KI bestätigt die Empfehlung der App' : '≠ KI schlägt eine Anpassung vor'}</b>${plan.reason ? `<span>${esc(plan.reason)}</span>` : ''}</div>
-    <table class="aicmp-t"><thead><tr><th></th><th>App</th><th>KI</th></tr></thead><tbody>${rows.filter(([, x, y]) => x != null || y != null).map(([k, x, y]) => `<tr class="${same(x, y) ? '' : 'd'}"><td>${k}</td><td class="n">${esc(x ?? '–')}</td><td class="n">${esc(y ?? '–')}</td></tr>`).join('')}</tbody></table>
-    <div class="row" style="gap:6px">${!agree ? '<button class="btn small primary" type="button" id="aiTake">KI-Vorschlag annehmen</button>' : ''}<button class="btn small" type="button" data-goto="hAi">Zur KI-Analyse</button></div>
+    <div class="aicmp-head"><b>${agree ? '✓ Der Butler bestätigt die Empfehlung der App' : '≠ Der Butler schlägt eine Anpassung vor'}</b>${plan.reason ? `<span>${esc(plan.reason)}</span>` : ''}</div>
+    <table class="aicmp-t"><thead><tr><th></th><th>App</th><th>Butler</th></tr></thead><tbody>${rows.filter(([, x, y]) => x != null || y != null).map(([k, x, y]) => `<tr class="${same(x, y) ? '' : 'd'}"><td>${k}</td><td class="n">${esc(x ?? '–')}</td><td class="n">${esc(y ?? '–')}</td></tr>`).join('')}</tbody></table>
+    <div class="row" style="gap:6px">${!agree ? '<button class="btn small primary" type="button" id="aiTake">Butler-Vorschlag annehmen</button>' : ''}<button class="btn small" type="button" data-goto="hAi">Zum Butler</button></div>
   </div>`;
 }
 function mdToHTML(md){
@@ -2161,18 +2183,18 @@ function aiCardHTML(anchor){
   const own = aiOwn();
   return `
   <section class="card aicard" aria-labelledby="hAi">
-    <div class="card-head"><h2 id="hAi">KI-Analyse</h2><span class="muted" style="font-size:13px">wertet alle Shots dieser Bohne zusammen aus: Mühle, Röstgrad, Kurven, Channeling und Geschmack</span></div>
+    <div class="card-head"><h2 id="hAi">Butler</h2><span class="muted" style="font-size:13px">deine KI-Analyse: wertet alle Shots dieser Bohne zusammen aus: Mühle, Röstgrad, Kurven, Channeling und Geschmack</span></div>
     ${r ? `${aiCompareHTML(r, 'ai')}<div class="aitext">${mdToHTML(aiSplit(r.text).body)}</div>
-      <span class="muted" style="font-size:12.5px">Erstellt am ${fmtDate(new Date(r.at))}${stale ? ' · <b>seitdem gibt es einen neueren Ausgangs-Shot</b>' : ''}${r.left != null ? ` · heute noch ${r.left} ${r.left === 1 ? 'Analyse' : 'Analysen'} frei` : ''}. KI-Einschätzungen können danebenliegen, vergleiche mit der Empfehlung oben.</span>`
-    : `<p class="muted" style="margin:0;font-size:14px">Eine KI liest deine Shots, die Waagenkurven, den Röstgrad und deine Geschmacksangaben gemeinsam und schreibt eine Einschätzung mit konkretem Vorschlag für den nächsten Shot. Sie sieht auch die Empfehlung der App und sagt, ob sie zustimmt.</p>`}
-    ${AI.busy ? `<div class="aiwait" role="status"><span class="spin big" aria-hidden="true"></span><span>Die KI liest deine Shots und schreibt die Analyse. Das dauert meist 10–30 Sekunden.</span></div>` : ''}
+      <span class="muted" style="font-size:12.5px">Erstellt am ${fmtDate(new Date(r.at))}${stale ? ' · <b>seitdem gibt es einen neueren Ausgangs-Shot</b>' : ''}${r.left != null ? ` · heute noch ${r.left} ${r.left === 1 ? 'Analyse' : 'Analysen'} frei` : ''}. Auch der Butler kann danebenliegen, vergleiche mit der Empfehlung oben.</span>`
+    : `<p class="muted" style="margin:0;font-size:14px">Der Butler ist deine KI für den Dial-in. Er liest deine Shots, die Waagenkurven, den Röstgrad und deine Geschmacksangaben gemeinsam und schreibt eine Einschätzung mit konkretem Vorschlag für den nächsten Shot. Er sieht auch die Empfehlung der App, sagt, ob er zustimmt, und prüft, ob die letzte Empfehlung gewirkt hat.</p>`}
+    ${AI.busy ? `<div class="aiwait" role="status"><span class="spin big" aria-hidden="true"></span><span>Der Butler liest deine Shots und schreibt seine Analyse. Das dauert meist 10–30 Sekunden.</span></div>` : ''}
     ${AI.err ? `<div class="acctmsg err">${AI.err}</div>` : ''}
     <div class="row">
-      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled aria-busy="true"' : ''}>${AI.busy ? '<span class="spin" aria-hidden="true"></span>Analysiere …' : !SESSION && !own ? 'Anmelden für KI-Analyse' : r ? 'Neu analysieren' : 'Analyse erstellen'}</button>
+      <button class="btn primary" type="button" id="aiRun" ${AI.busy ? 'disabled aria-busy="true"' : ''}>${AI.busy ? '<span class="spin" aria-hidden="true"></span>Analysiere …' : !SESSION && !own ? 'Anmelden für den Butler' : r ? 'Neu analysieren' : 'Analyse erstellen'}</button>
       <button class="btn" type="button" id="aiCopy" title="Datenpaket und Anleitung in die Zwischenablage, zum Einfügen in Claude, ChatGPT, Gemini oder einen anderen KI-Assistenten">Daten für KI-Assistenten kopieren</button>
       ${r ? '<button class="btn" type="button" id="aiDel">Analyse entfernen</button>' : ''}
     </div>
-    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">Für die KI-Analyse in der App brauchst du ein Konto oder einen eigenen API-Schlüssel. Oder du kopierst die Daten und fügst sie in einen KI-Assistenten deiner Wahl ein, zum Beispiel Claude oder ChatGPT.</span>' : ''}
+    ${!SESSION && !own ? '<span class="muted" style="font-size:12.5px">Für den Butler in der App brauchst du ein Konto oder einen eigenen API-Schlüssel. Oder du kopierst die Daten und fügst sie in einen KI-Assistenten deiner Wahl ein, zum Beispiel Claude oder ChatGPT.</span>' : ''}
     <details class="aikey" ${AI.keyOpen ? 'open' : ''}>
       <summary>${own ? `Eigener API-Schlüssel aktiv <span class="num muted">(…${esc(own.key.slice(-4))}, ${esc(AI_MODELS[own.model] || own.model)})</span>` : 'Eigenen API-Schlüssel verwenden'}</summary>
       <div class="aikey-body">
@@ -2197,7 +2219,7 @@ async function runAIDirect(own, payload, app){
     const j = await r.json().catch(() => ({}));
     const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
     if(r.ok && text){ (UI.ai ||= {})[key] = { text, at: Date.now(), model: j.model || own.model, anchorId, own: true, app }; saveUI(); }
-    else if(r.ok) AI.err = 'Die KI hat keinen Text geliefert' + (j.stop_reason === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
+    else if(r.ok) AI.err = 'Der Butler hat keinen Text geliefert' + (j.stop_reason === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
     else if(r.status === 401 || r.status === 403) AI.err = 'Anthropic lehnt den Schlüssel ab. Bitte prüfen, ob er stimmt und aktiv ist.';
     else if(r.status === 404) AI.err = 'Das gewählte Modell ist für deinen Schlüssel nicht verfügbar. Wähle ein anderes Modell.';
     else if(r.status === 429) AI.err = 'Zu viele Anfragen oder Guthaben aufgebraucht. Bitte später erneut versuchen oder das Anthropic-Konto prüfen.';
@@ -2217,11 +2239,11 @@ async function runAI(payload, app){
     const r = await fetch(SB_URL + '/functions/v1/ai-analyse', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + tok, apikey:SB_KEY }, body: JSON.stringify({ lang: AI_LANG(), data: payload }) });
     const j = await r.json().catch(() => ({}));
     if(r.ok && j.text){ (UI.ai ||= {})[key] = { text: j.text, at: Date.now(), model: j.model, anchorId, left: j.left, app }; saveUI(); }
-    else if(j.error === 'no_key') AI.err = 'Die KI ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für KI-Assistenten kopieren“.';
+    else if(j.error === 'no_key') AI.err = 'Der Butler ist noch nicht eingerichtet: Im Server fehlt der API-Schlüssel. Bis dahin funktioniert „Daten für KI-Assistenten kopieren“.';
     else if(j.error === 'limit') AI.err = `Tageslimit erreicht (${j.limit} Analysen in 24 Stunden). Morgen geht es weiter.`;
     else if(r.status === 401 || j.error === 'auth') AI.err = 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.';
-    else if(j.error === 'empty') AI.err = 'Die KI hat keinen Text geliefert' + (j.stop === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
-    else if(j.error === 'upstream') AI.err = 'Die KI hat nicht geantwortet' + (j.detail ? `: ${esc(j.detail)}` : '.') ;
+    else if(j.error === 'empty') AI.err = 'Der Butler hat keinen Text geliefert' + (j.stop === 'max_tokens' ? ', die Antwort war zu lang. Bitte nochmal versuchen.' : '. Bitte nochmal versuchen.');
+    else if(j.error === 'upstream') AI.err = 'Der Butler hat nicht geantwortet' + (j.detail ? `: ${esc(j.detail)}` : '.') ;
     else AI.err = 'Die Analyse ist fehlgeschlagen' + (j.detail ? `: ${esc(j.detail)}` : ` (Status ${r.status}).`);
   }catch(e){ AI.err = 'Keine Verbindung zum Server. Bitte später noch einmal versuchen.'; }
   AI.busy = false; render();
@@ -2365,8 +2387,8 @@ function simpleHTML(o){
   tips.push('Immer nur eine Sache ändern, dann probieren.');
   if(rec.why.some(w => /Geschmack geht vor|Taste comes first/.test(w))) tips.unshift('Die Zeit liegt etwas außerhalb deines Ziels. Weil der Geschmack wichtiger ist, bleibt der Mahlgrad.');
   const r = (UI.ai || {})[ctxKey()];
-  const ai = r && r.anchorId === anchor.id ? (() => { const { plan } = aiSplit(r.text); if(!plan || !r.app) return ''; const same = plan.agree === true; if(aiAccepted(anchor)) return `<div class="aicmp ok slim"><b>✓ KI-Vorschlag übernommen</b><span><button class="linkbtn" type="button" data-aiundo="1">Zur App-Empfehlung zurück</button></span></div>`;
-    return `<div class="aicmp ${same ? 'ok' : 'dev'} slim"><b>${same ? '✓ Die KI sieht es genauso.' : '≠ Die KI schlägt etwas anderes vor:'}</b><span>${same ? (plan.reason ? esc(plan.reason) : '') : `Mühle ${esc(plan.grind ?? '–')} · ${esc(String(plan.yield ?? '–'))} g · ${esc(plan.temp ?? '–')}${plan.reason ? ' – ' + esc(plan.reason) : ''} <button class="btn small primary" type="button" data-aiaccept="1">Annehmen</button>`}</span></div>`; })() : '';
+  const ai = r && r.anchorId === anchor.id ? (() => { const { plan } = aiSplit(r.text); if(!plan || !r.app) return ''; const same = plan.agree === true; if(aiAccepted(anchor)) return `<div class="aicmp ok slim"><b>✓ Butler-Vorschlag übernommen</b><span><button class="linkbtn" type="button" data-aiundo="1">Zur App-Empfehlung zurück</button></span></div>`;
+    return `<div class="aicmp ${same ? 'ok' : 'dev'} slim"><b>${same ? '✓ Der Butler sieht es genauso.' : '≠ Der Butler schlägt etwas anderes vor:'}</b><span>${same ? (plan.reason ? esc(plan.reason) : '') : `Mühle ${esc(plan.grind ?? '–')} · ${esc(String(plan.yield ?? '–'))} g · ${esc(plan.temp ?? '–')}${plan.reason ? ' – ' + esc(plan.reason) : ''} <button class="btn small primary" type="button" data-aiaccept="1">Annehmen</button>`}</span></div>`; })() : '';
   return `
   <section class="card simple" aria-labelledby="hSimple">
     <div class="card-head"><h2 id="hSimple">Was trinkst du?</h2><span class="muted" style="font-size:13px">Ziel: ${fmt(T.dose,1)} g rein → ${fmt(T.dose * T.ratio,0)} g raus in ${T.tMin}–${T.tMax} s</span></div>
@@ -2419,7 +2441,7 @@ function simpleLogHTML(anchor, rec){
 let tasteMoreOpen = false;
 /* ---------- Letzter Shot vs. Empfehlung ----------
    Was wurde für diesen Shot empfohlen, und was wurde tatsächlich gezogen? Bevorzugt die damals angezeigte
-   Empfehlung (inkl. angenommenem KI-Vorschlag), sonst nachträglich mit dem Datenstand vor dem Shot berechnet. */
+   Empfehlung (inkl. angenommenem Butler-Vorschlag), sonst nachträglich mit dem Datenstand vor dem Shot berechnet. */
 function recSnap(rec, stopAt){
   return { g: rec.newGrind, res: rec.res, dose: rec.dose, yld: rec.yld, t: Math.round(rec.tPred), temp: rec.temp ?? null, tm: rec.tempMode || null, dT: rec.dT || 0, stop: stopAt ?? null, ai: !!rec.fromAI };
 }
@@ -2437,12 +2459,12 @@ function recFor(prev, T){
   finally{ CUTOFF = null; }
 }
 function hasTaste(s){ return !!UI.compass[s.id] || Object.values(shotTags(s) || {}).some(Boolean); }
-function recVsHTML(anchor, shots, T){
+function recVsData(anchor, shots, T){
   const i = shots.indexOf(anchor);
   const prev = i >= 0 ? shots.slice(i + 1).find(s => s.time && s.grind != null) : null;
-  if(!prev || anchor.grind == null || !anchor.time) return '';
+  if(!prev || anchor.grind == null || !anchor.time) return null;
   const r = recFor(prev, T);
-  if(!r || r.g == null) return '';
+  if(!r || r.g == null) return null;
   const res = r.res || 0.1, sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
   const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs(v), Math.abs(v) % 1 ? 1 : 0);
   const rows = [];
@@ -2475,13 +2497,26 @@ function recVsHTML(anchor, shots, T){
     if(hasTaste(prev)){ const cp = compassOf(prev), dp = Math.hypot(cp.x, cp.y); if(Math.abs(da - dp) >= 0.1) t += da < dp ? ', näher an der Mitte als der Shot davor' : ', weiter von der Mitte weg als der Shot davor'; else t += ', etwa wie der Shot davor'; }
     lines.push(t + '.');
   } else lines.push('Geschmack noch nicht angegeben. Trag ihn beim Ausgangs-Shot ein, dann sieht die App, ob die Empfehlung geholfen hat.');
+  return { prev, r, rows, lines, dt, missed, res };
+}
+/* Abschnitt aus der Butler-Antwort, der den letzten Shot mit der Empfehlung vergleicht */
+function aiSectionMD(text){
+  const t = String(text || ''), m = t.match(/^##\s*(Letzter Shot vs\.? Empfehlung|Last shot vs\.? recommendation)[^\n]*\n([\s\S]*?)(?=^##\s|^```|$(?![\s\S]))/im);
+  return m ? m[2].trim() : '';
+}
+function recVsHTML(anchor, shots, T){
+  const D = recVsData(anchor, shots, T); if(!D) return '';
+  const { prev, r, rows, lines } = D;
+  const ai = (UI.ai || {})[ctxKey()], sec = ai && ai.anchorId === anchor.id ? aiSectionMD(ai.text) : '';
+  const butler = sec ? `<div class="butlervs"><span class="eyebrow">Butler</span>${mdToHTML(sec)}</div>`
+    : `<div class="butlervs empty"><span class="eyebrow">Butler</span><span class="muted">${ai && ai.anchorId === anchor.id ? 'In der letzten Analyse fehlt dieser Vergleich. Lass den Butler neu analysieren.' : 'Der Butler vergleicht das in seiner nächsten Analyse ebenfalls.'} <button class="linkbtn" type="button" data-goto="hAi">Zum Butler</button></span></div>`;
   return `<section class="card recvs" aria-labelledby="hRecVs">
-    <div class="card-head"><h2 id="hRecVs">Letzter Shot vs. Empfehlung</h2><span class="muted" style="font-size:13px">${r.src === 'log' ? `Empfehlung, wie sie vor dem Shot angezeigt wurde${r.ai ? ' (KI-Vorschlag übernommen)' : ''}` : 'Empfehlung nachträglich berechnet, mit dem Datenstand vor diesem Shot'} · Basis: Shot vom ${fmtDate(prev.date)}</span></div>
+    <div class="card-head"><h2 id="hRecVs">Letzter Shot vs. Empfehlung</h2><span class="muted" style="font-size:13px">${r.src === 'log' ? `Empfehlung, wie sie vor dem Shot angezeigt wurde${r.ai ? ' (Butler-Vorschlag übernommen)' : ''}` : 'Empfehlung nachträglich berechnet, mit dem Datenstand vor diesem Shot'} · Basis: Shot vom ${fmtDate(prev.date)}</span></div>
     <div class="recvs-body">
       <div class="tablewrap"><table class="rvs"><thead><tr><th></th><th>Empfohlen</th><th>Gezogen</th><th>Abweichung</th></tr></thead><tbody>
         ${rows.map(x => `<tr class="${x.off ? 'd' : ''}${x.result ? ' res' : ''}"><td>${x.k}</td><td class="n">${x.a}</td><td class="n">${x.b}</td><td>${x.d}</td></tr>`).join('')}
       </tbody></table></div>
-      <ul class="rvs-sum">${lines.map(l => `<li>${l}</li>`).join('')}</ul>
+      <div class="rvs-side"><ul class="rvs-sum">${lines.map(l => `<li>${l}</li>`).join('')}</ul>${butler}</div>
     </div>
   </section>`;
 }
@@ -2866,7 +2901,7 @@ function render(){
   <details class="card">
     <summary>So rechnet der Kompass</summary>
     <ul>
-      <li><b>Dial-in-Regeln</b> (gelten für App und KI):<ol class="rules"><li>Geschmack vor Uhr: Bei sauer nie kürzer ziehen oder gröber mahlen, bei bitter nie länger ziehen oder feiner mahlen, auch wenn das Zeitfenster es verlangt.</li><li>Möglichst ein Hebel pro Shot. Bei sauer zuerst feiner (solange die Zeit höchstens knapp über dem Fenster liegt), sonst wärmer oder etwas mehr Ausbeute. Bei bitter zuerst gröber, sonst kühler oder etwas weniger Ausbeute. Bei dunklen Röstungen ist die Temperatur oft der beste erste Hebel, bei hellen ebenfalls, nur in die andere Richtung.</li><li>Zu dünn ohne Säure: kürzere Ratio oder 0,5–1 g mehr Dosis. Zu stark: längere Ratio. Ist der Shot gleichzeitig sauer, die Ratio nicht kürzen.</li><li>Weicht die letzte Ausbeute vom Ziel ab, nicht gegen den Geschmack aufs Ziel zurückspringen.</li><li>Channeling nur, wenn die Waagenkurve es zeigt. Dann zuerst die Puck-Vorbereitung verbessern, nicht den Mahlgrad.</li><li>Der erste Shot des Tages und Shots am Tag des Öffnens der Packung sind weniger aussagekräftig. Nicht allein darauf nachjustieren.</li><li>Nur Temperaturen vorschlagen, die die Maschine einstellen kann, und die übliche Spanne der Röstung beachten.</li></ol></li>
+      <li><b>Dial-in-Regeln</b> (gelten für App und Butler):<ol class="rules"><li>Geschmack vor Uhr: Bei sauer nie kürzer ziehen oder gröber mahlen, bei bitter nie länger ziehen oder feiner mahlen, auch wenn das Zeitfenster es verlangt.</li><li>Möglichst ein Hebel pro Shot. Bei sauer zuerst feiner (solange die Zeit höchstens knapp über dem Fenster liegt), sonst wärmer oder etwas mehr Ausbeute. Bei bitter zuerst gröber, sonst kühler oder etwas weniger Ausbeute. Bei dunklen Röstungen ist die Temperatur oft der beste erste Hebel, bei hellen ebenfalls, nur in die andere Richtung.</li><li>Zu dünn ohne Säure: kürzere Ratio oder 0,5–1 g mehr Dosis. Zu stark: längere Ratio. Ist der Shot gleichzeitig sauer, die Ratio nicht kürzen.</li><li>Weicht die letzte Ausbeute vom Ziel ab, nicht gegen den Geschmack aufs Ziel zurückspringen.</li><li>Channeling nur, wenn die Waagenkurve es zeigt. Dann zuerst die Puck-Vorbereitung verbessern, nicht den Mahlgrad.</li><li>Der erste Shot des Tages und Shots am Tag des Öffnens der Packung sind weniger aussagekräftig. Nicht allein darauf nachjustieren.</li><li>Nur Temperaturen vorschlagen, die die Maschine einstellen kann, und die übliche Spanne der Röstung beachten.</li></ol></li>
       <li>Basis ist dein letzter Shot dieser Bohnen-Mühlen-Kombination (oder der, den du im Verlauf als Basis wählst).</li>
       <li>Aus allen Bezügen mit Zeit und Ausbeute wird der Durchfluss (g/s) je Mahlgrad als gewichtete Regression geschätzt. Neuere Bezüge zählen mehr, weil Bohnen mit dem Alter schneller laufen. Reichen die Daten einer Bohne nicht, nutzt der Kompass die Bezüge aller Bohnen auf derselben Mühle.</li>
       <li>Der Geschmack entscheidet, was sich ändert: sauer und schnell → feiner; sauer bei passender Zeit → längere Ratio und wärmer; bitter und langsam → gröber; bitter bei passender Zeit → kürzere Ratio und kühler; sauer und bitter → Puck-Vorbereitung.</li>
