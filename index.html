@@ -330,6 +330,16 @@ td.tastecell .tgl{padding-top:0}
 .sbig > div.chg{background:color-mix(in srgb,var(--signal) 12%,var(--surface));box-shadow:inset 0 0 0 2px var(--signal)}
 .sbig > div.chg .v{color:var(--signal)}
 .sbig > div.off .v{color:var(--mixed)}
+.recvs-body{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:760px){.recvs-body{grid-template-columns:minmax(0,1fr)}}
+table.rvs{min-width:0;width:auto;font-size:14px}
+table.rvs th{position:static}
+table.rvs td.n{text-align:right}
+table.rvs th:nth-child(2),table.rvs th:nth-child(3){text-align:right}
+table.rvs tr.d td{font-weight:600}
+table.rvs tr.d td:last-child{color:var(--signal)}
+table.rvs tr.res td{border-top:2px solid var(--line)}
+.rvs-sum{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .dripadj{display:inline-flex;align-items:center;gap:6px;margin-left:2px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .dripadj .btn{min-width:28px;padding:2px 8px}
 .dripadj b{color:var(--ink);min-width:44px;text-align:center}
@@ -770,19 +780,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{}, recLog:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{}, recLog:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened, aiAcc:UI.aiAcc, dripAdj:UI.dripAdj});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened, aiAcc:UI.aiAcc, dripAdj:UI.dripAdj, recLog:UI.recLog});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -827,7 +837,8 @@ const mainFlow = s => s.yield && s.time && s.firstDrip && s.time > s.firstDrip +
 
 /* Bewertungen lassen sich im Verlauf ändern: Überschreibung in UI.rating, Originalwert bleibt erhalten */
 function applyRating(s){ if(s._r0 === undefined) s._r0 = s.rating || 0; const o = (UI.rating || {})[s.id]; s.rating = o != null ? o : s._r0; return s; }
-function allShots(){ return (DATA ? DATA.shots : []).concat(APP).filter(s => !s.archived).map(applyRating).sort((a, b) => (b.date || 0) - (a.date || 0)); }
+let CUTOFF = null;   // nur für nachträgliche Berechnungen: Shots nach diesem Zeitpunkt ausblenden
+function allShots(){ return (DATA ? DATA.shots : []).concat(APP).filter(s => !s.archived && (!CUTOFF || (s.date && s.date <= CUTOFF))).map(applyRating).sort((a, b) => (b.date || 0) - (a.date || 0)); }
 function ratingScale(){ return allShots().some(s => s.rating > 5) ? 10 : 5; }
 function shotTags(s){
   if(UI.taste[s.id]) return UI.taste[s.id];
@@ -1721,7 +1732,7 @@ function channelingCheck(s, shots, T){
   const fl = FLOWS[s.id] || null;
   const ov = (UI.chOv || {})[s.id] || {};
   const evKey = (kind, t) => kind + '@' + Math.round(t * 2) / 2;
-  const key = s.id + '|' + (fl ? 1 : 0) + '|' + JSON.stringify(shotTags(s)) + '|' + (s.firstDrip || '') + '|' + (T ? T.tMin + '-' + T.tMax : '') + '|' + JSON.stringify(ov);
+  const key = s.id + '|' + (CUTOFF ? +CUTOFF : '') + '|' + (fl ? 1 : 0) + '|' + JSON.stringify(shotTags(s)) + '|' + (s.firstDrip || '') + '|' + (T ? T.tMin + '-' + T.tMax : '') + '|' + JSON.stringify(ov);
   if(CH_CACHE.has(key)) return CH_CACHE.get(key);
   const an = fl ? analyzeFlow(fl, s) : null;
   const st = an ? detectStop(fl, an) : null;
@@ -2406,6 +2417,74 @@ function simpleLogHTML(anchor, rec){
 }
 
 let tasteMoreOpen = false;
+/* ---------- Letzter Shot vs. Empfehlung ----------
+   Was wurde für diesen Shot empfohlen, und was wurde tatsächlich gezogen? Bevorzugt die damals angezeigte
+   Empfehlung (inkl. angenommenem KI-Vorschlag), sonst nachträglich mit dem Datenstand vor dem Shot berechnet. */
+function recSnap(rec, stopAt){
+  return { g: rec.newGrind, res: rec.res, dose: rec.dose, yld: rec.yld, t: Math.round(rec.tPred), temp: rec.temp ?? null, tm: rec.tempMode || null, dT: rec.dT || 0, stop: stopAt ?? null, ai: !!rec.fromAI };
+}
+function recFor(prev, T){
+  const log = (UI.recLog || {})[prev.id];
+  if(log) return { ...log, src: 'log' };
+  if(prev.grind == null || !prev.time) return null;
+  firstOfDay(prev);                                   // Cache mit allen Shots aufbauen, bevor ausgeblendet wird
+  CUTOFF = prev.date || null;
+  try{
+    const shots = ctxShots();
+    const r = recommend(prev, T, buildModel(prev), shotTags(prev), shots, intensityOf(prev));
+    return { ...recSnap(r, null), src: 'calc' };
+  }catch(e){ return null; }
+  finally{ CUTOFF = null; }
+}
+function hasTaste(s){ return !!UI.compass[s.id] || Object.values(shotTags(s) || {}).some(Boolean); }
+function recVsHTML(anchor, shots, T){
+  const i = shots.indexOf(anchor);
+  const prev = i >= 0 ? shots.slice(i + 1).find(s => s.time && s.grind != null) : null;
+  if(!prev || anchor.grind == null || !anchor.time) return '';
+  const r = recFor(prev, T);
+  if(!r || r.g == null) return '';
+  const res = r.res || 0.1, sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
+  const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs(v), Math.abs(v) % 1 ? 1 : 0);
+  const rows = [];
+  const dG = Math.round((anchor.grind - r.g) / res) * res;
+  rows.push({ k: 'Mahlgrad', a: fmtG(r.g, res), b: fmtG(anchor.grind, res), d: Math.abs(dG) < res / 2 ? 'wie empfohlen' : `${fmtG(Math.abs(dG), res)} ${dG * sign > 0 ? 'gröber' : 'feiner'}`, off: Math.abs(dG) >= res / 2, key: 'grind' });
+  if(anchor.dose){ const d = anchor.dose - r.dose; rows.push({ k: 'Dosis', a: fmt(r.dose,1) + ' g', b: fmt(anchor.dose,1) + ' g', d: Math.abs(d) < 0.3 ? 'wie empfohlen' : sg(Math.round(d * 10) / 10) + ' g', off: Math.abs(d) >= 0.3, key: 'dose' }); }
+  if(anchor.yield){ const d = anchor.yield - r.yld; rows.push({ k: 'Ausbeute', a: fmt(r.yld,0) + ' g' + (r.stop ? `<br><span class="muted">ausschalten bei ${fmt(r.stop,1)} g</span>` : ''), b: fmt(anchor.yield,1) + ' g', d: Math.abs(d) < 1.5 ? 'wie empfohlen' : sg(Math.round(d * 10) / 10) + ' g', off: Math.abs(d) >= 1.5, key: 'yield' }); }
+  if(anchor.dose && anchor.yield && r.dose) rows.push({ k: 'Ratio', a: '1:' + fmt(r.yld / r.dose, 2), b: '1:' + fmt(anchor.yield / anchor.dose, 2), d: '', off: false, key: 'ratio' });
+  const dt = anchor.time - r.t;
+  rows.push({ k: 'Zeit', a: `ca. ${fmt(r.t,0)} s`, b: fmt(anchor.time,0) + ' s', d: Math.abs(dt) <= 2 ? 'wie erwartet' : `${fmt(Math.abs(dt),0)} s ${dt > 0 ? 'langsamer' : 'schneller'}`, off: Math.abs(dt) > 2, key: 'time', result: true });
+  if(r.tm !== 'none'){
+    if(r.tm === 'levels'){ if(r.dT) rows.push({ k: 'Temperatur', a: r.dT > 0 ? 'eine Stufe wärmer' : 'eine Stufe kühler', b: '–', d: '', off: false, key: 'temp' }); }
+    else if(r.temp != null && anchor.temp){ const d = anchor.temp - r.temp; rows.push({ k: 'Temperatur', a: fmt(r.temp, r.temp % 1 ? 1 : 0) + ' °C', b: fmt(anchor.temp, anchor.temp % 1 ? 1 : 0) + ' °C', d: Math.abs(d) < 0.5 ? 'wie empfohlen' : sg(d) + ' °C', off: Math.abs(d) >= 0.5, key: 'temp' }); }
+  }
+  const missedR = rows.filter(x => x.off && !x.result), missed = missedR.map(x => x.k), mk = missedR.map(x => x.key);
+  const lines = [];
+  lines.push(missed.length ? `Abweichend von der Empfehlung: ${missed.join(', ')}.` : 'Du hast die Empfehlung umgesetzt.');
+  // Erwartete Richtung der Zeitänderung durch die abweichenden Werte: gröber = schneller, mehr Ausbeute oder Dosis = länger
+  const sgn = v => v > 0 ? 1 : v < 0 ? -1 : 0;
+  const eff = (mk.includes('grind') ? -sgn(dG * sign) : 0) + (mk.includes('yield') ? sgn(anchor.yield - r.yld) : 0) + (mk.includes('dose') ? sgn(anchor.dose - r.dose) : 0);
+  if(Math.abs(dt) > 2) lines.push(eff && sgn(eff) === sgn(dt)
+    ? `Die Zeit lag ${fmt(Math.abs(dt),0)} s ${dt > 0 ? 'über' : 'unter'} der Vorhersage. Das passt zu den abweichenden Werten.`
+    : eff
+    ? `Der Shot lief ${fmt(Math.abs(dt),0)} s ${dt > 0 ? 'langsamer' : 'schneller'} als vorhergesagt, obwohl die abweichenden Werte ihn eher ${dt > 0 ? 'schneller' : 'langsamer'} gemacht hätten. Das Mühlenmodell lernt aus dieser Abweichung.`
+    : `Der Shot lief ${fmt(Math.abs(dt),0)} s ${dt > 0 ? 'langsamer' : 'schneller'} als vorhergesagt. Das Mühlenmodell lernt aus dieser Abweichung.`);
+  else lines.push('Die Zeit traf die Vorhersage.');
+  if(hasTaste(anchor)){
+    const ca = compassOf(anchor), da = Math.hypot(ca.x, ca.y);
+    let t = `Geschmack: ${compassText(ca)}`;
+    if(hasTaste(prev)){ const cp = compassOf(prev), dp = Math.hypot(cp.x, cp.y); if(Math.abs(da - dp) >= 0.1) t += da < dp ? ', näher an der Mitte als der Shot davor' : ', weiter von der Mitte weg als der Shot davor'; else t += ', etwa wie der Shot davor'; }
+    lines.push(t + '.');
+  } else lines.push('Geschmack noch nicht angegeben. Trag ihn beim Ausgangs-Shot ein, dann sieht die App, ob die Empfehlung geholfen hat.');
+  return `<section class="card recvs" aria-labelledby="hRecVs">
+    <div class="card-head"><h2 id="hRecVs">Letzter Shot vs. Empfehlung</h2><span class="muted" style="font-size:13px">${r.src === 'log' ? `Empfehlung, wie sie vor dem Shot angezeigt wurde${r.ai ? ' (KI-Vorschlag übernommen)' : ''}` : 'Empfehlung nachträglich berechnet, mit dem Datenstand vor diesem Shot'} · Basis: Shot vom ${fmtDate(prev.date)}</span></div>
+    <div class="recvs-body">
+      <div class="tablewrap"><table class="rvs"><thead><tr><th></th><th>Empfohlen</th><th>Gezogen</th><th>Abweichung</th></tr></thead><tbody>
+        ${rows.map(x => `<tr class="${x.off ? 'd' : ''}${x.result ? ' res' : ''}"><td>${x.k}</td><td class="n">${x.a}</td><td class="n">${x.b}</td><td>${x.d}</td></tr>`).join('')}
+      </tbody></table></div>
+      <ul class="rvs-sum">${lines.map(l => `<li>${l}</li>`).join('')}</ul>
+    </div>
+  </section>`;
+}
 /* ---------- Rendern ---------- */
 function ensureCtx(){
   const shots = allShots();
@@ -2620,6 +2699,16 @@ function render(){
   const fdTyp = (() => { const v = shots.map(s => s.firstDrip).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 7; })();
   const dripNext = predictDrip(over, rec.yld, rec.tPred, fdTyp, dripAdj(anchor));
   const stopAt = dripNext != null && dripNext >= 0.3 ? Math.round((rec.yld - dripNext) * 10) / 10 : null;
+  // Angezeigte Empfehlung merken, solange dieser Shot der neueste ist. Kommt der nächste Shot, bleibt sie als Vergleich stehen.
+  if(anchor === shots.find(s => s.time) && anchor.grind != null){
+    const snap = recSnap(rec, stopAt), lg = (UI.recLog ||= {});
+    if(JSON.stringify(lg[anchor.id]) !== JSON.stringify(snap)){
+      lg[anchor.id] = snap;
+      const ks = Object.keys(lg); if(ks.length > 80){ const keep = new Set(allShots().slice(0, 80).map(x => x.id)); ks.forEach(k => { if(!keep.has(k)) delete lg[k]; }); }
+      saveUI();
+    }
+  }
+  const recVs = recVsHTML(anchor, shots, T);
   const recipe = UI.recipes[ctxKey()];
   const negTaste = anyNeg(tags);
   const res = rec.res;
@@ -2690,7 +2779,7 @@ function render(){
     ${isFilter(shots) ? '' : `<button type="button" role="tab" id="tabWs" aria-controls="vWs" aria-selected="${wsView}">Rezept-Werkstatt</button><button type="button" role="tab" id="tabSimple" aria-controls="vSimple" aria-selected="${simpleView}">Einfach</button>`}
   </nav>
   <div class="view" id="vDial" role="tabpanel" aria-labelledby="tabDial" ${dialView ? '' : 'hidden'}>
-  ${simpleView ? '' : baseCard}
+  ${simpleView ? '' : baseCard + recVs}
 
   <div class="grid">
       <section class="card rec" aria-labelledby="hRec">
@@ -2789,7 +2878,7 @@ function render(){
   </details>
   </div>
   <div class="view" id="vSimple" role="tabpanel" aria-labelledby="tabSimple" ${simpleView ? '' : 'hidden'}>
-  ${simpleView ? simpleHTML({ anchor, shots, T, model, rec, scale, stopAt, base: baseCard }) + aiCardHTML(anchor) + simpleLogHTML(anchor, rec) : ''}
+  ${simpleView ? simpleHTML({ anchor, shots, T, model, rec, scale, stopAt, base: baseCard + recVs }) + aiCardHTML(anchor) + simpleLogHTML(anchor, rec) : ''}
   </div>
   <div class="view" id="vWs" role="tabpanel" aria-labelledby="tabWs" ${wsView ? '' : 'hidden'}>
   ${workshopHTML(anchor, T, model, shots, scale)}
@@ -3064,7 +3153,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Konto' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened','aiAcc','dripAdj'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened','aiAcc','dripAdj','recLog'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){

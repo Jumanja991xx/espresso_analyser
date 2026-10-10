@@ -961,3 +961,18 @@ EXACT.update({'Alle Geschmacksangaben': 'All taste notes', ' Dazu deine Korrektu
   '<span class="dripadj">Kommt bei dir mehr oder weniger nach? <button class="btn small" type="button" data-dripadj="-0.5" aria-label="0,5 g weniger Nachlauf">−</button><b class="num">': '<span class="dripadj">More or less drips through for you? <button class="btn small" type="button" data-dripadj="-0.5" aria-label="0.5 g less post-stop drip">−</button><b class="num">'})
 PHRASES += [(' g Nachlauf. ', ' g post-stop drip. ')]
 PHRASES += [(' g auf der Waage.</b> ', ' g on the scale.</b> ')]
+EXACT.update({'Abweichend von der Empfehlung: ': 'Different from the recommendation: ', 'Du hast die Empfehlung umgesetzt.': 'You followed the recommendation.',
+  'Die Zeit lag ': 'The time was ', 'über': 'above', 'unter': 'below', ' der Vorhersage, zum Teil wegen der anderen Werte.': ' the prediction, partly because of the other values.',
+  'Der Shot lief ': 'The shot ran ', ' als vorhergesagt. Das Mühlenmodell lernt aus dieser Abweichung.': ' than predicted. The grinder model learns from this deviation.',
+  'Die Zeit traf die Vorhersage.': 'The time matched the prediction.', 'Geschmack: ': 'Taste: ',
+  ', näher an der Mitte als der Shot davor': ', closer to the centre than the shot before', ', weiter von der Mitte weg als der Shot davor': ', further from the centre than the shot before', ', etwa wie der Shot davor': ', about like the shot before',
+  'Geschmack noch nicht angegeben. Trag ihn beim Ausgangs-Shot ein, dann sieht die App, ob die Empfehlung geholfen hat.': 'Taste not entered yet. Add it at the base shot, then the app can tell whether the recommendation helped.',
+  ' (KI-Vorschlag übernommen)': ' (AI suggestion accepted)', 'Empfehlung nachträglich berechnet, mit dem Datenstand vor diesem Shot': 'Recommendation calculated afterwards, using the data from before this shot',
+  ' · Basis: Shot vom ': ' · Based on the shot from ', 'Empfehlung, wie sie vor dem Shot angezeigt wurde': 'Recommendation as shown before the shot',
+  'wie empfohlen': 'as recommended', 'wie erwartet': 'as expected', 'langsamer': 'slower', 'schneller': 'faster', 'ca. ': 'approx. '})
+PHRASES += [('<h2 id="hRecVs">Letzter Shot vs. Empfehlung</h2>', '<h2 id="hRecVs">Last shot vs. recommendation</h2>'),
+  ('<th></th><th>Empfohlen</th><th>Gezogen</th><th>Abweichung</th>', '<th></th><th>Recommended</th><th>Pulled</th><th>Difference</th>'),
+  ('<br><span class="muted">ausschalten bei ', '<br><span class="muted">switch off at ')]
+EXACT.update({' der Vorhersage. Das passt zu den abweichenden Werten.': ' the prediction. That fits the values that differed.',
+  ' als vorhergesagt, obwohl die abweichenden Werte ihn eher ': ' than predicted, although the values that differed should have made it ',
+  ' gemacht hätten. Das Mühlenmodell lernt aus dieser Abweichung.': '. The grinder model learns from this deviation.'})
