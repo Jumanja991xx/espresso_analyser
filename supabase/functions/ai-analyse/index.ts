@@ -23,6 +23,7 @@ Die App arbeitet nach diesen Dial-in-Regeln. Wende sie ebenfalls an, damit eure 
 5. Channeling nur, wenn die Waagenkurve es zeigt. Dann zuerst die Puck-Vorbereitung verbessern, nicht den Mahlgrad.
 6. Der erste Shot des Tages und Shots am Tag des Öffnens der Packung sind weniger aussagekräftig. Nicht allein darauf nachjustieren.
 7. Nur Temperaturen vorschlagen, die die Maschine einstellen kann, und die übliche Spanne der Röstung beachten.
+8. Ist der Ausgangs-Shot ein Volltreffer (baseShotPerfect), keine Verbesserungen vorschlagen. Den Status quo bestätigen: gleiche Werte, nur Anpassungen, die nötig sind, um ihn zu halten (zum Beispiel weil die offene Packung schneller läuft).
 
 Weitere Vorgaben:
 - Ergänze, was die App nicht sieht: Muster über mehrere Shots, Notizen, Widersprüche in den Angaben.
@@ -56,6 +57,7 @@ The app works by these dial-in rules. Apply them too so your results are compara
 5. Channeling only if the scale curve shows it. Then improve puck prep first, not the grind.
 6. The first shot of the day and shots on the day the bag was opened are less meaningful. Do not adjust based on them alone.
 7. Only suggest temperatures the machine can actually set, and respect the usual range for the roast.
+8. If the base shot is a perfect shot (baseShotPerfect), do not suggest improvements. Confirm the status quo: same values, only adjustments needed to keep it (for example because the opened bag runs faster).
 
 Further guidance:
 - Add what the app cannot see: patterns across several shots, notes, contradictions in the inputs.

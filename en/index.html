@@ -343,6 +343,11 @@ table.rvs tr.res td{border-top:2px solid var(--line)}
 .butlervs{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--accent) 7%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line));font-size:14px}
 .butlervs p{margin:0}.butlervs.empty{background:var(--sunk);border-color:var(--line)}
 .rvs-sum{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.perfect{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;margin-bottom:12px;background:color-mix(in srgb,var(--good) 12%,var(--surface));border:1.5px solid color-mix(in srgb,var(--good) 55%,var(--line));font-size:14px}
+.perfect b{font-size:16px}
+.perfect .row{gap:12px;align-items:center}
+.perfect.warn,.perfect.off{background:var(--sunk);border-color:var(--line);display:block;font-size:13.5px}
+.perfect.hint{background:transparent;border:0;padding:0;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}
 .dripadj{display:inline-flex;align-items:center;gap:6px;margin-left:2px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .dripadj .btn{min-width:28px;padding:2px 8px}
 .dripadj b{color:var(--ink);min-width:44px;text-align:center}
@@ -783,19 +788,19 @@ const DK_KEYS = ['dk.data','dk.app','dk.ui','dk.flows','dk.sync','dk.aikey'];
 function resetAll(){
   DK_KEYS.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   DATA = null; IS_SAMPLE = false; APP = []; FLOWS = {}; NOTICE = null;
-  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{}, recLog:{} });
+  Object.assign(UI, { bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, calc:{}, goal:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{}, recLog:{}, perfect:{} });
   SYNC = { email:'', pw:'', remember:false, last:0, done:{} };
   const sb = $('#syncBox'); if(sb){ delete sb.dataset.init; sb.open = false; }
   render(); window.scrollTo({ top:0 });
 }
 let APP = (store.get('dk.app', []) || []).map(s => ({...s, date: new Date(s.date)}));
-const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{}, recLog:{} }, store.get('dk.ui', {}));
+const UI = Object.assign({ bean:null, grinder:null, anchorId:null, detailId:null, onlyCtx:true, targets:{}, taste:{}, coarserHigher:{}, roast:{}, intensity:{}, recipes:{}, maint:{}, cmpId:null, chOv:{}, roastLvl:{}, ai:{}, rating:{}, machineTemp:{}, opened:{}, aiAcc:{}, dripAdj:{}, recLog:{}, perfect:{} }, store.get('dk.ui', {}));
 UI.intensity ||= {}; UI.recipes ||= {}; UI.maint ||= {}; UI.compass ||= {};
 UI.roast ||= {};
 let FLOWS = store.get('dk.flows', {}) || {};
 let NOTICE = null;
 let formDirty = false;
-const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened, aiAcc:UI.aiAcc, dripAdj:UI.dripAdj, recLog:UI.recLog});
+const saveUI = () => store.set('dk.ui', {bean:UI.bean, grinder:UI.grinder, onlyCtx:UI.onlyCtx, targets:UI.targets, taste:UI.taste, coarserHigher:UI.coarserHigher, roast:UI.roast, intensity:UI.intensity, recipes:UI.recipes, maint:UI.maint, compass:UI.compass, view:UI.view, chOv:UI.chOv, roastLvl:UI.roastLvl, ai:UI.ai, rating:UI.rating, machineTemp:UI.machineTemp, opened:UI.opened, aiAcc:UI.aiAcc, dripAdj:UI.dripAdj, recLog:UI.recLog, perfect:UI.perfect});
 const saveFlows = () => store.set('dk.flows', FLOWS);
 
 /* Bohnenalter */
@@ -1069,6 +1074,21 @@ function compassVal(c){
   return `Extraction ${n(c.x)} · Strength ${n(c.y)} (scale −10 to +10)`;
 }
 
+/* Volltreffer: volle Punktzahl und kein Fehlgeschmack (in Geschmack, Notiz und Kompass). Dann wird nichts mehr verbessert,
+   sondern der Status quo gehalten. Der Nutzer kann die Erkennung pro Shot überstimmen. */
+function perfectInfo(s){
+  if(!s) return { perfect:false };
+  const ov = (UI.perfect || {})[s.id], scale = ratingScale();
+  const full = !!s.rating && s.rating >= scale - 1e-9;
+  const tags = shotTags(s) || {}, explicit = !!UI.taste[s.id] || !!UI.compass[s.id];
+  const noteTags = !explicit && s.notes ? tagNotes(s.notes, null, scale) : {};
+  const negs = NEG_KEYS.filter(k => tags[k] || noteTags[k]);
+  const c = UI.compass[s.id], offCompass = !!c && Math.hypot(c.x, c.y) >= 0.15;
+  const auto = full && !negs.length && !offCompass;
+  const perfect = ov === true ? true : ov === false ? false : auto;
+  return { perfect, auto, override: ov, full, offCompass, negLabels: negs.map(k => TASTES.find(x => x.k === k)?.label).filter(Boolean),
+    reason: ov === true && !auto ? 'Marked as perfect by you' : `${fmt(s.rating || 0, 0)}/${scale} and no off-taste` };
+}
 function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const filter = isFilter(shots);
   const res = grinderRes(), sign = model.sign;
@@ -1084,6 +1104,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const mixed = tags.unbal || (under && over);
   const good = (tags.good || tags.sweet || tags.body) && !anyNeg(tags);
   const comp = UI.compass[anchor.id] || null;
+  const pf = perfectInfo(anchor), perfect = !!(pf.perfect && !filter && t);
   const k = comp ? 1 : (INTENS[intensity] || 1);
   const rStep = (filter ? 1 : 0.2) * k;
   // Richtung laut Geschmack; Ratio-Basis: nicht gegen den Geschmack zurück aufs Ziel ziehen (ein Hebel pro Shot)
@@ -1093,6 +1114,15 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   const mgn = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
   const aR = ratio(anchor);
   let rBase = T.ratio;
+  let rl = roastClass(anchor);
+  mid: {
+  if(perfect){
+    // Status quo: gleiche Dosis, Ausbeute und Temperatur, gleiche Zeit. Der Mahlgrad ändert sich nur, um die Zeit zu halten (z. B. offene Packung).
+    rBase = aR || T.ratio; tGoal = t;
+    why.push(`Perfect shot: ${pf.reason}. There is nothing left to improve. The app keeps this recipe as the status quo.`);
+    if(status !== 'ok') why.push(`At ${fmt(t,0)} s the time was outside your window of ${T.tMin}–${T.tMax} s. Taste counts, the recipe stays.`);
+    break mid;
+  }
   if(aR && !filter && ((needMoreX && aR > T.ratio + 0.05) || (needLessX && aR < T.ratio - 0.05))){
     rBase = Math.round(aR * 20) / 20;
     why.push(`The yield stays at about 1:${fmt(rBase,2)} instead of going back to your target 1:${fmt(T.ratio,2)}. ${needMoreX ? 'Less yield would lower extraction, but the shot was too sour.' : 'More yield would raise extraction, but the shot was too bitter.'} Only one lever per shot.`);
@@ -1165,7 +1195,9 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     else if(status === 'fast'){ dT = canT(-1) ? -1 : 0; tGoal = Math.max(t, T.tMin); why.push('Bitter despite a fast shot is unusual and usually points to channeling or a dark roast.'); hints.push('Check puck prep and lower the temperature by 1–2 °C.'); }
     else { dR = -rStep / 2; why.push('Bitter: reduce the yield slightly.'); }
   } else {
-    why.push(`No taste recorded. The shot ${sTxt}, so the recommendation aims for the middle of the time window.`);
+    const rcp = UI.recipes[ctxKey()];
+    if(rcp?.time && rcp.time >= T.tMin && rcp.time <= T.tMax){ tGoal = rcp.time; why.push(`No taste recorded. The shot ${sTxt}, the recommendation aims for your recipe’s time (${fmt(rcp.time,0)} s).`); }
+    else why.push(`No taste recorded. The shot ${sTxt}, so the recommendation aims for the middle of the time window.`);
   }
   if(thin && !comp && sour){
     // Regel 3: dünn und sauer = Unterextraktion. Der Hebel gegen sauer hilft beidem, Ratio nicht kürzen, kein zweiter Hebel.
@@ -1189,7 +1221,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   else if(chA && chA.level === 'mid' && chA.curve) hints.push(`Mild signs of channeling in the curve (index ${chA.score}/100). Pay attention to even distribution.`);
 
   // Röstgrad: andere Hebel je nach Röstung
-  const rl = roastClass(anchor), RP = rl ? ROAST[rl] : null;
+  const RP = rl ? ROAST[rl] : null;
   if(RP && !filter){
     const needMore = comp ? comp.x < -0.05 : (sour || !!tags.salty);
     const needLess = comp ? comp.x > 0.05 : (bitter || !!tags.burnt);
@@ -1208,20 +1240,21 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
     if(needLess && LIGHTISH(rl) && status !== 'slow') hints.push('Bitter with a light roast usually comes from too many fines or channeling, less often from too much extraction.');
   }
 
-  // Ziel ist immer das Zeitfenster: Zielzeit mit etwas Abstand zum Rand
+  }
+  // Ziel ist immer das Zeitfenster: Zielzeit mit etwas Abstand zum Rand (außer beim Volltreffer: dort zählt die Zeit des Shots)
   const margin = Math.min(filter ? 10 : 1, (T.tMax - T.tMin) / 4);
-  tGoal = clamp(tGoal, T.tMin + margin, T.tMax - margin);
-  const R = Math.round(clamp(rBase + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
-  const dose = Math.round((T.dose + dDose) * 10) / 10;
-  const yld = Math.round(dose * R);
+  if(!perfect) tGoal = clamp(tGoal, T.tMin + margin, T.tMax - margin);
+  const R = perfect && aR ? aR : Math.round(clamp(rBase + dR, filter ? 12 : 1.5, filter ? 19 : 3) * 20) / 20;
+  const dose = perfect && anchor.dose ? anchor.dose : Math.round((T.dose + dDose) * 10) / 10;
+  const yld = perfect && anchor.yield ? Math.round(anchor.yield * 10) / 10 : Math.round(dose * R);
   dT = dT * k;
   if(T.tempMode === 'one' || T.tempMode === 'levels') dT = Math.abs(dT) < 0.5 ? 0 : Math.sign(dT) * Math.max(1, Math.round(Math.abs(dT)));
   else dT = Math.round(dT * 2) / 2;
   if(T.tempMode === 'levels' && dT) dT = Math.sign(dT);
   if(T.tempMode === 'levels'){ const st = s0 => s0.replace(/(\d+([.,]\d+)?[–-])?\d+([.,]\d+)?\s?°C/g, LEVEL_TXT); why.forEach((w, i) => why[i] = st(w)); hints.forEach((h, i) => hints[i] = st(h)); }
-  if(T.tempMode === 'none' && !filter && (sour || bitter || comp) && !tempNote) hints.push('Your machine has no adjustable temperature, so the recommendation works only with grind, ratio and dose. Small trick: preheating portafilter and cup well helps with sour shots, a short flush before the shot cools things down for bitter ones.');
-  if(!comp && k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'light' ? 'Only a slight off-taste: small steps in ratio and temperature.' : 'Strong off-taste: bigger steps in ratio and temperature.');
-  const temp = T.temp && T.tempMode !== 'levels' ? T.temp + dT : null;
+  if(!perfect && T.tempMode === 'none' && !filter && (sour || bitter || comp) && !tempNote) hints.push('Your machine has no adjustable temperature, so the recommendation works only with grind, ratio and dose. Small trick: preheating portafilter and cup well helps with sour shots, a short flush before the shot cools things down for bitter ones.');
+  if(!perfect && !comp && k !== 1 && (sour || sharp || bitter) && !mixed) why.push(intensity === 'light' ? 'Only a slight off-taste: small steps in ratio and temperature.' : 'Strong off-taste: bigger steps in ratio and temperature.');
+  const temp = T.temp && T.tempMode !== 'levels' ? (perfect && anchor.temp ? anchor.temp : T.temp + dT) : null;
 
   let dG = 0, tPred = tGoal, conf = 'low', method = 'rule';
   let fL = flow(anchor);
@@ -1270,7 +1303,7 @@ function recommend(anchor, T, model, tags, shots, intensity = 'medium'){
   }
   const newGrind = anchor.grind != null ? Math.round((anchor.grind + dG) / res) * res : null;
   const dir = Math.abs(dG) < res / 2 ? 'keep' : (dG * sign > 0 ? 'coarser' : 'finer');
-  return { R, dose, yld, temp, dT, tempMode: T.tempMode, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter, roast: rl };
+  return { R, dose, yld, temp, dT, tempMode: T.tempMode, newGrind, dG, dir, tPred, tGoal, conf, method, why, hints, status, res, filter, roast: rl, perfect: perfect ? pf : null, pf };
 }
 
 /* ---------- Diagramme ---------- */
@@ -2028,6 +2061,7 @@ The app works by these dial-in rules. Apply them too so your results are compara
 5. Channeling only if the scale curve shows it. Then improve puck prep first, not the grind.
 6. The first shot of the day and shots on the day the bag was opened are less meaningful. Do not adjust based on them alone.
 7. Only suggest temperatures the machine can actually set, and respect the usual range for the roast.
+8. If the base shot is a perfect shot (baseShotPerfect), do not suggest improvements. Confirm the status quo: same values, only adjustments needed to keep it (for example because the opened bag runs faster).
 
 Further guidance:
 - Add what the app cannot see: patterns across several shots, notes, contradictions in the inputs.
@@ -2091,6 +2125,7 @@ function aiPayload(anchor, shots, T, model, rec){
     })(),
     postStopDrip: over || dripAdj(anchor) ? { avgGramsMeasured: over ? r1(over.g) : undefined, n: over ? over.n : undefined, userCorrectionGrams: dripAdj(anchor) || undefined, note: 'Measured from the scale curve, counted from the reading at pump-off (scale lag corrected). The user correction adds what the scale misses.' } : null,
     savedRecipe: recipe ? { grind: recipe.grindRaw, dose: recipe.dose, yield: recipe.yield, time: recipe.time, temp: recipe.temp || null } : null,
+    baseShotPerfect: rec.perfect ? { value: true, why: strip(rec.perfect.reason), source: rec.perfect.override === true ? 'marked by user' : 'full rating and no off-taste', instruction: 'Do not suggest improvements. Confirm the status quo; only adjust what is needed to keep this shot (e.g. faster flow as the opened bag ages).' } : rec.pf?.full ? { value: false, why: rec.pf.override === false ? 'user wants to keep improving' : 'full rating, but off-tastes were entered: ' + rec.pf.negLabels.join(', ') } : undefined,
     lastShotVsRecommendation: (() => {
       const D = recVsData(anchor, shots, T); if(!D) return undefined;
       const { prev, r, rows, dt, missed } = D, rs = r.res || res;
@@ -2384,7 +2419,8 @@ function simpleHTML(o){
   const tips = [];
   if(overshoot) tips.push(`You last turned from ${esc(prev.grindRaw)} auf ${esc(anchor.grindRaw)} and overshot. Turn back only about half way.`);
   if(n) tips.push('After changing the setting, grind a few grams through so no old grounds remain in the grinder.');
-  tips.push('Change only one thing at a time, then taste.');
+  if(rec.perfect){ tips.length = 0; tips.push('Same grind, same dose, same yield: repeat it exactly.'); tips.push('If it runs noticeably faster over time as the beans age, grind a touch finer.'); }
+  else tips.push('Change only one thing at a time, then taste.');
   if(rec.why.some(w => /Geschmack geht vor|Taste comes first/.test(w))) tips.unshift('The time is a little outside your target. Because taste matters more, the grind stays.');
   const r = (UI.ai || {})[ctxKey()];
   const ai = r && r.anchorId === anchor.id ? (() => { const { plan } = aiSplit(r.text); if(!plan || !r.app) return ''; const same = plan.agree === true; if(aiAccepted(anchor)) return `<div class="aicmp ok slim"><b>✓ Butler suggestion applied</b><span><button class="linkbtn" type="button" data-aiundo="1">Back to the app’s recommendation</button></span></div>`;
@@ -2410,10 +2446,11 @@ function simpleHTML(o){
 
   <section class="card simple snext" aria-labelledby="hSNext">
     <div class="card-head"><h2 id="hSNext">How to pull the next one</h2><span class="conf ${rec.conf}">Confidence ${CONF_LABEL[rec.conf]}</span></div>
+    ${perfectHTML(anchor, rec)}
     <div class="sbig">
       <div class="${n ? 'chg' : ''}"><span class="k">Grinder</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span>${n ? `<span class="was">was ${fmtG(anchor.grind, res)}</span>` : ''}</div>
       <div class="${chDose ? 'chg' : ''}"><span class="k">In</span><span class="v">${fmt(rec.dose,1)}<small> g</small></span>${chDose ? `<span class="was">was ${fmt(anchor.dose,1)} g</span>` : ''}</div>
-      <div class="${chYld ? 'chg' : ''}"><span class="k">Out</span><span class="v">${fmt(rec.yld,0)}<small> g</small></span>${chYld ? `<span class="was">was ${fmt(anchor.yield,1)} g</span>` : ''}${stopAt ? `<span class="d">stop at ${fmt(stopAt,1)} g</span>` : ''}</div>
+      <div class="${chYld ? 'chg' : ''}"><span class="k">Out</span><span class="v">${fmt(rec.yld, rec.yld % 1 ? 1 : 0)}<small> g</small></span>${chYld ? `<span class="was">was ${fmt(anchor.yield,1)} g</span>` : ''}${stopAt ? `<span class="d">stop at ${fmt(stopAt,1)} g</span>` : ''}</div>
       <div class="${chTemp ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.tempMode === 'none' ? '–' : rec.tempMode === 'levels' ? (rec.dT > 0 ? '▲' : rec.dT < 0 ? '▼' : '=') : rec.temp ? fmt(rec.temp, rec.temp % 1 ? 1 : 0) + '<small> °C</small>' : '–'}</span>${rec.tempMode === 'levels' && rec.dT ? `<span class="d">${rec.dT > 0 ? 'one level hotter' : 'one level cooler'}</span>` : chTemp && tBase ? `<span class="was">was ${fmt(tBase, tBase % 1 ? 1 : 0)} °C</span>` : ''}</div>
     </div>
     ${nChg ? `<p class="slegend"><i aria-hidden="true"></i>Red outline = ${nChg === 1 ? 'change this value' : 'change these values'}, everything else stays as in the last shot.</p>` : '<p class="slegend">Everything stays as in the last shot.</p>'}
@@ -2439,6 +2476,17 @@ function simpleLogHTML(anchor, rec){
 }
 
 let tasteMoreOpen = false;
+/* Volltreffer-Hinweis für „Nächster Shot“ (Dial-in und Einfach) */
+function perfectHTML(anchor, rec){
+  const pf = rec.pf || perfectInfo(anchor), recipe = UI.recipes[ctxKey()], scale = ratingScale();
+  if(rec.perfect) return `<div class="perfect" role="status"><b>🏆 Perfect shot · status quo</b>
+    <span>${pf.reason}. The app suggests no more improvements and keeps this recipe. Pull the next shot exactly the same way.</span>
+    <div class="row">${recipe?.shotId === anchor.id ? '<span class="muted" style="font-size:13px">✓ Saved as recipe</span>' : '<button class="btn small primary" type="button" data-perfsave="1">Keep as recipe</button>'}<button class="linkbtn" type="button" data-perf="off">Keep improving</button></div></div>`;
+  if(pf.override === false && pf.auto) return `<div class="perfect off"><span>Perfect-shot detection is off for this shot.</span> <button class="linkbtn" type="button" data-perf="reset">Count it as a perfect shot again</button></div>`;
+  if(pf.full && (pf.negLabels.length || pf.offCompass)) return `<div class="perfect warn"><span><b>${fmt(anchor.rating,0)}/${scale}</b>, but ${pf.negLabels.length ? 'you entered “' + pf.negLabels.join('”, “') + '”' : 'the compass is not in the centre'}. So the app keeps improving.</span> <button class="linkbtn" type="button" data-perf="on">Perfect anyway</button></div>`;
+  if(!rec.filter && anchor.rating && anchor.rating >= 0.8 * scale && !pf.negLabels.length && !pf.offCompass) return `<div class="perfect hint"><button class="linkbtn" type="button" data-perf="on">🏆 This is my perfect shot</button><span class="muted" style="font-size:12.5px">Then the app keeps this recipe instead of optimising further.</span></div>`;
+  return '';
+}
 /* ---------- Letzter Shot vs. Empfehlung ----------
    Was wurde für diesen Shot empfohlen, und was wurde tatsächlich gezogen? Bevorzugt die damals angezeigte
    Empfehlung (inkl. angenommenem Butler-Vorschlag), sonst nachträglich mit dem Datenstand vor dem Shot berechnet. */
@@ -2824,6 +2872,7 @@ function render(){
           <div class="chips">${Object.entries(TEMP_MODES).map(([k, v]) => `<button type="button" class="chip" data-tmode="${k}" aria-pressed="${tempMode(anchor) === k}">${v}</button>`).join('')}</div>
         </div>` : ''}
         <div class="card-head"><h2 id="hRec">Next shot</h2><span class="conf ${rec.conf}">Confidence ${CONF_LABEL[rec.conf]}</span></div>
+        ${perfectHTML(anchor, rec)}
         <div class="targetline">Your target: <b>${fmt(T.dose,1)} g → ${fmt(T.dose * T.ratio,0)} g (1:${fmt(T.ratio,2)}) in ${T.tMin}–${T.tMax} s</b>${Math.abs(rec.R - T.ratio) >= 0.04 ? ` · for this shot 1:${fmt(rec.R,2)} because of the taste` : ''}${isFilter(shots) ? '' : ' <button class="btn small" type="button" id="goWs">Change target</button>'}</div>
         <div class="tiles">
           ${(() => {
@@ -2837,7 +2886,7 @@ function render(){
             return `
           <div class="tile main ${gOn ? 'chg' : ''}"><span class="k">Grind</span><span class="v">${rec.newGrind != null ? fmtG(rec.newGrind, res) : '–'}</span>${anchor.grind != null ? pill(gOn, (rec.dir === 'finer' ? '▼ ' : '▲ ') + dirTxt) : '<span class="d">Grind is not numeric</span>'}</div>
           <div class="tile ${Math.abs(dDose) >= 0.1 ? 'chg' : ''}"><span class="k">Dose</span><span class="v">${fmt(rec.dose,1)}</span><span class="d">g</span>${pill(Math.abs(dDose) >= 0.1, sgn(dDose, 1) + ' g')}</div>
-          <div class="tile ${Math.abs(dY) >= 0.5 ? 'chg' : ''}"><span class="k">Yield</span><span class="v">${fmt(rec.yld,0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>switch off at ${fmt(stopAt,1)} g` : ''}</span>${pill(Math.abs(dY) >= 0.5, sgn(dY, 0) + ' g')}</div>
+          <div class="tile ${Math.abs(dY) >= 0.5 ? 'chg' : ''}"><span class="k">Yield</span><span class="v">${fmt(rec.yld, rec.yld % 1 ? 1 : 0)}</span><span class="d">g · 1:${fmt(rec.R,2)}${stopAt ? `<br>switch off at ${fmt(stopAt,1)} g` : ''}</span>${pill(Math.abs(dY) >= 0.5, sgn(dY, 0) + ' g')}</div>
           <div class="tile ${Math.abs(dTime) >= 1.5 ? 'chg' : ''}"><span class="k">Time</span><span class="v">${tLo}–${tHi}</span><span class="d">s expected</span>${pill(Math.abs(dTime) >= 1.5, sgn(dTime, 0) + ' s')}</div>
           ${rec.tempMode === 'levels'
             ? `<div class="tile ${rec.dT ? 'chg' : ''}"><span class="k">Temp</span><span class="v">${rec.dT > 0 ? '▲' : rec.dT < 0 ? '▼' : '='}</span><span class="d">${rec.dT > 0 ? 'one level hotter' : rec.dT < 0 ? 'one level cooler' : 'same level as last'}</span>${pill(!!rec.dT, rec.dT > 0 ? '▲ hotter' : '▼ cooler')}</div>`
@@ -2901,7 +2950,7 @@ function render(){
   <details class="card">
     <summary>How the Kompass calculates</summary>
     <ul>
-      <li><b>Dial-in rules</b> (shared by app and Butler):<ol class="rules"><li>Taste before the clock: if sour, never pull shorter or grind coarser; if bitter, never pull longer or grind finer, even if the time window asks for it.</li><li>One lever per shot where possible. If sour, first go finer (as long as the time stays at most just above the window), otherwise hotter or a little more yield. If bitter, first go coarser, otherwise cooler or a little less yield. For dark roasts temperature is often the best first lever, for light roasts too, just the other way.</li><li>Too thin without sourness: shorter ratio or 0.5–1 g more dose. Too strong: longer ratio. If the shot is also sour, do not shorten the ratio.</li><li>If the last yield differs from the target, do not jump back to the target against the taste.</li><li>Channeling only if the scale curve shows it. Then improve puck prep first, not the grind.</li><li>The first shot of the day and shots on the day the bag was opened are less meaningful. Do not adjust based on them alone.</li><li>Only suggest temperatures the machine can actually set, and respect the usual range for the roast.</li></ol></li>
+      <li><b>Dial-in rules</b> (shared by app and Butler):<ol class="rules"><li>Taste before the clock: if sour, never pull shorter or grind coarser; if bitter, never pull longer or grind finer, even if the time window asks for it.</li><li>One lever per shot where possible. If sour, first go finer (as long as the time stays at most just above the window), otherwise hotter or a little more yield. If bitter, first go coarser, otherwise cooler or a little less yield. For dark roasts temperature is often the best first lever, for light roasts too, just the other way.</li><li>Too thin without sourness: shorter ratio or 0.5–1 g more dose. Too strong: longer ratio. If the shot is also sour, do not shorten the ratio.</li><li>If the last yield differs from the target, do not jump back to the target against the taste.</li><li>Channeling only if the scale curve shows it. Then improve puck prep first, not the grind.</li><li>The first shot of the day and shots on the day the bag was opened are less meaningful. Do not adjust based on them alone.</li><li>Only suggest temperatures the machine can actually set, and respect the usual range for the roast.</li><li>Perfect shot (full marks, no off-taste): improve nothing, keep the status quo.</li></ol></li>
       <li>The base is your latest shot for this bean/grinder combination (or the one you pick as base in the history).</li>
       <li>From all shots with time and yield, flow (g/s) per grind setting is estimated with a weighted regression. Newer shots count more because beans run faster as they age. If one bean has too little data, shots of all beans on the same grinder are used.</li>
       <li>Taste decides what changes: sour and fast → finer; sour with the right time → longer ratio and hotter; bitter and slow → coarser; bitter with the right time → shorter ratio and cooler; sour and bitter → puck prep.</li>
@@ -2925,6 +2974,8 @@ function render(){
   $('#app').querySelector('.viewtabs').addEventListener('keydown', ev => { if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight' || !$('#tabWs')) return; const cur = Math.max(0, VIEWS.indexOf(UI.view)); setView(VIEWS[(cur + (ev.key === 'ArrowRight' ? 1 : 2)) % 3]); });
   // Einfach-Ansicht
   document.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { const pf = SIMPLE_PROFILES[b.dataset.prof]; UI.targets[ctxKey()] = { ...(UI.targets[ctxKey()] || {}), dose: T.dose, ratio: pf.ratio, tMin: pf.tMin, tMax: pf.tMax }; formDirty = false; saveUI(); render(); });
+  document.querySelectorAll('[data-perf]').forEach(b => b.onclick = () => { const m = UI.perfect ||= {}, v = b.dataset.perf; if(v === 'reset') delete m[anchor.id]; else m[anchor.id] = v === 'on'; delete (UI.aiAcc || {})[ctxKey()]; formDirty = false; saveUI(); render(); });
+  document.querySelectorAll('[data-perfsave]').forEach(b => b.onclick = () => { const d = anchor; UI.recipes[ctxKey()] = { shotId:d.id, grindRaw:d.grindRaw, grind:d.grind, dose:d.dose, yield:d.yield, time:d.time, temp:d.temp, rating:d.rating, date:d.date?.getTime(), age:beanAge(d) }; delete UI.targets[ctxKey()]; formDirty = false; saveUI(); render(); });
   document.querySelectorAll('[data-dripadj]').forEach(b => b.onclick = () => { const k = machineKey(anchor), m = UI.dripAdj ||= {}; const v = clamp(Math.round(((+m[k] || 0) + +b.dataset.dripadj) * 10) / 10, -2, 4); if(v) m[k] = v; else delete m[k]; formDirty = false; saveUI(); render(); });
   const tm = $('#tasteMore'); if(tm) tm.ontoggle = () => { tasteMoreOpen = tm.open; };
   document.querySelectorAll('[data-staste]').forEach(b => b.onclick = () => { const def = SIMPLE_TASTE.find(x => x[0] === b.dataset.staste); if(!def) return; UI.taste[anchor.id] = simpleToggleTaste(anchor, def[0]); delete UI.compass[anchor.id]; delete UI.intensity[anchor.id]; formDirty = false; saveUI(); render(); });
@@ -3188,7 +3239,7 @@ function mergeState(l, r, remoteNewer){
   const pick = (a, b) => remoteNewer ? (b ?? a) : (a ?? b);
   const data = (l.data || r.data) ? { shots: byId(l.data?.shots, r.data?.shots), beans: map(l.data?.beans, r.data?.beans), label: pick(l.data?.label, r.data?.label) || 'Account' } : null;
   const ui = { ...(remoteNewer ? { ...(l.ui || {}), ...(r.ui || {}) } : { ...(r.ui || {}), ...(l.ui || {}) }) };
-  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened','aiAcc','dripAdj','recLog'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
+  ['targets','taste','coarserHigher','roast','intensity','recipes','maint','compass','chOv','roastLvl','ai','rating','machineTemp','opened','aiAcc','dripAdj','recLog','perfect'].forEach(k => ui[k] = map(l.ui?.[k], r.ui?.[k]));
   return { data, app: byId(l.app, r.app), flows: map(l.flows, r.flows), ui };
 }
 function applyLoaded(){
