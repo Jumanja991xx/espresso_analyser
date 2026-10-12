@@ -3177,7 +3177,7 @@ const VIS = 'https://visualizer.coffee/api';
 let SYNC = Object.assign({ email:'', pw:'', remember:false, last:0, done:{} }, store.get('dk.sync', {}));
 // Einmalig: Shots der letzten 14 Tage neu abholen, damit nachträgliche Änderungen aus Beanconqueror ankommen
 if(!SYNC.v2){ SYNC.done = {}; if(SYNC.last) SYNC.last = Math.floor(Date.now() / 1000) - 14 * 86400; SYNC.v2 = true; }
-let syncing = false;
+let syncing = false, lastCloudSync = 0;
 const saveSync = () => store.set('dk.sync', SYNC.remember ? SYNC : { done:SYNC.done, last:SYNC.last, email:SYNC.email, v2:SYNC.v2 });
 const b64 = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -3191,7 +3191,7 @@ async function visGet(path){
   return res.json();
 }
 async function cloudSync(status){
-  if(syncing) return; syncing = true;
+  if(syncing) return; syncing = true; lastCloudSync = Date.now();
   const say = m => { const el = $('#syncState'); if(el) el.textContent = m; };
   try{
     if(!SYNC.email || !SYNC.pw) throw new Error('Bitte E-Mail und Passwort deines Visualizer-Kontos eintragen.');
@@ -3204,7 +3204,7 @@ async function cloudSync(status){
       if(!r.paging || page >= (r.paging.pages || 1)) break;
     }
     let added = 0, flows = 0, skipped = 0, changed = 0, n = 0;
-    const todo = ids.slice(0, 45);
+    const todo = ids.slice(0, 45), got = [];
     for(const s of todo){
       n++; say(`Lade Shot ${n} von ${todo.length} …`);
       const d = await visGet(`/shots/${s.id}/download`);
@@ -3212,10 +3212,13 @@ async function cloudSync(status){
       if(bd && bd.brew){
         const r = ingestVisualizer(bd);
         if(r.shot){ if(r.isNew) added++; else if(r.updated) changed++; if(r.flow) flows++; }
+        got.push(bd);
       } else skipped++;
       SYNC.done[s.id] = s.updated_at;
       await sleep(900);
     }
+    // Lief währenddessen der Konto-Abgleich, kann er die Daten ersetzt haben. Fehlende Shots deshalb erneut einfügen.
+    got.forEach(bd => { const ts = bd.brew.config?.unix_timestamp; if(ts && !allShots().some(x => Math.abs((x.date?.getTime() || 0) / 1000 - ts) <= 90)) ingestVisualizer(bd); });
     SYNC.last = Math.floor(Date.now() / 1000);
     if(added || flows || changed){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
     saveSync();
@@ -3442,7 +3445,10 @@ $('#resetNo').onclick = () => { $('#resetConfirm').hidden = true; $('#resetBtn')
 $('#resetYes').onclick = async () => { $('#resetConfirm').hidden = true; if(SB && SESSION){ await SB.from('user_state').delete().eq('user_id', SESSION.user.id); } resetAll(); };
 render();
 initAcct();
-if(SYNC.remember && SYNC.email && SYNC.pw && location.protocol.startsWith('http') && !/claude/.test(location.hostname)) cloudSync();
+const autoSyncOK = () => SYNC.remember && SYNC.email && SYNC.pw && location.protocol.startsWith('http') && !/claude/.test(location.hostname);
+if(autoSyncOK()) cloudSync();
+// Als Web-App auf dem Homebildschirm bleibt die Seite offen: beim Zurückkehren in die App erneut abgleichen (höchstens alle 2 Minuten)
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && autoSyncOK() && Date.now() - lastCloudSync > 120000) cloudSync(); });
 </script>
 
 <script>if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
