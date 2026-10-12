@@ -1011,3 +1011,7 @@ PHRASES += [('">Als Rezept übernehmen</button></div>', '">Use as recipe</button
   (', ohne Fehlgeschmack)</span>', ', no off-taste)</span>'), ('<label for="rcpQ">Suchen</label>', '<label for="rcpQ">Search</label>'),
   ('placeholder="Bohne, Mühle oder Röster"', 'placeholder="Bean, grinder or roaster"'), ('>Rezepte</button>', '>Recipes</button>'),
   ('<span class="k">Rein → Raus</span>', '<span class="k">In → out</span>'), ('<span class="k">Mahlgrad</span>', '<span class="k">Grind</span>'), ('<span class="k">Zeit</span>', '<span class="k">Time</span>')]
+
+EXACT.update({
+    'Test: Einbettung NextSimFlight': 'Test: NextSimFlight embed',
+})

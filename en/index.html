@@ -96,6 +96,7 @@ button,select,input,textarea{font:inherit;color:inherit}
 @media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
 .col{display:flex;flex-direction:column;gap:var(--gap);min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.nsf iframe{max-width:100%;align-self:flex-start;border-radius:8px}
 .card-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 
 /* letzter Shot */
@@ -456,6 +457,10 @@ table.rvs tr.res td{border-top:2px solid var(--line)}
   <details class="card" id="syncBox"></details>
   <section class="ctx" id="ctx"></section>
   <div id="app"></div>
+  <section class="card nsf" id="nsfTest" aria-labelledby="hNsf">
+    <h2 id="hNsf">Test: NextSimFlight embed</h2>
+    <iframe src="https://www.nextsimflight.com/embed/runways/LHBP?size=compact&theme=auto" width="320" height="320" style="border:0" loading="lazy" title="LHBP runways & wind — NextSimFlight"></iframe>
+  </section>
 </div>
 <div class="drop" id="drop" hidden>Export hier ablegen</div>
 
