@@ -3175,10 +3175,13 @@ async function cloudSync(status){
   try{
     if(!SYNC.email || !SYNC.pw) throw new Error('Bitte E-Mail und Passwort deines Visualizer-Kontos eintragen.');
     say('Verbinde …');
-    const ids = [];
+    const ids = []; let seen = 0;
     for(let page = 1; page <= 5; page++){
       const q = `/shots?items=100&page=${page}` + (SYNC.last ? `&updated_after=${SYNC.last - 3600}` : '');
       const r = await visGet(q);
+      // Ohne gültige Anmeldung liefert Visualizer keinen Fehler, sondern öffentliche Shots fremder Nutzer. Das hier abfangen.
+      if(!r.user_id) throw new Error('Visualizer hat dich nicht erkannt. Bitte E-Mail und Passwort deines Visualizer-Kontos prüfen (nicht die von Beanconqueror).');
+      seen += (r.data || []).length;
       (r.data || []).forEach(s => { if(SYNC.done[s.id] !== s.updated_at) ids.push(s); });
       if(!r.paging || page >= (r.paging.pages || 1)) break;
     }
@@ -3202,7 +3205,7 @@ async function cloudSync(status){
     if(added || flows || changed){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
     saveSync();
     const more = ids.length > todo.length ? ` Noch ${ids.length - todo.length} weitere, nochmal synchronisieren.` : '';
-    setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${changed ? `, ${changed} aktualisiert` : ''}${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more}`]);
+    setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${changed ? `, ${changed} aktualisiert` : ''}${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more} Visualizer: ${seen} ${seen === 1 ? 'Shot' : 'Shots'} seit dem letzten Abgleich, ${todo.length} davon geladen.`]);
     const latest = allShots()[0]; if(added && latest){ UI.bean = latest.bean; UI.grinder = latest.grinder; UI.anchorId = null; UI.detailId = null; }
   }catch(e){ setNotice(false, ['Cloud-Sync: ' + e.message]); }
   syncing = false; renderSync(); render();

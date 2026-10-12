@@ -997,3 +997,6 @@ PHRASES += [('<b>🏆 Volltreffer · Status quo</b>', '<b>🏆 Perfect shot · s
 EXACT.update({'Volltreffer: ': 'Perfect shot: '})
 PHRASES += [('>Doch weiter verbessern<', '>Keep improving<')]
 EXACT.update({'um ': 'by '})
+EXACT.update({'Visualizer hat dich nicht erkannt. Bitte E-Mail und Passwort deines Visualizer-Kontos prüfen (nicht die von Beanconqueror).': 'Visualizer did not recognise you. Please check the email and password of your Visualizer account (not your Beanconqueror ones).',
+  ' seit dem letzten Abgleich, ': ' since the last sync, ', ' davon geladen.': ' of them loaded.'})
+PHRASES += [('<span class="muted">Visualizer: ', '<span class="muted">Visualizer: ')]
