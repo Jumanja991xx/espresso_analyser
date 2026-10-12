@@ -2699,6 +2699,7 @@ function insightsHTML(shots, anchor, model, T, rec){
 }
 
 function tableHTML(rows, anchor, scale){
+  const gRes = grinderRes();
   return `<div class="tablewrap"><table>
   <thead><tr><th>Datum</th>${UI.onlyCtx ? '' : '<th>Bohne</th><th>Mühle</th>'}<th>Mahlgrad</th><th>Dosis</th><th>Ausbeute</th><th>Ratio</th><th>Zeit</th><th>1. Tropfen</th><th>g/s gesamt</th><th>g/s Haupt</th><th>Temp</th><th>Alter</th><th>Bewertung</th><th>Geschmack</th><th>Notiz</th><th></th></tr></thead>
   <tbody>${rows.map(s => {
@@ -2708,7 +2709,7 @@ function tableHTML(rows, anchor, scale){
     return `<tr class="${anchor && s.id === anchor.id ? 'anchor' : ''}">
       <td class="n">${fmtDate(s.date)}${s.source === 'app' ? ' <span class="src">neu</span>' : ''}${FLOWS[s.id] ? '<span class="badge" title="Waagenkurve vorhanden">Kurve</span>' : ''}</td>
       ${UI.onlyCtx ? '' : `<td>${esc(s.bean)}</td><td>${esc(s.grinder)}</td>`}
-      <td class="n">${esc(s.grindRaw) || '–'}</td>
+      <td class="n">${s.grind != null && s.grinder === UI.grinder ? fmtG(s.grind, gRes) : esc(s.grindRaw) || '–'}</td>
       <td class="n">${s.dose ? fmt(s.dose,1) : '<span class="flag" title="Dosis fehlt">0</span>'}</td>
       <td class="n">${s.yield ? fmt(s.yield,1) : '–'}</td>
       <td class="n">${ratio(s) ? '1:' + fmt(ratio(s),2) : '–'}</td>
@@ -2815,7 +2816,7 @@ function render(){
         <div class="card-head"><h2 id="hLast">Ausgangs-Shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · neu erfasst' : ''}</span></div>
         <div class="baseleft">
         <div class="statgrid">
-          <div class="stat"><span class="k">Mahlgrad</span><span class="v">${esc(anchor.grindRaw) || '–'}</span></div>
+          <div class="stat"><span class="k">Mahlgrad</span><span class="v">${anchor.grind != null ? fmtG(anchor.grind, res) : esc(anchor.grindRaw) || '–'}</span></div>
           <div class="stat"><span class="k">Dosis</span><span class="v">${anchor.dose ? fmt(anchor.dose,1) + ' g' : '–'}</span></div>
           <div class="stat"><span class="k">Ausbeute</span><span class="v">${anchor.yield ? fmt(anchor.yield,1) + ' g' : '–'}</span></div>
           <div class="stat"><span class="k">Zeit</span><span class="v">${anchor.time ? fmt(anchor.time,0) + ' s' : '–'}</span></div>
@@ -3151,24 +3152,33 @@ function ingestVisualizer(vis){
     const y = +b.brew_beverage_quantity || 0, bn = vis.bean?.name;
     shot = APP.find(s => { const dt = (s.date?.getTime() || 0) / 1000 - ts; return dt >= -60 && dt <= 1200 && (!y || !s.yield || Math.abs(s.yield - y) <= 2) && (!bn || s.bean === bn); }) || null;
   }
-  let isNew = false;
+  let isNew = false, updated = false;
   if(!shot){
     const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Mühle', config:{uuid:'vis'} }] }, '');
     shot = one.shots[0]; shot.beanId = null; ensureData().shots.push(shot); isNew = true;
+  } else if(shot.source !== 'app'){
+    // In Beanconqueror nachträglich geändert (z. B. Mahlgrad korrigiert): Messwerte, Bewertung und Notiz übernehmen
+    const one = parseBackup({ BREWS:[{...b, bean:'vis', mill:'vis'}], BEANS:[{...(vis.bean || {}), config:{uuid:'vis'}}], MILL:[{ name:vis.mill?.name || 'Mühle', config:{uuid:'vis'} }] }, '');
+    const n = one.shots[0];
+    ['grindRaw', 'grind', 'dose', 'tempRaw', 'temp', 'time', 'firstDrip', 'preinf', 'yield', 'notes', 'tds'].forEach(k => { if(n[k] != null && n[k] !== '') shot[k] = n[k]; });
+    if(n.rating){ shot._r0 = n.rating; shot.rating = n.rating; }
+    CH_CACHE.clear(); updated = true;
   } else if(!shot.firstDrip && b.coffee_first_drip_time){
     shot.firstDrip = (+b.coffee_first_drip_time || 0) + (+b.coffee_first_drip_time_milliseconds || 0) / 1000 || null;
   }
   if(vis.bean?.roastingDate && validDate(vis.bean.roastingDate) && beanAge(shot) == null) UI.roast[beanKey(shot)] = String(vis.bean.roastingDate).slice(0, 10);
   const fl = compactFlow(vis.brewFlow);
   if(fl) FLOWS[shot.id] = fl;
-  return { shot, isNew, flow: !!fl };
+  return { shot, isNew, updated, flow: !!fl };
 }
 
 /* ---------- Cloud-Sync über visualizer.coffee ---------- */
 const VIS = 'https://visualizer.coffee/api';
 let SYNC = Object.assign({ email:'', pw:'', remember:false, last:0, done:{} }, store.get('dk.sync', {}));
+// Einmalig: Shots der letzten 14 Tage neu abholen, damit nachträgliche Änderungen aus Beanconqueror ankommen
+if(!SYNC.v2){ SYNC.done = {}; if(SYNC.last) SYNC.last = Math.floor(Date.now() / 1000) - 14 * 86400; SYNC.v2 = true; }
 let syncing = false;
-const saveSync = () => store.set('dk.sync', SYNC.remember ? SYNC : { done:SYNC.done, last:SYNC.last, email:SYNC.email });
+const saveSync = () => store.set('dk.sync', SYNC.remember ? SYNC : { done:SYNC.done, last:SYNC.last, email:SYNC.email, v2:SYNC.v2 });
 const b64 = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function visGet(path){
@@ -3193,7 +3203,7 @@ async function cloudSync(status){
       (r.data || []).forEach(s => { if(SYNC.done[s.id] !== s.updated_at) ids.push(s); });
       if(!r.paging || page >= (r.paging.pages || 1)) break;
     }
-    let added = 0, flows = 0, skipped = 0, n = 0;
+    let added = 0, flows = 0, skipped = 0, changed = 0, n = 0;
     const todo = ids.slice(0, 45);
     for(const s of todo){
       n++; say(`Lade Shot ${n} von ${todo.length} …`);
@@ -3201,16 +3211,16 @@ async function cloudSync(status){
       const bd = d.brewdata;
       if(bd && bd.brew){
         const r = ingestVisualizer(bd);
-        if(r.shot){ if(r.isNew) added++; if(r.flow) flows++; }
+        if(r.shot){ if(r.isNew) added++; else if(r.updated) changed++; if(r.flow) flows++; }
       } else skipped++;
       SYNC.done[s.id] = s.updated_at;
       await sleep(900);
     }
     SYNC.last = Math.floor(Date.now() / 1000);
-    if(added || flows){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
+    if(added || flows || changed){ ensureData(); IS_SAMPLE = false; if(!/Cloud/.test(DATA.label)) DATA.label += ' + Cloud'; store.set('dk.data', DATA); saveFlows(); saveUI(); }
     saveSync();
     const more = ids.length > todo.length ? ` Noch ${ids.length - todo.length} weitere, nochmal synchronisieren.` : '';
-    setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more}`]);
+    setNotice(true, [`Cloud-Sync: ${added} neue Shots, ${flows} Waagenkurven${changed ? `, ${changed} aktualisiert` : ''}${skipped ? `, ${skipped} ohne Beanconqueror-Daten übersprungen` : ''}.${more}`]);
     const latest = allShots()[0]; if(added && latest){ UI.bean = latest.bean; UI.grinder = latest.grinder; UI.anchorId = null; UI.detailId = null; }
   }catch(e){ setNotice(false, ['Cloud-Sync: ' + e.message]); }
   syncing = false; renderSync(); render();
