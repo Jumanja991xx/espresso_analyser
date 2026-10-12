@@ -450,7 +450,7 @@ function fmt(v, d = 1){
   if(v == null || !isFinite(v)) return '–';
   return v.toLocaleString(LOCALE, {minimumFractionDigits: d, maximumFractionDigits: d});
 }
-function fmtG(v, res){ return v == null ? '–' : fmt(v, res < 1 ? 1 : 0); }
+function fmtG(v, res){ return v == null ? '–' : fmt(v, res < 0.1 ? 2 : res < 1 ? 1 : 0); }
 function parseTime(v){
   if(v == null || v === '') return null;
   if(typeof v === 'number') return v > 0 ? v : null;
@@ -878,7 +878,10 @@ function buildModel(anchor){
 }
 function grinderRes(){
   const g = allShots().filter(s => s.grinder === UI.grinder && s.grind != null);
-  return g.some(s => Math.abs(s.grind - Math.round(s.grind)) > 1e-6) ? 0.1 : 1;
+  // Auflösung aus den Daten: ganze Klicks, eine oder zwei Nachkommastellen (zwei: in 0,05er-Schritten, wenn alle Werte dazu passen)
+  const off = (v, m) => Math.abs(v * m - Math.round(v * m)) > 1e-6;
+  if(g.some(s => off(s.grind, 10))) return g.every(s => !off(s.grind, 20)) ? 0.05 : 0.01;
+  return g.some(s => off(s.grind, 1)) ? 0.1 : 1;
 }
 
 /* ---------- Empfehlung ---------- */
@@ -1601,7 +1604,7 @@ function workshopHTML(anchor, T, model, shots, scale){
       </div>
     </div>
     <h3>Mühlen-Kalibrierung · ${esc(UI.grinder)}</h3>
-    <p class="muted" style="margin:0;font-size:13.5px">Erwartete Laufzeit je Mahlgrad für Ratio 1:${fmt(T.ratio,2)} und drei Dosen. Grün liegt im Zielfenster ${T.tMin}–${T.tMax} s. ${res < 1 ? '0,1' : '1 Klick'} ≈ ${fmt(perStep,1)} s; 1 g weniger Dosis braucht etwa ${Math.abs(dose1.steps)} ${res < 1 ? 'Stufen' : 'Klicks'} feiner für dieselbe Zeit.${fdFit ? ` Erster Tropfen: pro ${res < 1 ? '0,1' : 'Klick'} feiner ca. ${fmt(Math.abs(fdFit.b * res),1)} s später.` : ''}</p>
+    <p class="muted" style="margin:0;font-size:13.5px">Erwartete Laufzeit je Mahlgrad für Ratio 1:${fmt(T.ratio,2)} und drei Dosen. Grün liegt im Zielfenster ${T.tMin}–${T.tMax} s. ${res < 1 ? fmtG(res, res) : '1 Klick'} ≈ ${fmt(perStep,1)} s; 1 g weniger Dosis braucht etwa ${Math.abs(dose1.steps)} ${res < 1 ? 'Stufen' : 'Klicks'} feiner für dieselbe Zeit.${fdFit ? ` Erster Tropfen: pro ${res < 1 ? fmtG(res, res) : 'Klick'} feiner ca. ${fmt(Math.abs(fdFit.b * res),1)} s später.` : ''}</p>
     <div class="tablewrap"><table class="cmp cal"><thead><tr><th>Mahlgrad</th><th>Durchfluss</th>${cal.doses.map(d => `<th>${fmt(d,1)} g → ${fmt(d * T.ratio,0)} g</th>`).join('')}<th>Gemessen</th></tr></thead>
       <tbody>${cal.rows.map(r => `<tr class="${r.base ? 'anchor' : ''}"><td class="n" style="text-align:left">${fmtG(r.g, res)}${r.base ? ' <span class="badge">jetzt</span>' : ''}</td><td class="n">${r.f > 0.15 ? fmt(r.f,2) + ' g/s' : '–'}</td>${r.cells.map(c => `<td class="n ${inWin(c) ? 'win' : ''}">${c != null && c < 90 ? fmt(c,0) + ' s' : '–'}</td>`).join('')}<td class="n">${r.m.length ? r.m.map(s => `${fmt(s.time,0)} s<span class="muted">/${fmt(s.yield || 0,0)} g</span>`).join(', ') : ''}</td></tr>`).join('')}</tbody></table></div>
     <details>
@@ -2108,7 +2111,7 @@ function aiPayload(anchor, shots, T, model, rec){
     baseShotPerfect: rec.perfect ? { value: true, why: strip(rec.perfect.reason), source: rec.perfect.override === true ? 'marked by user' : 'full rating and no off-taste', instruction: 'Do not suggest improvements. Confirm the status quo; only adjust what is needed to keep this shot (e.g. faster flow as the opened bag ages).' } : rec.pf?.full ? { value: false, why: rec.pf.override === false ? 'user wants to keep improving' : 'full rating, but off-tastes were entered: ' + rec.pf.negLabels.join(', ') } : undefined,
     lastShotVsRecommendation: (() => {
       const D = recVsData(anchor, shots, T); if(!D) return undefined;
-      const { prev, r, rows, dt, missed } = D, rs = r.res || res;
+      const { prev, r, rows, dt, missed } = D, rs = Math.min(r.res || 1, res);
       return {
         meaning: 'The base shot (the newest shot) compared with what the app recommended for it, based on the shot before it',
         recommendationSource: r.src === 'log' ? 'exactly as shown in the app before the shot was pulled' : 'recalculated afterwards with the data from before this shot',
@@ -2161,7 +2164,7 @@ function aiCompareHTML(r, where){
   if(!plan || !r.app) return '';
   const a = r.app, nrm = v => String(v ?? '').replace(',', '.').replace(/\s*°C/, '').trim().toLowerCase();
   const rows = [['Mahlgrad', a.grind, plan.grind], ['Dosis', a.dose != null ? fmt(a.dose,1) + ' g' : null, plan.dose != null ? fmt(+plan.dose,1) + ' g' : null], ['Ausbeute', a.yield != null ? fmt(a.yield,0) + ' g' : null, plan.yield != null ? fmt(+plan.yield,0) + ' g' : null], ['Zeit', a.timeSec != null ? '~' + a.timeSec + ' s' : null, plan.timeSec != null ? '~' + plan.timeSec + ' s' : null], ['Temp', a.temp, plan.temp]];
-  const same = (x, y) => x == null || y == null || nrm(x) === nrm(y) || (!isNaN(parseFloat(nrm(x))) && Math.abs(parseFloat(nrm(x)) - parseFloat(nrm(y))) < 0.05);
+  const same = (x, y) => x == null || y == null || nrm(x) === nrm(y) || (!isNaN(parseFloat(nrm(x))) && Math.abs(parseFloat(nrm(x)) - parseFloat(nrm(y))) < 0.004);
   const diff = rows.filter(([, x, y]) => !same(x, y)).length;
   const agree = plan.agree === true && !diff;
   const acc = (UI.aiAcc || {})[ctxKey()]?.anchorId === r.anchorId;
@@ -2383,7 +2386,7 @@ function simpleHTML(o){
   const coarserSteps = anchor.grind != null ? Math.round(rec.dG * sign / res) : 0;
   const pos = -coarserSteps;                               // zu grob = rechts
   const n = Math.abs(coarserSteps), unit = res < 1 ? (n === 1 ? 'Stufe' : 'Stufen') : (n === 1 ? 'Klick' : 'Klicks');
-  const amount = `${n} ${unit}`;
+  const amount = res < 0.1 ? `um ${fmtG(n * res, res)}` : `${n} ${unit}`;
   const verdict = n === 0 ? 'Der Mahlgrad passt.' : pos > 0 ? (n >= 4 ? 'Deutlich zu grob.' : n >= 2 ? 'Ein gutes Stück zu grob.' : 'Etwas zu grob.') : (n >= 4 ? 'Deutlich zu fein.' : n >= 2 ? 'Ein gutes Stück zu fein.' : 'Etwas zu fein.');
   const instr = n === 0 ? 'Lass die Mühle so, wie sie ist.' : `Stell die Mühle ${amount} ${coarserSteps < 0 ? 'feiner' : 'gröber'}: <b class="num">${fmtG(anchor.grind, res)} → ${fmtG(rec.newGrind, res)}</b>`;
   const prof = Object.entries(SIMPLE_PROFILES).find(([, p]) => Math.abs(p.ratio - T.ratio) < 0.05 && p.tMin === T.tMin && p.tMax === T.tMax)?.[0] || 'own';
@@ -2493,7 +2496,7 @@ function recVsData(anchor, shots, T){
   if(!prev || anchor.grind == null || !anchor.time) return null;
   const r = recFor(prev, T);
   if(!r || r.g == null) return null;
-  const res = r.res || 0.1, sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
+  const res = Math.min(r.res || 1, grinderRes()), sign = UI.coarserHigher[UI.grinder] === false ? -1 : 1;
   const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs(v), Math.abs(v) % 1 ? 1 : 0);
   const rows = [];
   const dG = Math.round((anchor.grind - r.g) / res) * res;

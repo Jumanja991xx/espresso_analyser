@@ -996,3 +996,4 @@ PHRASES += [('<b>🏆 Volltreffer · Status quo</b>', '<b>🏆 Perfect shot · s
   ('<li>Volltreffer (volle Punktzahl, kein Fehlgeschmack): nichts mehr verbessern, den Status quo halten.</li>', '<li>Perfect shot (full marks, no off-taste): improve nothing, keep the status quo.</li>')]
 EXACT.update({'Volltreffer: ': 'Perfect shot: '})
 PHRASES += [('>Doch weiter verbessern<', '>Keep improving<')]
+EXACT.update({'um ': 'by '})
