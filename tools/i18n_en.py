@@ -1000,3 +1000,14 @@ EXACT.update({'um ': 'by '})
 EXACT.update({'Visualizer hat dich nicht erkannt. Bitte E-Mail und Passwort deines Visualizer-Kontos prüfen (nicht die von Beanconqueror).': 'Visualizer did not recognise you. Please check the email and password of your Visualizer account (not your Beanconqueror ones).',
   ' seit dem letzten Abgleich, ': ' since the last sync, ', ' davon geladen.': ' of them loaded.'})
 PHRASES += [('<span class="muted">Visualizer: ', '<span class="muted">Visualizer: ')]
+EXACT.update({'★ Gespeichertes Rezept': '★ Saved recipe', '🏆 Volltreffer': '🏆 Perfect shot', 'Letzter guter Shot': 'Last good shot', ' · Bohne ': ' · beans ',
+  'Kopieren nicht möglich': 'Copy not possible', 'Kopiert': 'Copied', 'Keine Treffer.': 'No matches.',
+  'Noch kein gutes Rezept. Sobald ein Shot mindestens ': 'No good recipe yet. As soon as a shot gets at least ',
+  ' ohne Fehlgeschmack bekommt oder du ein Rezept speicherst, erscheint er hier.': ' without off-taste or you save a recipe, it shows up here.',
+  'Neuerer guter Shot vom ': 'Newer good shot from '})
+PHRASES += [('">Als Rezept übernehmen</button></div>', '">Use as recipe</button></div>'), ('">Öffnen</button>', '">Open</button>'),
+  ('">Als Rezept speichern</button>', '">Save as recipe</button>'), ('">Kopieren</button>', '">Copy</button>'),
+  ('<h2 id="hRcp">Rezepte</h2>', '<h2 id="hRcp">Recipes</h2>'), ('Je Bohne und Mühle dein gespeichertes Rezept, sonst der letzte gute Shot (ab ', 'Per bean and grinder your saved recipe, otherwise the last good shot (from '),
+  (', ohne Fehlgeschmack)</span>', ', no off-taste)</span>'), ('<label for="rcpQ">Suchen</label>', '<label for="rcpQ">Search</label>'),
+  ('placeholder="Bohne, Mühle oder Röster"', 'placeholder="Bean, grinder or roaster"'), ('>Rezepte</button>', '>Recipes</button>'),
+  ('<span class="k">Rein → Raus</span>', '<span class="k">In → out</span>'), ('<span class="k">Mahlgrad</span>', '<span class="k">Grind</span>'), ('<span class="k">Zeit</span>', '<span class="k">Time</span>')]

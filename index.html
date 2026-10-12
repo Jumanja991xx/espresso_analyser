@@ -348,6 +348,21 @@ table.rvs tr.res td{border-top:2px solid var(--line)}
 .perfect .row{gap:12px;align-items:center}
 .perfect.warn,.perfect.off{background:var(--sunk);border-color:var(--line);display:block;font-size:13.5px}
 .perfect.hint{background:transparent;border:0;padding:0;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}
+.rcp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.rcp{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.rcp.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.rcp-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.rcp-head h3{margin:0;font-size:17px}
+.rcp-head .muted{font-size:13px}
+.rcp-badge{flex:none;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.rcp-badge.saved{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.rcp-badge.auto{background:var(--sunk);color:var(--muted)}
+.rcp-vals{display:flex;flex-wrap:wrap;gap:6px 16px}
+.rcp-vals > span{display:flex;flex-direction:column}
+.rcp-vals .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.rcp-vals b{font-size:16px}
+.rcp-newer{display:flex;flex-direction:column;gap:2px;font-size:13px;padding:8px 10px;border-radius:10px;background:var(--sunk)}
+.rcp .row{gap:6px}
 .dripadj{display:inline-flex;align-items:center;gap:6px;margin-left:2px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .dripadj .btn{min-width:28px;padding:2px 8px}
 .dripadj b{color:var(--ink);min-width:44px;text-align:center}
@@ -897,8 +912,8 @@ function buildModel(anchor){
   }
   return {...out, scope:'none'};
 }
-function grinderRes(){
-  const g = allShots().filter(s => s.grinder === UI.grinder && s.grind != null);
+function grinderRes(grinder = UI.grinder){
+  const g = allShots().filter(s => s.grinder === grinder && s.grind != null);
   // Auflösung aus den Daten: ganze Klicks, eine oder zwei Nachkommastellen (zwei: in 0,05er-Schritten, wenn alle Werte dazu passen)
   const off = (v, m) => Math.abs(v * m - Math.round(v * m)) > 1e-6;
   if(g.some(s => off(s.grind, 10))) return g.every(s => !off(s.grind, 20)) ? 0.05 : 0.01;
@@ -2480,6 +2495,50 @@ function simpleLogHTML(anchor, rec){
 }
 
 let tasteMoreOpen = false;
+/* ---------- Rezepte: je Bohne und Mühle das gespeicherte Rezept oder der letzte gute Shot ---------- */
+let recipeFilter = '';
+const recipeOf = s => ({ shotId:s.id, grindRaw:s.grindRaw, grind:s.grind, dose:s.dose, yield:s.yield, time:s.time, temp:s.temp, rating:s.rating, date:s.date?.getTime(), age:beanAge(s) });
+function recipeList(){
+  const scale = ratingScale(), groups = new Map();
+  allShots().forEach(s => { const k = s.bean + '||' + s.grinder; if(!groups.has(k)) groups.set(k, []); groups.get(k).push(s); });
+  const out = [];
+  groups.forEach((list, k) => {
+    const good = list.filter(s => s.time && s.dose && s.yield && s.rating >= 0.8 * scale && !anyNeg(shotTags(s)));
+    const best = good[0];   // neuester guter Shot
+    const saved = UI.recipes[k];
+    if(!saved && !best) return;
+    out.push({ k, bean: list[0].bean, grinder: list[0].grinder, roaster: list[0].beanId ? DATA?.beans?.[list[0].beanId]?.roaster : null, rl: roastClass(list[0]), last: list[0].date, n: list.length, saved, best, filter: isFilter(list) });
+  });
+  return out.sort((a, b) => (b.last || 0) - (a.last || 0));
+}
+function recipesHTML(){
+  const scale = ratingScale(), q = recipeFilter.trim().toLowerCase();
+  const all = recipeList(), list = q ? all.filter(r => (r.bean + ' ' + r.grinder + ' ' + (r.roaster || '')).toLowerCase().includes(q)) : all;
+  const line = (r, x, res) => `<div class="rcp-vals"><span><span class="k">Mahlgrad</span><b class="num">${x.grind != null ? fmtG(x.grind, res) : esc(x.grindRaw || '–')}</b></span><span><span class="k">Rein → Raus</span><b class="num">${fmt(x.dose,1)} → ${fmt(x.yield,1)} g</b></span><span><span class="k">Ratio</span><b class="num">1:${fmt(x.yield / x.dose, 2)}</b></span><span><span class="k">Zeit</span><b class="num">${fmt(x.time,0)} s</b></span>${x.temp ? `<span><span class="k">Temp</span><b class="num">${fmt(x.temp, x.temp % 1 ? 1 : 0)} °C</b></span>` : ''}</div>`;
+  const cards = list.map(r => {
+    const res = grinderRes(r.grinder), sv = r.saved, b = r.best;
+    const newer = sv && b && b.id !== sv.shotId && (b.date?.getTime() || 0) > (sv.date || 0);
+    const main = sv || recipeOf(b), pf = !sv && b && perfectInfo(b).perfect;
+    const when = main.date ? fmtDate(new Date(main.date)) : '';
+    return `<article class="rcp${UI.bean + '||' + UI.grinder === r.k ? ' cur' : ''}">
+      <div class="rcp-head"><div><h3>${esc(r.bean)}</h3><span class="muted">${esc(r.grinder)}${r.roaster ? ' · ' + esc(r.roaster) : ''}${r.rl ? ' · ' + ROAST[r.rl].label : ''}</span></div>
+        <span class="rcp-badge ${sv ? 'saved' : 'auto'}">${sv ? '★ Gespeichertes Rezept' : pf ? '🏆 Volltreffer' : 'Letzter guter Shot'}</span></div>
+      ${line(r, main, res)}
+      <span class="muted" style="font-size:12.5px">${when}${main.rating ? ` · ${fmt(main.rating,0)}/${scale}` : ''}${main.age != null ? ` · Bohne ${main.age} Tage alt` : ''}</span>
+      ${newer ? `<div class="rcp-newer"><span>Neuerer guter Shot vom ${fmtDate(b.date)}: ${b.grind != null ? fmtG(b.grind, res) : esc(b.grindRaw)} · ${fmt(b.dose,1)} → ${fmt(b.yield,1)} g · ${fmt(b.time,0)} s${b.rating ? ` · ${fmt(b.rating,0)}/${scale}` : ''}</span><button class="linkbtn" type="button" data-rcpsave="${esc(r.k)}" data-shot="${esc(b.id)}">Als Rezept übernehmen</button></div>` : ''}
+      <div class="row">
+        <button class="btn small primary" type="button" data-rcpopen="${esc(r.k)}">Öffnen</button>
+        ${!sv ? `<button class="btn small" type="button" data-rcpsave="${esc(r.k)}" data-shot="${esc(b.id)}">Als Rezept speichern</button>` : ''}
+        <button class="btn small" type="button" data-rcpcopy="${esc(r.k)}">Kopieren</button>
+      </div>
+    </article>`;
+  }).join('');
+  return `<section class="card" aria-labelledby="hRcp">
+    <div class="card-head"><h2 id="hRcp">Rezepte</h2><span class="muted" style="font-size:13px">Je Bohne und Mühle dein gespeichertes Rezept, sonst der letzte gute Shot (ab ${fmt(0.8 * scale,0)}/${scale}, ohne Fehlgeschmack)</span></div>
+    ${all.length > 4 ? `<div class="field" style="max-width:320px"><label for="rcpQ">Suchen</label><input id="rcpQ" type="search" value="${esc(recipeFilter)}" placeholder="Bohne, Mühle oder Röster"></div>` : ''}
+    ${list.length ? `<div class="rcp-grid">${cards}</div>` : `<p class="muted">${all.length ? 'Keine Treffer.' : 'Noch kein gutes Rezept. Sobald ein Shot mindestens ' + fmt(0.8 * scale,0) + '/' + scale + ' ohne Fehlgeschmack bekommt oder du ein Rezept speicherst, erscheint er hier.'}</p>`}
+  </section>`;
+}
 /* Volltreffer-Hinweis für „Nächster Shot“ (Dial-in und Einfach) */
 function perfectHTML(anchor, rec){
   const pf = rec.pf || perfectInfo(anchor), recipe = UI.recipes[ctxKey()], scale = ratingScale();
@@ -2810,7 +2869,8 @@ function render(){
   const anchorRatio = ratio(anchor);
   const wsView = UI.view === 'ws' && !isFilter(shots);
   const simpleView = UI.view === 'simple' && !isFilter(shots);
-  const dialView = !wsView && !simpleView;
+  const rcpView = UI.view === 'recipes';
+  const dialView = !wsView && !simpleView && !rcpView;
   const baseCard = `
   <section class="card basecard${simpleView ? ' nocmp' : ''}" aria-labelledby="hLast">
         <div class="card-head"><h2 id="hLast">Ausgangs-Shot</h2><span class="muted num">${fmtDate(anchor.date)}${anchor.source === 'app' ? ' · neu erfasst' : ''}</span></div>
@@ -2865,6 +2925,7 @@ function render(){
   <nav class="viewtabs" role="tablist" aria-label="Ansicht">
     <button type="button" role="tab" id="tabDial" aria-controls="vDial" aria-selected="${dialView}">Dial-in</button>
     ${isFilter(shots) ? '' : `<button type="button" role="tab" id="tabWs" aria-controls="vWs" aria-selected="${wsView}">Rezept-Werkstatt</button><button type="button" role="tab" id="tabSimple" aria-controls="vSimple" aria-selected="${simpleView}">Einfach</button>`}
+    <button type="button" role="tab" id="tabRcp" aria-controls="vRcp" aria-selected="${rcpView}">Rezepte</button>
   </nav>
   <div class="view" id="vDial" role="tabpanel" aria-labelledby="tabDial" ${dialView ? '' : 'hidden'}>
   ${simpleView ? '' : baseCard + recVs}
@@ -2971,12 +3032,23 @@ function render(){
   </div>
   <div class="view" id="vWs" role="tabpanel" aria-labelledby="tabWs" ${wsView ? '' : 'hidden'}>
   ${workshopHTML(anchor, T, model, shots, scale)}
+  </div>
+  <div class="view" id="vRcp" role="tabpanel" aria-labelledby="tabRcp" ${rcpView ? '' : 'hidden'}>
+  ${rcpView ? recipesHTML() : ''}
   </div>`;
-  const VIEWS = ['dial', 'ws', 'simple'], TABS = { dial:'#tabDial', ws:'#tabWs', simple:'#tabSimple' };
+  const VIEWS = ['dial', 'ws', 'simple', 'recipes'].filter(v => $(({ dial:'#tabDial', ws:'#tabWs', simple:'#tabSimple', recipes:'#tabRcp' })[v])), TABS = { dial:'#tabDial', ws:'#tabWs', simple:'#tabSimple', recipes:'#tabRcp' };
   const setView = v => { UI.view = v; saveUI(); render(); const t = $(TABS[v]); if(t) t.focus({ preventScroll:true }); };
   $('#tabDial').onclick = () => setView('dial');
-  { const tw = $('#tabWs'); if(tw) tw.onclick = () => setView('ws'); const ts = $('#tabSimple'); if(ts) ts.onclick = () => setView('simple'); }
-  $('#app').querySelector('.viewtabs').addEventListener('keydown', ev => { if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight' || !$('#tabWs')) return; const cur = Math.max(0, VIEWS.indexOf(UI.view)); setView(VIEWS[(cur + (ev.key === 'ArrowRight' ? 1 : 2)) % 3]); });
+  { const tw = $('#tabWs'); if(tw) tw.onclick = () => setView('ws'); const ts = $('#tabSimple'); if(ts) ts.onclick = () => setView('simple'); $('#tabRcp').onclick = () => setView('recipes'); }
+  $('#app').querySelector('.viewtabs').addEventListener('keydown', ev => { if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return; const cur = Math.max(0, VIEWS.indexOf(UI.view)); setView(VIEWS[(cur + (ev.key === 'ArrowRight' ? 1 : VIEWS.length - 1)) % VIEWS.length]); });
+  // Rezepte
+  { const q = $('#rcpQ'); if(q) q.oninput = () => { recipeFilter = q.value; const pos = q.selectionStart; render(); const n = $('#rcpQ'); if(n){ n.focus(); n.setSelectionRange(pos, pos); } }; }
+  const rcpEntry = k => recipeList().find(r => r.k === k);
+  document.querySelectorAll('[data-rcpopen]').forEach(b => b.onclick = () => { const r = rcpEntry(b.dataset.rcpopen); if(!r) return; UI.bean = r.bean; UI.grinder = r.grinder; UI.anchorId = null; UI.detailId = null; formDirty = false; setView('dial'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.querySelectorAll('[data-rcpsave]').forEach(b => b.onclick = () => { const sh = allShots().find(s => s.id === b.dataset.shot); if(!sh) return; UI.recipes[b.dataset.rcpsave] = recipeOf(sh); delete UI.targets[b.dataset.rcpsave]; saveUI(); render(); });
+  document.querySelectorAll('[data-rcpcopy]').forEach(b => b.onclick = async () => { const r = rcpEntry(b.dataset.rcpcopy); if(!r) return; const x = r.saved || recipeOf(r.best), res = grinderRes(r.grinder);
+    const txt = `${r.bean} · ${r.grinder}: Mahlgrad ${x.grind != null ? fmtG(x.grind, res) : x.grindRaw}, ${fmt(x.dose,1)} g → ${fmt(x.yield,1)} g in ${fmt(x.time,0)} s${x.temp ? ', ' + fmt(x.temp, x.temp % 1 ? 1 : 0) + ' °C' : ''}`;
+    try{ await navigator.clipboard.writeText(txt); b.textContent = 'Kopiert'; }catch(e){ b.textContent = 'Kopieren nicht möglich'; } });
   // Einfach-Ansicht
   document.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { const pf = SIMPLE_PROFILES[b.dataset.prof]; UI.targets[ctxKey()] = { ...(UI.targets[ctxKey()] || {}), dose: T.dose, ratio: pf.ratio, tMin: pf.tMin, tMax: pf.tMax }; formDirty = false; saveUI(); render(); });
   document.querySelectorAll('[data-perf]').forEach(b => b.onclick = () => { const m = UI.perfect ||= {}, v = b.dataset.perf; if(v === 'reset') delete m[anchor.id]; else m[anchor.id] = v === 'on'; delete (UI.aiAcc || {})[ctxKey()]; formDirty = false; saveUI(); render(); });
