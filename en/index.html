@@ -97,6 +97,7 @@ button,select,input,textarea{font:inherit;color:inherit}
 .col{display:flex;flex-direction:column;gap:var(--gap);min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .nsf iframe{max-width:100%;align-self:flex-start;border-radius:8px}
+.nsf-row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
 .card-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 
 /* letzter Shot */
@@ -459,7 +460,11 @@ table.rvs tr.res td{border-top:2px solid var(--line)}
   <div id="app"></div>
   <section class="card nsf" id="nsfTest" aria-labelledby="hNsf">
     <h2 id="hNsf">Test: NextSimFlight embed</h2>
-    <iframe src="https://www.nextsimflight.com/embed/runways/LHBP?size=compact&theme=auto" width="320" height="320" style="border:0" loading="lazy" title="LHBP runways & wind — NextSimFlight"></iframe>
+    <div class="nsf-row">
+      <iframe src="http://localhost:3000/embed/runways/EDPR?size=compact&amp;theme=auto" width="320" height="320" style="border:0;max-width:100%" loading="lazy" title="EDPR runways &amp; wind — NextSimFlight"></iframe>
+      <iframe src="http://localhost:3000/embed/weather/EDPR?size=compact&amp;theme=auto&amp;temp=c" width="320" height="300" style="border:0;max-width:100%" loading="lazy" title="EDPR weather — NextSimFlight"></iframe>
+    </div>
+    <iframe src="http://localhost:3000/embed/airport/EDDM?size=wide&amp;theme=dark&amp;temp=c" width="600" height="360" style="border:0;max-width:100%" loading="lazy" title="EDDM weather and runways — NextSimFlight"></iframe>
   </section>
 </div>
 <div class="drop" id="drop" hidden>Export hier ablegen</div>
